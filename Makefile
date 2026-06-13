@@ -1,0 +1,23 @@
+.PHONY: sync test lint format small matrix report
+
+sync:
+	uv sync --extra dev
+
+test:
+	uv run pytest tests -q
+
+lint:
+	uv run ruff check .
+
+format:
+	uv run ruff format .
+
+small:
+	uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/small.yaml
+
+matrix:
+	uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/full.yaml
+
+report:
+	uv run python -m specialization_cache_frontier.analysis.report --runs-dir artifacts/runs
+
