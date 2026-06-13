@@ -24,6 +24,17 @@ def test_semantic_routes_by_task_type():
     assert decision.adapter_id == "json"
 
 
+def test_random_policy_is_deterministic_for_seed():
+    cache = StandardLoRACache(CacheConfig(block_size=2))
+    first = make_router(RouterConfig(policy="random", seed=3))
+    second = make_router(RouterConfig(policy="random", seed=3))
+
+    assert (
+        first.route(_request("qa"), ["qa", "json"], cache).adapter_id
+        == second.route(_request("qa"), ["qa", "json"], cache).adapter_id
+    )
+
+
 def test_sticky_session_reuses_compatible_adapter():
     router = make_router(RouterConfig(policy="sticky_session"))
     cache = StandardLoRACache(CacheConfig(block_size=2))
@@ -41,3 +52,13 @@ def test_cache_aware_can_choose_cached_adapter_when_quality_is_close():
     router = make_router(RouterConfig(policy="cache_aware", alpha=0.10, epsilon=0.0))
     decision = router.route(request, ["qa", "multitask"], cache)
     assert decision.adapter_id == "multitask"
+
+
+def test_oracle_prefers_quality_adjusted_goodput_candidate():
+    cache = StandardLoRACache(CacheConfig(block_size=2))
+    request = _request("summary")
+    router = make_router(RouterConfig(policy="oracle"))
+
+    decision = router.route(request, ["qa", "summary", "multitask"], cache)
+
+    assert decision.adapter_id == "summary"

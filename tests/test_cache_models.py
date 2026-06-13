@@ -1,4 +1,5 @@
 from specialization_cache_frontier.cache.activated_lora_cache import ActivatedLoRACache
+from specialization_cache_frontier.cache.base_shared_cache import BaseSharedCache
 from specialization_cache_frontier.cache.copy_on_write_cache import CopyOnWriteCache
 from specialization_cache_frontier.cache.standard_lora_cache import StandardLoRACache
 from specialization_cache_frontier.config import CacheConfig
@@ -18,6 +19,14 @@ def test_same_prompt_different_adapter_fragments_standard_lora_cache():
     assert cache.estimate_cached_prefix_tokens("json", prompt, "tenant-a", "trust-a") == 0
     cache.observe_request("json", prompt, "tenant-a", "trust-a")
     assert cache.fragmentation_index() == 2.0
+
+
+def test_base_shared_reuses_same_prompt_across_adapters():
+    cache = BaseSharedCache(CacheConfig(block_size=2))
+    prompt = "alpha beta gamma delta"
+    cache.observe_request("qa", prompt, "tenant-a", "trust-a")
+    assert cache.estimate_cached_prefix_tokens("json", prompt, "tenant-a", "trust-a") == 4
+    assert cache.fragmentation_index() == 1.0
 
 
 def test_activated_lora_shares_prefix_before_invocation():
