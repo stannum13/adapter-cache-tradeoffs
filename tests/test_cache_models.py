@@ -12,6 +12,18 @@ def test_same_prompt_same_adapter_reuses_cache():
     assert cache.estimate_cached_prefix_tokens("qa", prompt, "tenant-a", "trust-a") == 4
 
 
+def test_cache_estimates_do_not_pollute_hit_rate_metrics():
+    cache = StandardLoRACache(CacheConfig(block_size=2))
+    prompt = "alpha beta gamma delta"
+    cache.observe_request("qa", prompt, "tenant-a", "trust-a")
+    cache.estimate_cached_prefix_tokens("qa", prompt, "tenant-a", "trust-a")
+
+    assert cache.cache_hit_rate() == 0.0
+
+    cache.observe_request("qa", prompt, "tenant-a", "trust-a")
+    assert cache.cache_hit_rate() == 2 / 3
+
+
 def test_same_prompt_different_adapter_fragments_standard_lora_cache():
     cache = StandardLoRACache(CacheConfig(block_size=2))
     prompt = "alpha beta gamma delta"

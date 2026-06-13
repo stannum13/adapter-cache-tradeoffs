@@ -44,7 +44,11 @@ class CacheModel(ABC):
         logical_key = stable_hash([*logical_namespace, logical_parent_hash, token_sig])
         return CacheBlock(key=key, logical_key=logical_key, token_count=len(tokens))
 
-    def _estimate_segments(self, segments: list[tuple[list[str], list[str], list[str]]]) -> int:
+    def _estimate_segments(
+        self,
+        segments: list[tuple[list[str], list[str], list[str]]],
+        record_stats: bool = False,
+    ) -> int:
         cached = 0
         parent_by_ns: dict[tuple[str, ...], str] = {}
         logical_parent_by_ns: dict[tuple[str, ...], str] = {}
@@ -55,7 +59,8 @@ class CacheModel(ABC):
             logical_parent = logical_parent_by_ns.get(logical_ns_key, "root")
             for chunk in self._chunks(tokens):
                 block = self._block(namespace, logical_namespace, parent, logical_parent, chunk)
-                if not self.table.contains(block):
+                hit = self.table.contains(block) if record_stats else block.key in self.table.blocks
+                if not hit:
                     return cached
                 cached += len(chunk)
                 parent = block.key
@@ -97,7 +102,10 @@ class CacheModel(ABC):
         self, adapter_id: str, prompt: str, tenant_id: str, trust_group_id: str
     ) -> None:
         tokens = self.tokenizer.encode(prompt)
-        cached = self.estimate_cached_prefix_tokens(adapter_id, prompt, tenant_id, trust_group_id)
+        cached = self._estimate_segments(
+            self._segments(adapter_id, prompt, tenant_id, trust_group_id),
+            record_stats=True,
+        )
         self.request_count += 1
         self.total_prompt_tokens += len(tokens)
         self.total_cached_prefix_tokens += cached
