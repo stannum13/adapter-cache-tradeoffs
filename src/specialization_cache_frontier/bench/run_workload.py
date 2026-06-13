@@ -12,7 +12,11 @@ from specialization_cache_frontier.routing.base import make_router
 from specialization_cache_frontier.workloads.generator import generate_workload
 
 
-def run(config: BenchmarkConfig, run_id: str | None = None) -> Path:
+def run(
+    config: BenchmarkConfig,
+    run_id: str | None = None,
+    report_path: str | Path = "reports/specialization-cache-frontier.md",
+) -> Path:
     run_id = run_id or f"{config.run_name}-{int(time.time() * 1000)}"
     run_dir = Path(config.output_dir) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -44,7 +48,7 @@ def run(config: BenchmarkConfig, run_id: str | None = None) -> Path:
 
     from specialization_cache_frontier.analysis.report import generate_report
 
-    generate_report(config.output_dir)
+    generate_report(config.output_dir, report_path=report_path)
     return run_dir
 
 
