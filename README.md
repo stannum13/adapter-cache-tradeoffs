@@ -27,6 +27,7 @@ Outputs:
 - `artifacts/runs/{run_id}/config_resolved.yaml`
 - `reports/specialization-cache-frontier.md`
 - `reports/figures/*.png`
+- `reports/tables/*.csv`
 
 ## Expected plots
 
@@ -36,6 +37,14 @@ Outputs:
 - memory token footprint by cache model
 - prompt layout ablation
 - adapter strategy frontier
+
+## Expected tables
+
+- `summaries.csv`: one row per benchmark run
+- `workload_leaders.csv`: best router/cache pair per workload by quality-adjusted goodput
+- `cache_model_means.csv`: aggregate strategy comparison across cache models
+- `router_means.csv`: aggregate router comparison
+- `layout_ablation.csv`: request-level prompt layout metrics from `requests.jsonl`
 
 ## Repo structure
 
@@ -53,13 +62,27 @@ Outputs:
 ```bash
 uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/small.yaml
 uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/full.yaml
+uv run python -m specialization_cache_frontier.analysis.report --runs-dir artifacts/runs
 ```
 
 The default path requires no GPU and no internet after dependencies are installed.
 
 ## Plug in vLLM
 
-`VLLMBackend` is an OpenAI-compatible client stub. Configure `backend.base_url`, `backend.api_key`, `backend.model`, and adapter names, then extend response parsing for your server metrics. Integration tests should be skipped unless `RUN_VLLM_TESTS=1`.
+`VLLMBackend` has a non-streaming OpenAI-compatible path for `/chat/completions`.
+Configure `backend.base_url`, `backend.api_key`, `backend.model`, adapter names,
+`max_tokens`, `temperature`, and `extra_body`. Unit tests use `httpx.MockTransport`;
+real serving tests should be skipped unless `RUN_VLLM_TESTS=1`.
+
+## Local verification
+
+```bash
+uv run pytest tests -q
+uv run ruff check .
+uv run ruff format . --check
+```
+
+The GitHub Actions workflow runs the same CPU-only checks.
 
 ## Limitations
 
@@ -68,4 +91,3 @@ The first pass uses whitespace tokenization, approximate block caching, syntheti
 ## Physical AI analogue
 
 The same issue appears in VLA serving: repeated visual/proprioceptive scene tokens map to a world-state cache, skill adapters map to specialization, and goodput maps to success-rate-adjusted control Hz. See `src/specialization_cache_frontier/physical_ai_analogue/README.md`.
-
