@@ -50,6 +50,56 @@ Generated figures:
 - `reports/figures/prompt_layout_ablation.png`
 - `reports/figures/adapter_strategy_frontier.png`
 
+Generated tables:
+
+- `reports/tables/summaries.csv`
+- `reports/tables/workload_leaders.csv`
+- `reports/tables/cache_model_means.csv`
+- `reports/tables/router_means.csv`
+- `reports/tables/layout_ablation.csv`
+
+### Workload leaders
+
+| workload | router_policy | cache_model | quality_adjusted_goodput | mean_quality | p95_ttft_ms |
+| --- | --- | --- | --- | --- | --- |
+| agent_session | oracle | activated_lora | 17.118 | 0.922 | 23.241 |
+| low_overlap_control | semantic | activated_lora | 8.911 | 0.916 | 72.620 |
+| mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 0.915 | 19.255 |
+| prompt_layout_ablation | sticky_session | activated_lora | 12.220 | 0.932 | 71.645 |
+| shared_doc_qa | oracle | activated_lora | 16.822 | 0.913 | 73.764 |
+
+### Cache-model means
+
+| cache_model | adapter_strategy | quality_adjusted_goodput | p95_ttft_ms | cache_hit_rate | fragmentation_index |
+| --- | --- | --- | --- | --- | --- |
+| activated_lora | activated-late-specialization | 14.620 | 48.714 | 0.838 | 1.016 |
+| base_shared | multitask-or-shared-base | 13.940 | 52.145 | 0.844 | 1.000 |
+| copy_on_write | copy-on-write-delta | 13.940 | 52.145 | 0.844 | 1.026 |
+| standard_lora | specialist-adapter | 12.863 | 65.348 | 0.798 | 1.347 |
+
+### Router means
+
+| router_policy | quality_adjusted_goodput | mean_quality | p95_ttft_ms |
+| --- | --- | --- | --- |
+| cache_aware | 14.964 | 0.896 | 47.788 |
+| oracle | 14.560 | 0.920 | 56.178 |
+| semantic | 14.560 | 0.920 | 56.178 |
+| sticky_session | 14.560 | 0.920 | 56.178 |
+| random | 10.508 | 0.685 | 56.757 |
+
+### Prompt-layout ablation
+
+| prompt_layout | cache_model | ttft_ms | quality | cached_prompt_tokens |
+| --- | --- | --- | --- | --- |
+| document_before_instruction | activated_lora | 18.122 | 0.882 | 154.383 |
+| document_before_instruction | base_shared | 18.256 | 0.882 | 154.000 |
+| document_before_instruction | copy_on_write | 18.256 | 0.882 | 154.000 |
+| document_before_instruction | standard_lora | 22.176 | 0.882 | 142.800 |
+| instruction_before_document | activated_lora | 69.293 | 0.895 | 6.867 |
+| instruction_before_document | base_shared | 69.129 | 0.895 | 7.333 |
+| instruction_before_document | copy_on_write | 69.129 | 0.895 | 7.333 |
+| instruction_before_document | standard_lora | 69.293 | 0.895 | 6.867 |
+
 ## Takeaways
 
 Specialization is most attractive when quality gains exceed the prefill and

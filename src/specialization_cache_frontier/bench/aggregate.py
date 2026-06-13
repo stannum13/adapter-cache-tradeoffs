@@ -5,6 +5,13 @@ from pathlib import Path
 
 import pandas as pd
 
+STRATEGY_BY_CACHE_MODEL = {
+    "standard_lora": "specialist-adapter",
+    "base_shared": "multitask-or-shared-base",
+    "activated_lora": "activated-late-specialization",
+    "copy_on_write": "copy-on-write-delta",
+}
+
 
 def load_summaries(runs_dir: str | Path) -> pd.DataFrame:
     rows = []
@@ -12,6 +19,117 @@ def load_summaries(runs_dir: str | Path) -> pd.DataFrame:
         with path.open("r", encoding="utf-8") as handle:
             rows.append(json.load(handle))
     return pd.DataFrame(rows)
+
+
+def with_strategy_columns(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    enriched = df.copy()
+    enriched["adapter_strategy"] = (
+        enriched["cache_model"].map(STRATEGY_BY_CACHE_MODEL).fillna(enriched["cache_model"])
+    )
+    enriched["router_cache_pair"] = enriched["router_policy"] + " / " + enriched["cache_model"]
+    return enriched
+
+
+def workload_leaders(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    enriched = with_strategy_columns(df)
+    ordered = enriched.sort_values(
+        ["workload", "quality_adjusted_goodput", "mean_quality", "p95_ttft_ms"],
+        ascending=[True, False, False, True],
+    )
+    columns = [
+        "workload",
+        "router_policy",
+        "cache_model",
+        "adapter_strategy",
+        "quality_adjusted_goodput",
+        "mean_quality",
+        "p95_ttft_ms",
+        "cache_hit_rate",
+        "memory_token_footprint",
+        "fragmentation_index",
+    ]
+    return ordered.groupby("workload", as_index=False).head(1)[columns].reset_index(drop=True)
+
+
+def cache_model_means(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    enriched = with_strategy_columns(df)
+    return (
+        enriched.groupby(["cache_model", "adapter_strategy"], as_index=False)
+        .agg(
+            quality_adjusted_goodput=("quality_adjusted_goodput", "mean"),
+            mean_quality=("mean_quality", "mean"),
+            p95_ttft_ms=("p95_ttft_ms", "mean"),
+            cache_hit_rate=("cache_hit_rate", "mean"),
+            memory_token_footprint=("memory_token_footprint", "mean"),
+            fragmentation_index=("fragmentation_index", "mean"),
+        )
+        .sort_values("quality_adjusted_goodput", ascending=False)
+        .reset_index(drop=True)
+    )
+
+
+def router_means(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    return (
+        df.groupby("router_policy", as_index=False)
+        .agg(
+            quality_adjusted_goodput=("quality_adjusted_goodput", "mean"),
+            mean_quality=("mean_quality", "mean"),
+            p95_ttft_ms=("p95_ttft_ms", "mean"),
+            cache_hit_rate=("cache_hit_rate", "mean"),
+        )
+        .sort_values("quality_adjusted_goodput", ascending=False)
+        .reset_index(drop=True)
+    )
+
+
+def layout_ablation_means(request_df: pd.DataFrame) -> pd.DataFrame:
+    if request_df.empty or "workload" not in request_df:
+        return pd.DataFrame()
+    layout_rows = request_df[request_df["workload"].eq("prompt_layout_ablation")]
+    if layout_rows.empty:
+        return pd.DataFrame()
+    return (
+        layout_rows.groupby(["prompt_layout", "cache_model"], as_index=False)
+        .agg(
+            ttft_ms=("ttft_ms", "mean"),
+            e2e_ms=("e2e_ms", "mean"),
+            quality=("quality", "mean"),
+            cached_prompt_tokens=("cached_prompt_tokens", "mean"),
+            prompt_tokens=("prompt_tokens", "mean"),
+        )
+        .sort_values(["prompt_layout", "cache_model"])
+        .reset_index(drop=True)
+    )
+
+
+def write_analysis_tables(
+    df: pd.DataFrame,
+    request_df: pd.DataFrame,
+    output_dir: str | Path = "reports/tables",
+) -> dict[str, Path]:
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    tables = {
+        "summaries": with_strategy_columns(df),
+        "workload_leaders": workload_leaders(df),
+        "cache_model_means": cache_model_means(df),
+        "router_means": router_means(df),
+        "layout_ablation": layout_ablation_means(request_df),
+    }
+    paths = {}
+    for name, table in tables.items():
+        path = out / f"{name}.csv"
+        table.to_csv(path, index=False)
+        paths[name] = path
+    return paths
 
 
 def load_request_rows(runs_dir: str | Path) -> pd.DataFrame:

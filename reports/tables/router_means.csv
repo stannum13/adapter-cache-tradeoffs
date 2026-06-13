@@ -1,0 +1,2 @@
+router_policy,quality_adjusted_goodput,mean_quality,p95_ttft_ms,cache_hit_rate
+cache_aware,18.84556271378517,0.9023646843996809,27.81773276959156,0.8918918918918919

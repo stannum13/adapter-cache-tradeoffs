@@ -4,16 +4,47 @@ import argparse
 from pathlib import Path
 
 from specialization_cache_frontier.analysis.plots import generate_plots
-from specialization_cache_frontier.bench.aggregate import load_request_rows, load_summaries
+from specialization_cache_frontier.bench.aggregate import (
+    cache_model_means,
+    layout_ablation_means,
+    load_request_rows,
+    load_summaries,
+    router_means,
+    workload_leaders,
+    write_analysis_tables,
+)
+
+
+def _markdown_table(rows: list[dict[str, object]], columns: list[str]) -> list[str]:
+    if not rows:
+        return ["No rows available."]
+    header = "| " + " | ".join(columns) + " |"
+    divider = "| " + " | ".join("---" for _ in columns) + " |"
+    body = []
+    for row in rows:
+        values = []
+        for column in columns:
+            value = row.get(column, "")
+            if isinstance(value, float):
+                value = f"{value:.3f}"
+            values.append(str(value))
+        body.append("| " + " | ".join(values) + " |")
+    return [header, divider, *body]
 
 
 def generate_report(
     runs_dir: str | Path = "artifacts/runs",
     report_path: str | Path = "reports/specialization-cache-frontier.md",
+    tables_dir: str | Path = "reports/tables",
 ) -> Path:
     df = load_summaries(runs_dir)
     request_df = load_request_rows(runs_dir)
     figures = generate_plots(df, request_df=request_df)
+    table_paths = write_analysis_tables(df, request_df, tables_dir)
+    leaders = workload_leaders(df)
+    cache_means = cache_model_means(df)
+    routers = router_means(df)
+    layouts = layout_ablation_means(request_df)
     report = Path(report_path)
     report.parent.mkdir(parents=True, exist_ok=True)
     if df.empty:
@@ -39,6 +70,37 @@ def generate_report(
             f"{layout_note}".strip()
         )
     figure_lines = "\n".join(f"- `{path}`" for path in figures)
+    table_lines = "\n".join(f"- `{path}`" for path in table_paths.values())
+    leader_lines = _markdown_table(
+        leaders.head(8).to_dict("records") if not leaders.empty else [],
+        [
+            "workload",
+            "router_policy",
+            "cache_model",
+            "quality_adjusted_goodput",
+            "mean_quality",
+            "p95_ttft_ms",
+        ],
+    )
+    cache_lines = _markdown_table(
+        cache_means.head(8).to_dict("records") if not cache_means.empty else [],
+        [
+            "cache_model",
+            "adapter_strategy",
+            "quality_adjusted_goodput",
+            "p95_ttft_ms",
+            "cache_hit_rate",
+            "fragmentation_index",
+        ],
+    )
+    router_lines = _markdown_table(
+        routers.head(8).to_dict("records") if not routers.empty else [],
+        ["router_policy", "quality_adjusted_goodput", "mean_quality", "p95_ttft_ms"],
+    )
+    layout_lines = _markdown_table(
+        layouts.head(12).to_dict("records") if not layouts.empty else [],
+        ["prompt_layout", "cache_model", "ttft_ms", "quality", "cached_prompt_tokens"],
+    )
     lines = [
         "# When is specialization worth its cache footprint?",
         "",
@@ -87,6 +149,26 @@ def generate_report(
         "",
         figure_lines,
         "",
+        "Generated tables:",
+        "",
+        table_lines,
+        "",
+        "### Workload leaders",
+        "",
+        *leader_lines,
+        "",
+        "### Cache-model means",
+        "",
+        *cache_lines,
+        "",
+        "### Router means",
+        "",
+        *router_lines,
+        "",
+        "### Prompt-layout ablation",
+        "",
+        *layout_lines,
+        "",
         "## Takeaways",
         "",
         "Specialization is most attractive when quality gains exceed the prefill and",
@@ -115,8 +197,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runs-dir", default="artifacts/runs")
     parser.add_argument("--report-path", default="reports/specialization-cache-frontier.md")
+    parser.add_argument("--tables-dir", default="reports/tables")
     args = parser.parse_args()
-    print(generate_report(args.runs_dir, args.report_path))
+    print(generate_report(args.runs_dir, args.report_path, args.tables_dir))
 
 
 if __name__ == "__main__":

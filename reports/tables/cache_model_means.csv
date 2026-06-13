@@ -1,0 +1,2 @@
+cache_model,adapter_strategy,quality_adjusted_goodput,mean_quality,p95_ttft_ms,cache_hit_rate,memory_token_footprint,fragmentation_index
+activated_lora,activated-late-specialization,18.84556271378517,0.9023646843996809,27.81773276959156,0.8918918918918919,164.0,1.0

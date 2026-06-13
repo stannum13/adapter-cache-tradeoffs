@@ -1,6 +1,12 @@
 import json
 
-from specialization_cache_frontier.bench.aggregate import load_request_rows
+from specialization_cache_frontier.bench.aggregate import (
+    cache_model_means,
+    load_request_rows,
+    router_means,
+    workload_leaders,
+    write_analysis_tables,
+)
 from specialization_cache_frontier.bench.run_workload import run
 from specialization_cache_frontier.config import (
     BenchmarkConfig,
@@ -66,3 +72,45 @@ def test_load_request_rows_reads_layout_and_metrics(tmp_path):
 
     assert df.iloc[0]["prompt_layout"] == "document_before_instruction"
     assert df.iloc[0]["ttft_ms"] == 10.0
+
+
+def test_analysis_tables_rank_workloads_and_export_csv(tmp_path):
+    import pandas as pd
+
+    summaries = pd.DataFrame(
+        [
+            {
+                "workload": "shared_doc_qa",
+                "router_policy": "semantic",
+                "cache_model": "standard_lora",
+                "quality_adjusted_goodput": 1.0,
+                "mean_quality": 0.9,
+                "p95_ttft_ms": 40.0,
+                "cache_hit_rate": 0.5,
+                "memory_token_footprint": 100,
+                "fragmentation_index": 2.0,
+            },
+            {
+                "workload": "shared_doc_qa",
+                "router_policy": "cache_aware",
+                "cache_model": "activated_lora",
+                "quality_adjusted_goodput": 1.4,
+                "mean_quality": 0.88,
+                "p95_ttft_ms": 20.0,
+                "cache_hit_rate": 0.8,
+                "memory_token_footprint": 70,
+                "fragmentation_index": 1.1,
+            },
+        ]
+    )
+    requests = pd.DataFrame()
+
+    leaders = workload_leaders(summaries)
+    cache_means = cache_model_means(summaries)
+    routers = router_means(summaries)
+    paths = write_analysis_tables(summaries, requests, tmp_path / "tables")
+
+    assert leaders.iloc[0]["router_policy"] == "cache_aware"
+    assert cache_means.iloc[0]["cache_model"] == "activated_lora"
+    assert routers.iloc[0]["router_policy"] == "cache_aware"
+    assert paths["workload_leaders"].exists()
