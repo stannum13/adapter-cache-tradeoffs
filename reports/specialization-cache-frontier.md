@@ -39,7 +39,7 @@ activated-LoRA-style late specialization, and copy-on-write deltas.
 
 ## Results
 
-Best quality-adjusted goodput in the current artifact set is `cache_aware` with `activated_lora` on `mixed_tasks_same_doc`. Mean quality is 0.915, p95 TTFT is 19.3 ms, and fragmentation index is 1.00.
+Best quality-adjusted goodput in the current artifact set is `cache_aware` with `activated_lora` on `mixed_tasks_same_doc`. Mean quality is 0.915, p95 TTFT is 19.3 ms, and fragmentation index is 1.00. `document_before_instruction` mean TTFT is 19.2 ms. `instruction_before_document` mean TTFT is 69.2 ms.
 
 Generated figures:
 

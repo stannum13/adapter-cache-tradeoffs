@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from specialization_cache_frontier.analysis.plots import generate_plots
-from specialization_cache_frontier.bench.aggregate import load_summaries
+from specialization_cache_frontier.bench.aggregate import load_request_rows, load_summaries
 
 
 def generate_report(
@@ -12,19 +12,31 @@ def generate_report(
     report_path: str | Path = "reports/specialization-cache-frontier.md",
 ) -> Path:
     df = load_summaries(runs_dir)
-    figures = generate_plots(df)
+    request_df = load_request_rows(runs_dir)
+    figures = generate_plots(df, request_df=request_df)
     report = Path(report_path)
     report.parent.mkdir(parents=True, exist_ok=True)
     if df.empty:
         results = "No benchmark runs were found yet."
     else:
         best = df.sort_values("quality_adjusted_goodput", ascending=False).iloc[0]
+        layout_note = ""
+        if not request_df.empty and "workload" in request_df:
+            layout_rows = request_df[request_df["workload"].eq("prompt_layout_ablation")]
+        else:
+            layout_rows = request_df
+        if not layout_rows.empty:
+            layout_means = layout_rows.groupby("prompt_layout")["ttft_ms"].mean().sort_index()
+            layout_note = " ".join(
+                f"`{layout}` mean TTFT is {ttft:.1f} ms." for layout, ttft in layout_means.items()
+            )
         results = (
             f"Best quality-adjusted goodput in the current artifact set is "
             f"`{best['router_policy']}` with `{best['cache_model']}` on `{best['workload']}`. "
             f"Mean quality is {best['mean_quality']:.3f}, "
             f"p95 TTFT is {best['p95_ttft_ms']:.1f} ms, "
-            f"and fragmentation index is {best['fragmentation_index']:.2f}."
+            f"and fragmentation index is {best['fragmentation_index']:.2f}. "
+            f"{layout_note}".strip()
         )
     figure_lines = "\n".join(f"- `{path}`" for path in figures)
     lines = [

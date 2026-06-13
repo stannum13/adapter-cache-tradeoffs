@@ -13,7 +13,11 @@ def _save(fig, path: Path) -> None:
     plt.close(fig)
 
 
-def generate_plots(df: pd.DataFrame, output_dir: str | Path = "reports/figures") -> list[Path]:
+def generate_plots(
+    df: pd.DataFrame,
+    output_dir: str | Path = "reports/figures",
+    request_df: pd.DataFrame | None = None,
+) -> list[Path]:
     out = Path(output_dir)
     paths: list[Path] = []
     if df.empty:
@@ -61,10 +65,25 @@ def generate_plots(df: pd.DataFrame, output_dir: str | Path = "reports/figures")
     paths.append(path)
 
     fig, ax = plt.subplots(figsize=(7, 4))
-    layout_df = df[df["workload"].eq("prompt_layout_ablation")]
-    source = layout_df if not layout_df.empty else df
-    source.groupby("cache_model")[["p95_ttft_ms", "mean_quality"]].mean().plot(kind="bar", ax=ax)
-    ax.set_title("Prompt layout ablation proxy")
+    if request_df is not None and not request_df.empty:
+        layout_source = request_df[request_df["workload"].eq("prompt_layout_ablation")]
+    else:
+        layout_source = pd.DataFrame()
+    if not layout_source.empty:
+        layout_source.groupby("prompt_layout")[["ttft_ms", "quality"]].mean().plot(
+            kind="bar",
+            ax=ax,
+        )
+        ax.set_ylabel("Mean value")
+        ax.set_title("Prompt layout ablation")
+    else:
+        layout_df = df[df["workload"].eq("prompt_layout_ablation")]
+        source = layout_df if not layout_df.empty else df
+        source.groupby("cache_model")[["p95_ttft_ms", "mean_quality"]].mean().plot(
+            kind="bar",
+            ax=ax,
+        )
+        ax.set_title("Prompt layout ablation")
     path = out / "prompt_layout_ablation.png"
     _save(fig, path)
     paths.append(path)
