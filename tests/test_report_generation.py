@@ -34,6 +34,6 @@ def test_report_generation_from_summary(tmp_path):
         "adapter_distribution": {"qa": 1},
     }
     (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
-    report = generate_report(tmp_path)
+    report = generate_report(tmp_path, tmp_path / "report.md")
     assert report.exists()
     assert "When is specialization worth its cache footprint?" in report.read_text(encoding="utf-8")

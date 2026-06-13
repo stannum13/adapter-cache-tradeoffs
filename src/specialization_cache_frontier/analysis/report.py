@@ -7,10 +7,13 @@ from specialization_cache_frontier.analysis.plots import generate_plots
 from specialization_cache_frontier.bench.aggregate import load_summaries
 
 
-def generate_report(runs_dir: str | Path = "artifacts/runs") -> Path:
+def generate_report(
+    runs_dir: str | Path = "artifacts/runs",
+    report_path: str | Path = "reports/specialization-cache-frontier.md",
+) -> Path:
     df = load_summaries(runs_dir)
     figures = generate_plots(df)
-    report = Path("reports/specialization-cache-frontier.md")
+    report = Path(report_path)
     report.parent.mkdir(parents=True, exist_ok=True)
     if df.empty:
         results = "No benchmark runs were found yet."
@@ -99,8 +102,9 @@ def generate_report(runs_dir: str | Path = "artifacts/runs") -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runs-dir", default="artifacts/runs")
+    parser.add_argument("--report-path", default="reports/specialization-cache-frontier.md")
     args = parser.parse_args()
-    print(generate_report(args.runs_dir))
+    print(generate_report(args.runs_dir, args.report_path))
 
 
 if __name__ == "__main__":
