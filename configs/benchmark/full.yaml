@@ -1,0 +1,25 @@
+run_name: full
+output_dir: artifacts/runs
+workload:
+  name: shared_doc_qa
+  request_count: 48
+  shared_document_count: 2
+  sessions: 8
+  tenants: 2
+  max_tokens: 64
+  seed: 11
+  document_tokens: 160
+router:
+  policy: semantic
+cache:
+  model: standard_lora
+  block_size: 8
+backend:
+  kind: mock
+  seed: 13
+  ttft_slo_ms: 220
+matrix:
+  routers: [random, semantic, sticky_session, cache_aware, oracle]
+  caches: [standard_lora, base_shared, activated_lora, copy_on_write]
+  workloads: [shared_doc_qa, mixed_tasks_same_doc, agent_session, low_overlap_control, prompt_layout_ablation]
+

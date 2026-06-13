@@ -1,0 +1,5 @@
+cache:
+  model: standard_lora
+  block_size: 8
+  isolation_scope: trust_group
+

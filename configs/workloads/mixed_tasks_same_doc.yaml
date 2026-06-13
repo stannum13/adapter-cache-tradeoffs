@@ -1,0 +1,5 @@
+workload:
+  name: mixed_tasks_same_doc
+  request_count: 64
+  document_tokens: 200
+

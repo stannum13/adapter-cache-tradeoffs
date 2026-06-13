@@ -1,0 +1,6 @@
+workload:
+  name: agent_session
+  request_count: 64
+  sessions: 8
+  document_tokens: 120
+
