@@ -25,8 +25,12 @@ Use this before pushing a public repository.
   make source-eval
   ```
 
-- For real model quality, run a vLLM-backed copy of
-  `configs/benchmark/source_eval.yaml` with `backend.kind: vllm`.
+- For real model quality, run the vLLM-backed source eval:
+
+  ```bash
+  make vllm-source-eval
+  ```
+
 - Do not commit generated local results as claims unless the exact serving stack,
   model, adapters, prompts, seeds, and hardware are documented.
 

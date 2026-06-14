@@ -24,12 +24,17 @@ RUN_VLLM_TESTS=1 uv run pytest tests/test_optional_integrations.py -q
 make vllm-example
 ```
 
-`vllm_example.yaml` is intentionally small. For a source-backed task set, copy
-`configs/benchmark/source_eval.yaml`, set `backend.kind: vllm`, and configure
-`backend.base_url`, `backend.model`, and adapter metadata. Use the mock backend
-for unit tests, CI, and CPU-only development. vLLM responses are scored with the
-benchmark's task metrics (`qa`, `json`, `summary`, and `code`) when
-`ground_truth` is present in the request record.
+`vllm_example.yaml` is intentionally small. `source_eval_vllm.yaml` runs the
+source-backed eval bundle against the same OpenAI-compatible endpoint:
+
+```bash
+make vllm-source-eval
+```
+
+Configure `backend.base_url`, `backend.model`, and adapter metadata for your
+server. Use the mock backend for unit tests, CI, and CPU-only development. vLLM
+responses are scored with the benchmark's task metrics (`qa`, `json`,
+`summary`, and `code`) when `ground_truth` is present in the request record.
 
 ## Metrics
 

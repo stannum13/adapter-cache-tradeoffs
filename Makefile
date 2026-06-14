@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large validate-source-eval source-eval vllm-example reproduce-mock
+.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large validate-source-eval source-eval vllm-example vllm-source-eval reproduce-mock
 
 sync:
 	uv sync --extra dev
@@ -47,6 +47,9 @@ source-eval:
 
 vllm-example:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/vllm_example.yaml
+
+vllm-source-eval:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml
 
 reproduce-mock: matrix
 	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/memory_pressure.yaml
