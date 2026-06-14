@@ -104,4 +104,31 @@ def generate_plots(
     path = out / "adapter_strategy_frontier.png"
     _save(fig, path)
     paths.append(path)
+
+    if "max_concurrency" in df and df["max_concurrency"].nunique() > 1:
+        concurrent = df.copy()
+        concurrent["strategy_label"] = concurrent["router_policy"] + " / " + concurrent[
+            "cache_model"
+        ]
+        for metric, ylabel, filename in [
+            ("p95_ttft_ms", "p95 TTFT (ms)", "concurrency_p95_ttft.png"),
+            ("quality_adjusted_goodput", "Quality-adjusted goodput", "concurrency_qag.png"),
+            ("slo_attainment_rate", "SLO attainment", "concurrency_slo_attainment.png"),
+            ("request_throughput", "Request throughput", "concurrency_request_throughput.png"),
+        ]:
+            fig, ax = plt.subplots(figsize=(7, 4))
+            pivot = concurrent.pivot_table(
+                index="max_concurrency",
+                columns="strategy_label",
+                values=metric,
+                aggfunc="mean",
+            ).sort_index()
+            pivot.plot(marker="o", ax=ax)
+            ax.set_xlabel("Max concurrency")
+            ax.set_ylabel(ylabel)
+            ax.set_title(ylabel + " vs concurrency")
+            ax.legend(fontsize=7)
+            path = out / filename
+            _save(fig, path)
+            paths.append(path)
     return paths

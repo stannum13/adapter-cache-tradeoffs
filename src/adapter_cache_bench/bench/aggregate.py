@@ -22,6 +22,15 @@ def load_summaries(runs_dir: str | Path) -> pd.DataFrame:
             row.setdefault("backend_model", "unknown")
             row.setdefault("slo_attainment_rate", 0.0)
             row.setdefault("quality_adjusted_goodput_per_memory_token", 0.0)
+            manifest_path = path.parent / "manifest.json"
+            if manifest_path.exists():
+                with manifest_path.open("r", encoding="utf-8") as manifest_handle:
+                    manifest = json.load(manifest_handle)
+                row.setdefault("max_concurrency", manifest.get("max_concurrency", 1))
+                row.setdefault("request_spacing_ms", manifest.get("request_spacing_ms", 0.0))
+                row.setdefault("wall_duration_s", manifest.get("wall_duration_s"))
+            row.setdefault("max_concurrency", 1)
+            row.setdefault("request_spacing_ms", 0.0)
             rows.append(row)
     return pd.DataFrame(rows)
 

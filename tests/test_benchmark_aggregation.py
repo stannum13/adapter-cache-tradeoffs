@@ -3,6 +3,7 @@ import json
 from adapter_cache_bench.bench.aggregate import (
     cache_model_means,
     load_request_rows,
+    load_summaries,
     repeated_seed_summary,
     router_means,
     workload_leaders,
@@ -175,6 +176,36 @@ def test_load_request_rows_reads_layout_and_metrics(tmp_path):
 
     assert df.iloc[0]["prompt_layout"] == "document_before_instruction"
     assert df.iloc[0]["ttft_ms"] == 10.0
+
+
+def test_load_summaries_reads_concurrency_metadata_from_manifest(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run",
+                "router_policy": "cache_aware",
+                "cache_model": "activated_lora",
+                "workload": "jsonl_eval",
+                "quality_adjusted_goodput": 1.0,
+                "mean_quality": 0.8,
+                "p95_ttft_ms": 100.0,
+                "memory_token_footprint": 10,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "manifest.json").write_text(
+        json.dumps({"max_concurrency": 8, "request_spacing_ms": 5.0, "wall_duration_s": 12.5}),
+        encoding="utf-8",
+    )
+
+    df = load_summaries(tmp_path)
+
+    assert df.iloc[0]["max_concurrency"] == 8
+    assert df.iloc[0]["request_spacing_ms"] == 5.0
+    assert df.iloc[0]["wall_duration_s"] == 12.5
 
 
 def test_analysis_tables_rank_workloads_and_export_csv(tmp_path):
