@@ -31,6 +31,7 @@ def test_benchmark_run_writes_artifacts(tmp_path):
         run_id="unit",
         report_path=tmp_path / "report.md",
         tables_dir=tmp_path / "tables",
+        generate_report_artifacts=True,
     )
     assert (run_dir / "requests.jsonl").exists()
     assert (run_dir / "summary.json").exists()
@@ -41,6 +42,27 @@ def test_benchmark_run_writes_artifacts(tmp_path):
     assert manifest["cache_model"] == "activated_lora"
     assert "git_commit" in manifest
     assert "git_dirty" in manifest
+
+
+def test_benchmark_run_can_skip_report_artifacts(tmp_path):
+    config = BenchmarkConfig(
+        run_name="test",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="mixed_tasks_same_doc", request_count=4, document_tokens=24),
+        cache=CacheConfig(model="activated_lora", block_size=4),
+        router=RouterConfig(policy="cache_aware"),
+    )
+
+    run(
+        config,
+        run_id="unit-no-report",
+        report_path=tmp_path / "report.md",
+        tables_dir=tmp_path / "tables",
+        generate_report_artifacts=False,
+    )
+
+    assert not (tmp_path / "report.md").exists()
+    assert not (tmp_path / "tables").exists()
 
 
 def test_load_request_rows_reads_layout_and_metrics(tmp_path):

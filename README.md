@@ -58,7 +58,7 @@ Outputs:
 - `src/specialization_cache_frontier/tiny_causal_transformer/`: minimal decoder-only causal transformer fundamentals
 - `src/specialization_cache_frontier/physical_ai_analogue/`: scene-cache simulator and mapping notes
 
-## Run the mock benchmark
+## Run the Benchmark
 
 ```bash
 uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/small.yaml
@@ -74,6 +74,13 @@ uv run python -m specialization_cache_frontier.workloads.validate_dataset --conf
 ```
 
 The default path requires no GPU and no internet after dependencies are installed.
+
+The mock backend is a systems simulator and CI baseline. It is useful for
+reproducing routing, prefix-cache locality, finite KV budget, eviction, prompt
+layout, and SLO tradeoffs on a laptop. It is not evidence that a real model got
+better at a task. Use the file-backed JSONL eval configs with `backend.kind:
+vllm` when you want real model outputs; keep the mock backend for regression
+tests and capacity-model experiments.
 
 For repeated-seed estimates, use:
 

@@ -32,10 +32,16 @@ def expand_matrix(config: BenchmarkConfig) -> list[BenchmarkConfig]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True, nargs="+")
+    parser.add_argument("--report-path", default="reports/specialization-cache-frontier.md")
+    parser.add_argument("--tables-dir", default="reports/tables")
     args = parser.parse_args()
     config = load_config(args.config)
     for child in expand_matrix(config):
-        print(run(child))
+        print(run(child, generate_report_artifacts=False))
+
+    from specialization_cache_frontier.analysis.report import generate_report
+
+    generate_report(config.output_dir, report_path=args.report_path, tables_dir=args.tables_dir)
 
 
 if __name__ == "__main__":
