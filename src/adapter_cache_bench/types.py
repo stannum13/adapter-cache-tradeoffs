@@ -84,8 +84,10 @@ class BenchmarkSummary(BaseModel):
     request_throughput: float
     token_throughput: float
     goodput_under_slo: float
+    slo_attainment_rate: float
     mean_quality: float
     quality_adjusted_goodput: float
+    quality_adjusted_goodput_per_memory_token: float
     cache_hit_rate: float
     cached_prompt_token_ratio: float
     fragmentation_index: float

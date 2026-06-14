@@ -27,6 +27,9 @@ def summarize(
     ]
     mean_quality = sum(response.quality.score for response in responses) / max(1, len(responses))
     adapter_distribution = Counter(response.adapter_id for response in responses)
+    goodput_under_slo = len(good) / duration_s
+    quality_adjusted_goodput = goodput_under_slo * mean_quality
+    memory_tokens = cache_model.memory_tokens()
     return BenchmarkSummary(
         run_id=run_id,
         request_count=len(responses),
@@ -48,13 +51,16 @@ def summarize(
         / max(1, len(responses)),
         request_throughput=len(responses) / duration_s,
         token_throughput=sum(output_tokens) / duration_s,
-        goodput_under_slo=len(good) / duration_s,
+        goodput_under_slo=goodput_under_slo,
+        slo_attainment_rate=len(good) / max(1, len(responses)),
         mean_quality=mean_quality,
-        quality_adjusted_goodput=(len(good) / duration_s) * mean_quality,
+        quality_adjusted_goodput=quality_adjusted_goodput,
+        quality_adjusted_goodput_per_memory_token=quality_adjusted_goodput
+        / max(1, memory_tokens),
         cache_hit_rate=cache_model.cache_hit_rate(),
         cached_prompt_token_ratio=cache_model.cached_prompt_token_ratio(),
         fragmentation_index=cache_model.fragmentation_index(),
-        memory_token_footprint=cache_model.memory_tokens(),
+        memory_token_footprint=memory_tokens,
         eviction_count=cache_model.eviction_count(),
         evicted_tokens=cache_model.evicted_tokens(),
         adapter_distribution=dict(adapter_distribution),

@@ -25,8 +25,10 @@ def test_report_generation_from_summary(tmp_path):
         "request_throughput": 1,
         "token_throughput": 10,
         "goodput_under_slo": 1,
+        "slo_attainment_rate": 1,
         "mean_quality": 0.9,
         "quality_adjusted_goodput": 0.9,
+        "quality_adjusted_goodput_per_memory_token": 0.09,
         "cache_hit_rate": 0.5,
         "cached_prompt_token_ratio": 0.5,
         "fragmentation_index": 1.0,
@@ -40,6 +42,7 @@ def test_report_generation_from_summary(tmp_path):
     assert report.exists()
     text = report.read_text(encoding="utf-8")
     assert "When is specialization worth its cache footprint?" in text
+    assert "### Decision rule" in text
     assert "### Interpretation" in text
     assert "Generated tables:" in text
     assert (tmp_path / "tables" / "summaries.csv").exists()

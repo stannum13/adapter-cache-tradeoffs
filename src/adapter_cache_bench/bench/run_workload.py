@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from adapter_cache_bench.backends.base import make_backend
+from adapter_cache_bench.backends.metrics_client import MetricsClient
 from adapter_cache_bench.cache.cache_models import make_cache_model
 from adapter_cache_bench.config import BenchmarkConfig, dump_config, load_config
 from adapter_cache_bench.routing.base import make_router
@@ -53,8 +54,22 @@ def build_manifest(
         "adapter_ids": config.adapters.adapter_ids,
         "request_count": request_count,
         "artifact_files": artifact_files,
+        "metrics_scraped": config.backend.scrape_metrics,
         **git_metadata(),
     }
+
+
+def scrape_backend_metrics(config: BenchmarkConfig, run_dir: Path, label: str) -> str | None:
+    if not config.backend.scrape_metrics:
+        return None
+    metrics_path = run_dir / f"backend_metrics_{label}.prom"
+    try:
+        metrics_text = MetricsClient(config.backend.metrics_url).scrape()
+    except Exception as exc:  # pragma: no cover - network failures are environment-specific.
+        (run_dir / f"backend_metrics_{label}_error.txt").write_text(str(exc), encoding="utf-8")
+        return f"backend_metrics_{label}_error.txt"
+    metrics_path.write_text(metrics_text, encoding="utf-8")
+    return metrics_path.name
 
 
 def run(
@@ -72,6 +87,10 @@ def run(
     router = make_router(config.router)
     backend = make_backend(config.backend)
     requests = generate_workload(config.workload, config.cache)
+    artifact_files = ["requests.jsonl", "summary.json", "config_resolved.yaml", "manifest.json"]
+    before_metrics = scrape_backend_metrics(config, run_dir, "before")
+    if before_metrics:
+        artifact_files.append(before_metrics)
 
     responses = []
     with (run_dir / "requests.jsonl").open("w", encoding="utf-8") as handle:
@@ -85,6 +104,9 @@ def run(
                 "response": response.model_dump(mode="json"),
             }
             handle.write(json.dumps(row) + "\n")
+    after_metrics = scrape_backend_metrics(config, run_dir, "after")
+    if after_metrics:
+        artifact_files.append(after_metrics)
 
     from adapter_cache_bench.bench.metrics import summarize
 
@@ -96,7 +118,7 @@ def run(
         run_id,
         config,
         request_count=len(responses),
-        artifact_files=["requests.jsonl", "summary.json", "config_resolved.yaml", "manifest.json"],
+        artifact_files=artifact_files,
     )
     with (run_dir / "manifest.json").open("w", encoding="utf-8") as handle:
         json.dump(manifest, handle, indent=2)

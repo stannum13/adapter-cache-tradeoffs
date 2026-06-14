@@ -77,6 +77,8 @@ class BackendConfig(BaseModel):
     temperature: float = 0.0
     adapter_model_names: dict[str, str] = Field(default_factory=dict)
     extra_body: dict[str, Any] = Field(default_factory=dict)
+    scrape_metrics: bool = False
+    metrics_url: str = "http://localhost:8000/metrics"
 
 
 class BenchmarkConfig(BaseModel):

@@ -46,6 +46,16 @@ def _interpretation_lines(cache_means, layouts, repeated, df) -> list[str]:
             f"- Best aggregate cache strategy: `{best_cache['cache_model']}` "
             f"with mean quality-adjusted goodput {best_cache['quality_adjusted_goodput']:.3f}."
         )
+        if "quality_adjusted_goodput_per_memory_token" in cache_means:
+            efficient = cache_means.sort_values(
+                "quality_adjusted_goodput_per_memory_token",
+                ascending=False,
+            ).iloc[0]
+            lines.append(
+                f"- Best cache-footprint efficiency: `{efficient['cache_model']}` "
+                "with mean quality-adjusted goodput per memory token "
+                f"{efficient['quality_adjusted_goodput_per_memory_token']:.6f}."
+            )
     if not layouts.empty:
         layout_means = layouts.groupby("prompt_layout")["ttft_ms"].mean()
         if {
@@ -173,6 +183,7 @@ def generate_report(
             "cache_model",
             "adapter_strategy",
             "quality_adjusted_goodput",
+            "quality_adjusted_goodput_per_memory_token",
             "p95_ttft_ms",
             "cache_hit_rate",
             "fragmentation_index",
@@ -181,7 +192,13 @@ def generate_report(
     )
     router_lines = _markdown_table(
         routers.head(8).to_dict("records") if not routers.empty else [],
-        ["router_policy", "quality_adjusted_goodput", "mean_quality", "p95_ttft_ms"],
+        [
+            "router_policy",
+            "quality_adjusted_goodput",
+            "quality_adjusted_goodput_per_memory_token",
+            "mean_quality",
+            "p95_ttft_ms",
+        ],
     )
     repeated_lines = _markdown_table(
         repeated[repeated["run_count"] > 1].head(12).to_dict("records")
@@ -281,6 +298,15 @@ def generate_report(
         "## Results",
         "",
         results,
+        "",
+        "### Decision rule",
+        "",
+        "Treat specialization as worthwhile only when it improves quality-adjusted",
+        "goodput under the TTFT SLO after accounting for cache memory. In this",
+        "repo that means comparing both `quality_adjusted_goodput` and",
+        "`quality_adjusted_goodput_per_memory_token`, while checking that the",
+        "fragmentation index and SLO attainment do not regress beyond the serving",
+        "budget for the workload.",
         "",
         "### Interpretation",
         "",

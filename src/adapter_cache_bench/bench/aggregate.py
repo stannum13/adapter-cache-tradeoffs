@@ -20,6 +20,8 @@ def load_summaries(runs_dir: str | Path) -> pd.DataFrame:
             row = json.load(handle)
             row.setdefault("backend_kind", "unknown")
             row.setdefault("backend_model", "unknown")
+            row.setdefault("slo_attainment_rate", 0.0)
+            row.setdefault("quality_adjusted_goodput_per_memory_token", 0.0)
             rows.append(row)
     return pd.DataFrame(rows)
 
@@ -28,6 +30,12 @@ def with_strategy_columns(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     enriched = df.copy()
+    if "quality_adjusted_goodput_per_memory_token" not in enriched:
+        enriched["quality_adjusted_goodput_per_memory_token"] = (
+            enriched["quality_adjusted_goodput"] / enriched["memory_token_footprint"].clip(lower=1)
+        )
+    if "slo_attainment_rate" not in enriched:
+        enriched["slo_attainment_rate"] = 0.0
     enriched["adapter_strategy"] = (
         enriched["cache_model"].map(STRATEGY_BY_CACHE_MODEL).fillna(enriched["cache_model"])
     )
@@ -49,6 +57,7 @@ def workload_leaders(df: pd.DataFrame) -> pd.DataFrame:
         "cache_model",
         "adapter_strategy",
         "quality_adjusted_goodput",
+        "quality_adjusted_goodput_per_memory_token",
         "mean_quality",
         "p95_ttft_ms",
         "cache_hit_rate",
@@ -66,6 +75,10 @@ def cache_model_means(df: pd.DataFrame) -> pd.DataFrame:
         enriched.groupby(["cache_model", "adapter_strategy"], as_index=False)
         .agg(
             quality_adjusted_goodput=("quality_adjusted_goodput", "mean"),
+            quality_adjusted_goodput_per_memory_token=(
+                "quality_adjusted_goodput_per_memory_token",
+                "mean",
+            ),
             mean_quality=("mean_quality", "mean"),
             p95_ttft_ms=("p95_ttft_ms", "mean"),
             cache_hit_rate=("cache_hit_rate", "mean"),
@@ -82,10 +95,15 @@ def cache_model_means(df: pd.DataFrame) -> pd.DataFrame:
 def router_means(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
+    enriched = with_strategy_columns(df)
     return (
-        df.groupby("router_policy", as_index=False)
+        enriched.groupby("router_policy", as_index=False)
         .agg(
             quality_adjusted_goodput=("quality_adjusted_goodput", "mean"),
+            quality_adjusted_goodput_per_memory_token=(
+                "quality_adjusted_goodput_per_memory_token",
+                "mean",
+            ),
             mean_quality=("mean_quality", "mean"),
             p95_ttft_ms=("p95_ttft_ms", "mean"),
             cache_hit_rate=("cache_hit_rate", "mean"),

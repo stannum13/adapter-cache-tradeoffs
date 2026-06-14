@@ -11,6 +11,7 @@ from adapter_cache_bench.bench.aggregate import (
 from adapter_cache_bench.bench.compare import compare_runs
 from adapter_cache_bench.bench.run_workload import run
 from adapter_cache_bench.config import (
+    BackendConfig,
     BenchmarkConfig,
     CacheConfig,
     RouterConfig,
@@ -42,6 +43,44 @@ def test_benchmark_run_writes_artifacts(tmp_path):
     assert manifest["cache_model"] == "activated_lora"
     assert "git_commit" in manifest
     assert "git_dirty" in manifest
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["slo_attainment_rate"] >= 0.0
+    assert summary["quality_adjusted_goodput_per_memory_token"] >= 0.0
+
+
+def test_benchmark_run_scrapes_backend_metrics_when_enabled(tmp_path, monkeypatch):
+    from adapter_cache_bench.bench import run_workload
+
+    class FakeMetricsClient:
+        def __init__(self, metrics_url):
+            self.metrics_url = metrics_url
+
+        def scrape(self):
+            return "vllm:num_requests_running 0\n"
+
+    monkeypatch.setattr(run_workload, "MetricsClient", FakeMetricsClient)
+    config = BenchmarkConfig(
+        run_name="test",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="mixed_tasks_same_doc", request_count=2, document_tokens=24),
+        cache=CacheConfig(model="activated_lora", block_size=4),
+        router=RouterConfig(policy="cache_aware"),
+        backend=BackendConfig(kind="mock", scrape_metrics=True, metrics_url="http://unit/metrics"),
+    )
+
+    run_dir = run(
+        config,
+        run_id="unit-metrics",
+        report_path=tmp_path / "report.md",
+        tables_dir=tmp_path / "tables",
+        generate_report_artifacts=False,
+    )
+
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["metrics_scraped"] is True
+    assert "backend_metrics_before.prom" in manifest["artifact_files"]
+    assert "backend_metrics_after.prom" in manifest["artifact_files"]
+    assert (run_dir / "backend_metrics_before.prom").read_text(encoding="utf-8").startswith("vllm")
 
 
 def test_benchmark_run_can_skip_report_artifacts(tmp_path):
@@ -212,8 +251,10 @@ def test_compare_runs_returns_leader_tables(tmp_path):
                 "request_throughput": 1,
                 "token_throughput": 10,
                 "goodput_under_slo": 1,
+                "slo_attainment_rate": 1,
                 "mean_quality": 0.9,
                 "quality_adjusted_goodput": 0.9,
+                "quality_adjusted_goodput_per_memory_token": 0.09,
                 "cache_hit_rate": 0.5,
                 "cached_prompt_token_ratio": 0.5,
                 "fragmentation_index": 1.0,
