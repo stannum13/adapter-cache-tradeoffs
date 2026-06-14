@@ -26,6 +26,9 @@ make vllm-heldout-xlarge-lora-trained-qwen15b
 make vllm-heldout-xlarge-lora-multitask-qwen15b
 make vllm-heldout-trained-matrix-qwen15b
 make vllm-heldout-trained-repeated-qwen15b
+make vllm-heldout-xlarge-qwen15b-concurrent
+make vllm-heldout-xlarge-lora-trained-qwen15b-concurrent
+make vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent
 ```
 
 ## What ran
@@ -33,6 +36,7 @@ make vllm-heldout-trained-repeated-qwen15b
 - 39 new vLLM-backed benchmark runs.
 - 1,020 real model-server requests.
 - 39 saved `backend_metrics_after.prom` snapshots.
+- 3 additional concurrent-load vLLM runs at `max_concurrency: 8`.
 - 18-run router/cache matrix:
   - routers: `semantic`, `multitask`, `cache_aware`
   - caches: `standard_lora`, `activated_lora`, `copy_on_write`
@@ -54,6 +58,28 @@ On this fixture, specialization clearly improves quality and
 quality-adjusted-goodput over the base model. The trained specialists also beat
 the multitask adapter on quality and QAG, while the multitask adapter has lower
 p95 TTFT.
+
+## Concurrent-load result
+
+These runs used the same 100-request xlarge held-out split with
+`backend.max_concurrency: 8`. The concurrent runner reports throughput and
+goodput using wall-clock run duration.
+
+| condition | quality | p95 TTFT ms | SLO attainment | request/s | QAG |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| base model | 0.209 | 2176.1 | 0.030 | 4.687 | 0.029 |
+| trained specialists | 0.853 | 1880.6 | 0.310 | 6.172 | 1.632 |
+| multitask adapter | 0.727 | 4142.0 | 0.280 | 5.593 | 1.139 |
+
+This strengthens and sharpens the claim:
+
+- Specialist adapters still win on quality and quality-adjusted goodput under
+  concurrent load.
+- The one-second TTFT SLO is not satisfied at concurrency 8 for this server and
+  workload; all three p95 TTFT values exceed it.
+- The useful research question becomes an SLO frontier, not a binary yes/no:
+  find the concurrency and cache-footprint region where specialization remains
+  worth it.
 
 ## Router/cache matrix means
 
