@@ -112,6 +112,8 @@ overlay is a serving smoke path; replace it with task-trained adapters before
 claiming specialist quality gains.
 
 See [docs/eval_datasets.md](docs/eval_datasets.md) for the JSONL schema.
+See [docs/real_eval_results.md](docs/real_eval_results.md) for a real vLLM
+snapshot with trained Qwen LoRA adapters.
 See [docs/release_checklist.md](docs/release_checklist.md) before publishing.
 
 ## Workloads

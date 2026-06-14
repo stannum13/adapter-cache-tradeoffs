@@ -50,8 +50,13 @@ make vllm-source-eval-l4-qwen15b
 make vllm-source-eval-lora-trained-qwen15b
 make vllm-heldout-qwen15b
 make vllm-heldout-lora-trained-qwen15b
+make vllm-heldout-lora-multitask-qwen15b
+make vllm-heldout-trained-matrix-qwen15b
+make vllm-heldout-trained-repeated-qwen15b
 ```
 
 The result supports the full hypothesis only if the trained specialist adapters
 improve quality enough to offset their cache and latency footprint relative to
 the same base model.
+
+See [real_eval_results.md](real_eval_results.md) for one real vLLM snapshot.
