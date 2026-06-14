@@ -107,9 +107,9 @@ def generate_plots(
 
     if "max_concurrency" in df and df["max_concurrency"].nunique() > 1:
         concurrent = df.copy()
-        concurrent["strategy_label"] = concurrent["router_policy"] + " / " + concurrent[
-            "cache_model"
-        ]
+        concurrent["strategy_label"] = (
+            concurrent["router_policy"] + " / " + concurrent["cache_model"]
+        )
         for metric, ylabel, filename in [
             ("p95_ttft_ms", "p95 TTFT (ms)", "concurrency_p95_ttft.png"),
             ("quality_adjusted_goodput", "Quality-adjusted goodput", "concurrency_qag.png"),
