@@ -68,6 +68,7 @@ uv run python -m specialization_cache_frontier.analysis.report --runs-dir artifa
 uv run python -m specialization_cache_frontier.bench.compare --runs-dir artifacts/runs
 uv run python -m specialization_cache_frontier.analysis.pareto --runs-dir artifacts/runs
 uv run python -m specialization_cache_frontier.analysis.slo --runs-dir artifacts/runs
+uv run python -m specialization_cache_frontier.workloads.validate_dataset --config configs/benchmark/public_domain_eval.yaml
 ```
 
 The default path requires no GPU and no internet after dependencies are installed.
