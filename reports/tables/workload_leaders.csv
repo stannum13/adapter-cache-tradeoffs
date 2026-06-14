@@ -1,7 +1,0 @@
-workload,router_policy,cache_model,adapter_strategy,quality_adjusted_goodput,mean_quality,p95_ttft_ms,cache_hit_rate,memory_token_footprint,fragmentation_index
-agent_session,oracle,activated_lora,activated-late-specialization,16.63205185904798,0.9230988193068884,23.239519108305117,0.9287833827893175,1032,1.0
-jsonl_eval,cache_aware,activated_lora,activated-late-specialization,19.388629003201693,0.9104128375580387,24.454446755283648,0.9133333333333333,966,1.0
-low_overlap_control,cache_aware,activated_lora,activated-late-specialization,8.839533275182601,0.9070162139699103,72.23918347990696,0.4782608695652174,7964,1.0
-mixed_tasks_same_doc,cache_aware,base_shared,multitask-or-shared-base,18.89186518170334,0.9123983749959312,17.84886968854714,0.958656330749354,505,0.5738636363636364
-prompt_layout_ablation,cache_aware,activated_lora,activated-late-specialization,12.337114847655451,0.9297095279907376,71.69916156942162,0.9133574007220217,4458,1.0
-shared_doc_qa,oracle,activated_lora,activated-late-specialization,18.502186424275617,0.9222995655862523,70.62925201993755,0.952755905511811,996,1.0

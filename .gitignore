@@ -7,3 +7,5 @@ __pycache__/
 AGENTS.md
 artifacts/runs/
 reports/figures/*.png
+reports/specialization-cache-frontier.md
+reports/tables/*.csv
