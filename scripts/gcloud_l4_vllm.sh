@@ -19,6 +19,7 @@ Usage: $0 <command>
 
 Commands:
   create           Create the L4 VM if it does not exist.
+  start            Start an existing stopped VM.
   setup            Install NVIDIA driver, Docker, and NVIDIA container runtime.
   serve-base       Start vLLM with the base model only.
   serve-lora       Start vLLM with four registered LoRA module names.
@@ -73,6 +74,11 @@ create_vm() {
     --boot-disk-size="${BOOT_DISK_SIZE}" \
     --boot-disk-type=pd-balanced \
     --scopes=https://www.googleapis.com/auth/cloud-platform
+}
+
+start_vm() {
+  require_project
+  gcloud compute instances start "${INSTANCE}" --project="${PROJECT}" --zone="${ZONE}"
 }
 
 setup_vm() {
@@ -174,6 +180,7 @@ status_vm() {
 
 case "${1:-}" in
   create) create_vm ;;
+  start) start_vm ;;
   setup) setup_vm ;;
   serve-base) serve_base ;;
   serve-lora) serve_lora ;;
