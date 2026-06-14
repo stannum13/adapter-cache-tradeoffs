@@ -1,8 +1,8 @@
-from specialization_cache_frontier.cache.activated_lora_cache import ActivatedLoRACache
-from specialization_cache_frontier.cache.base_shared_cache import BaseSharedCache
-from specialization_cache_frontier.cache.copy_on_write_cache import CopyOnWriteCache
-from specialization_cache_frontier.cache.standard_lora_cache import StandardLoRACache
-from specialization_cache_frontier.config import CacheConfig
+from adapter_cache_bench.cache.activated_lora_cache import ActivatedLoRACache
+from adapter_cache_bench.cache.base_shared_cache import BaseSharedCache
+from adapter_cache_bench.cache.copy_on_write_cache import CopyOnWriteCache
+from adapter_cache_bench.cache.standard_lora_cache import StandardLoRACache
+from adapter_cache_bench.config import CacheConfig
 
 
 def test_same_prompt_same_adapter_reuses_cache():

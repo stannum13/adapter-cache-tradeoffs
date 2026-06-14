@@ -1,6 +1,6 @@
 # Experimental modules
 
-These modules are intentionally outside `specialization_cache_frontier`.
+These modules are intentionally outside `adapter_cache_bench`.
 
 - `tiny_causal_transformer/` is a fundamentals example for a small decoder-only
   causal transformer.

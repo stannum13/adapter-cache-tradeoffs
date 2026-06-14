@@ -1,6 +1,6 @@
 import pytest
 
-from specialization_cache_frontier.workloads.validate_dataset import validate_workload_config
+from adapter_cache_bench.workloads.validate_dataset import validate_workload_config
 
 
 def test_validate_public_domain_eval_config():

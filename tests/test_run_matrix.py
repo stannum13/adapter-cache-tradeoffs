@@ -1,5 +1,5 @@
-from specialization_cache_frontier.bench.run_matrix import expand_matrix
-from specialization_cache_frontier.config import BenchmarkConfig, load_config
+from adapter_cache_bench.bench.run_matrix import expand_matrix
+from adapter_cache_bench.config import BenchmarkConfig, load_config
 
 
 def test_expand_matrix_supports_repeated_seed_dimension():

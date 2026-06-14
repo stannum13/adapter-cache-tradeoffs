@@ -1,4 +1,4 @@
-from specialization_cache_frontier.cache.prefix_table import CacheBlock, PrefixTable
+from adapter_cache_bench.cache.prefix_table import CacheBlock, PrefixTable
 
 
 def test_prefix_table_tracks_hits_and_tokens():

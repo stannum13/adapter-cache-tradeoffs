@@ -1,9 +1,9 @@
 import pytest
 
-from specialization_cache_frontier.backends.base import make_backend
-from specialization_cache_frontier.backends.mock_backend import MockBackend
-from specialization_cache_frontier.backends.vllm_backend import VLLMBackend
-from specialization_cache_frontier.config import BackendConfig
+from adapter_cache_bench.backends.base import make_backend
+from adapter_cache_bench.backends.mock_backend import MockBackend
+from adapter_cache_bench.backends.vllm_backend import VLLMBackend
+from adapter_cache_bench.config import BackendConfig
 
 
 def test_make_backend_returns_mock_backend_by_default():

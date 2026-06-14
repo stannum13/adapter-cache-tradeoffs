@@ -1,6 +1,6 @@
 import json
 
-from specialization_cache_frontier.analysis.report import generate_report
+from adapter_cache_bench.analysis.report import generate_report
 
 
 def test_report_generation_from_summary(tmp_path):

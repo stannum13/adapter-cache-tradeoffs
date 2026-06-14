@@ -1,9 +1,9 @@
 import httpx
 
-from specialization_cache_frontier.backends.vllm_backend import VLLMBackend
-from specialization_cache_frontier.cache.standard_lora_cache import StandardLoRACache
-from specialization_cache_frontier.config import BackendConfig, CacheConfig
-from specialization_cache_frontier.types import RequestRecord, RoutingDecision
+from adapter_cache_bench.backends.vllm_backend import VLLMBackend
+from adapter_cache_bench.cache.standard_lora_cache import StandardLoRACache
+from adapter_cache_bench.config import BackendConfig, CacheConfig
+from adapter_cache_bench.types import RequestRecord, RoutingDecision
 
 
 def _request() -> RequestRecord:

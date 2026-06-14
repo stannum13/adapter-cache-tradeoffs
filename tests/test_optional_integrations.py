@@ -2,9 +2,9 @@ import os
 
 import pytest
 
-from specialization_cache_frontier.backends.vllm_backend import VLLMBackend
-from specialization_cache_frontier.config import BackendConfig
-from specialization_cache_frontier.types import RequestRecord, RoutingDecision
+from adapter_cache_bench.backends.vllm_backend import VLLMBackend
+from adapter_cache_bench.config import BackendConfig
+from adapter_cache_bench.types import RequestRecord, RoutingDecision
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("RUN_VLLM_TESTS") != "1",

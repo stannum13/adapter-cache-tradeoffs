@@ -1,4 +1,4 @@
-from specialization_cache_frontier.config import deep_merge, load_config
+from adapter_cache_bench.config import deep_merge, load_config
 
 
 def test_deep_merge_preserves_nested_defaults_and_applies_overrides():

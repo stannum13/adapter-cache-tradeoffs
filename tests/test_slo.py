@@ -1,6 +1,6 @@
 import pandas as pd
 
-from specialization_cache_frontier.analysis.slo import slo_sweep
+from adapter_cache_bench.analysis.slo import slo_sweep
 
 
 def test_slo_sweep_computes_goodput_at_multiple_thresholds():

@@ -39,14 +39,14 @@ Optional fields:
 Validate a dataset-backed config before running:
 
 ```bash
-uv run python -m specialization_cache_frontier.workloads.validate_dataset \
+uv run python -m adapter_cache_bench.workloads.validate_dataset \
   --config configs/benchmark/public_domain_eval_large.yaml
 ```
 
 Run it with the mock backend for cache/routing sanity:
 
 ```bash
-uv run python -m specialization_cache_frontier.bench.run_workload \
+uv run python -m adapter_cache_bench.bench.run_workload \
   --config configs/benchmark/public_domain_eval_large.yaml
 ```
 

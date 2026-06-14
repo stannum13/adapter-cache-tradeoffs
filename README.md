@@ -1,4 +1,4 @@
-# The hidden cache footprint of specialization
+# Adapter Cache Bench
 
 Specialist adapters improve quality, but every routing decision is also a cache
 decision. This repo is a reproducible cache/routing benchmark harness for
@@ -72,9 +72,9 @@ Use the mock backend when you want deterministic cache and routing experiments:
 ```bash
 make small
 make matrix
-uv run python -m specialization_cache_frontier.bench.run_matrix \
+uv run python -m adapter_cache_bench.bench.run_matrix \
   --config configs/benchmark/memory_pressure.yaml
-uv run python -m specialization_cache_frontier.bench.run_matrix \
+uv run python -m adapter_cache_bench.bench.run_matrix \
   --config configs/benchmark/repeated.yaml
 ```
 
@@ -82,7 +82,7 @@ Use JSONL eval configs when you want task records with ground truth:
 
 ```bash
 make validate-eval-large
-uv run python -m specialization_cache_frontier.bench.run_workload \
+uv run python -m adapter_cache_bench.bench.run_workload \
   --config configs/benchmark/public_domain_eval_large.yaml
 ```
 
@@ -91,16 +91,13 @@ OpenAI-compatible `/chat/completions` requests and scores responses with the
 same task metrics used by the benchmark:
 
 ```bash
-uv run python -m specialization_cache_frontier.bench.run_workload \
+uv run python -m adapter_cache_bench.bench.run_workload \
   --config configs/benchmark/vllm_example.yaml
 ```
 
-See [docs/vllm.md](/Users/shiva/repos/specialization-cache-frontier/docs/vllm.md)
-for the optional serving flow.
+See [docs/vllm.md](docs/vllm.md) for the optional serving flow.
 
-See
-[docs/eval_datasets.md](/Users/shiva/repos/specialization-cache-frontier/docs/eval_datasets.md)
-for the JSONL schema.
+See [docs/eval_datasets.md](docs/eval_datasets.md) for the JSONL schema.
 
 ## Workloads
 
@@ -129,16 +126,16 @@ for the JSONL schema.
 
 - `configs/`: benchmark, router, cache, and workload YAMLs.
 - `data/eval/`: small public-domain style JSONL fixtures.
-- `src/specialization_cache_frontier/cache/`: whitespace tokenizer and block
+- `src/adapter_cache_bench/cache/`: whitespace tokenizer and block
   prefix-cache simulators.
-- `src/specialization_cache_frontier/routing/`: router policies.
-- `src/specialization_cache_frontier/backends/`: mock backend and optional vLLM
+- `src/adapter_cache_bench/routing/`: router policies.
+- `src/adapter_cache_bench/backends/`: mock backend and optional vLLM
   client.
-- `src/specialization_cache_frontier/bench/`: workload, matrix, metric, and
+- `src/adapter_cache_bench/bench/`: workload, matrix, metric, and
   comparison runners.
-- `src/specialization_cache_frontier/analysis/`: report, plot, SLO, and Pareto
+- `src/adapter_cache_bench/analysis/`: report, plot, SLO, and Pareto
   helpers.
-- `src/specialization_cache_frontier/physical_ai_analogue/`: lightweight
+- `src/adapter_cache_bench/physical_ai_analogue/`: lightweight
   scene-cache analogy for VLA/world-model serving.
 
 ## Local verification
@@ -172,8 +169,8 @@ world-state cache; LoRA adapters map to skill or embodiment adapters; TTFT and
 goodput map to control latency and success-rate-adjusted control Hz.
 
 See
-[src/specialization_cache_frontier/physical_ai_analogue/README.md](/Users/shiva/repos/specialization-cache-frontier/src/specialization_cache_frontier/physical_ai_analogue/README.md).
+[src/adapter_cache_bench/physical_ai_analogue/README.md](src/adapter_cache_bench/physical_ai_analogue/README.md).
 
 ## License
 
-MIT. See [LICENSE](/Users/shiva/repos/specialization-cache-frontier/LICENSE).
+MIT. See [LICENSE](LICENSE).

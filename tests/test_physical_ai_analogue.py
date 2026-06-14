@@ -1,4 +1,4 @@
-from specialization_cache_frontier.physical_ai_analogue.scene_cache_simulator import simulate
+from adapter_cache_bench.physical_ai_analogue.scene_cache_simulator import simulate
 
 
 def test_physical_ai_simulator_models_cache_reuse_effect():

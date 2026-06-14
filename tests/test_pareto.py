@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from specialization_cache_frontier.analysis.pareto import (
+from adapter_cache_bench.analysis.pareto import (
     pareto_frontier,
     workload_pareto_frontiers,
     write_pareto_frontier,

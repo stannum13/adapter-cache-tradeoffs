@@ -1,6 +1,6 @@
 import json
 
-from specialization_cache_frontier.bench.aggregate import (
+from adapter_cache_bench.bench.aggregate import (
     cache_model_means,
     load_request_rows,
     repeated_seed_summary,
@@ -8,9 +8,9 @@ from specialization_cache_frontier.bench.aggregate import (
     workload_leaders,
     write_analysis_tables,
 )
-from specialization_cache_frontier.bench.compare import compare_runs
-from specialization_cache_frontier.bench.run_workload import run
-from specialization_cache_frontier.config import (
+from adapter_cache_bench.bench.compare import compare_runs
+from adapter_cache_bench.bench.run_workload import run
+from adapter_cache_bench.config import (
     BenchmarkConfig,
     CacheConfig,
     RouterConfig,

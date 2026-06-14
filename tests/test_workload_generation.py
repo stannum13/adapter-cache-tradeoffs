@@ -1,5 +1,5 @@
-from specialization_cache_frontier.config import WorkloadConfig
-from specialization_cache_frontier.workloads.generator import generate_workload
+from adapter_cache_bench.config import WorkloadConfig
+from adapter_cache_bench.workloads.generator import generate_workload
 
 
 def test_all_workloads_generate_requested_records():

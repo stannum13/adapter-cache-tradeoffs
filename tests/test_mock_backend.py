@@ -1,7 +1,7 @@
-from specialization_cache_frontier.backends.mock_backend import MockBackend
-from specialization_cache_frontier.cache.standard_lora_cache import StandardLoRACache
-from specialization_cache_frontier.config import CacheConfig
-from specialization_cache_frontier.types import RequestRecord, RoutingDecision
+from adapter_cache_bench.backends.mock_backend import MockBackend
+from adapter_cache_bench.cache.standard_lora_cache import StandardLoRACache
+from adapter_cache_bench.config import CacheConfig
+from adapter_cache_bench.types import RequestRecord, RoutingDecision
 
 
 def test_mock_backend_returns_metrics_and_observes_cache():

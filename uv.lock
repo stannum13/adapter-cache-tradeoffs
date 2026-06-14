@@ -1304,7 +1304,7 @@ wheels = [
 ]
 
 [[package]]
-name = "specialization-cache-frontier"
+name = "adapter-cache-bench"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

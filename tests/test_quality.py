@@ -1,7 +1,7 @@
 import json
 
-from specialization_cache_frontier.bench.quality import evaluate_prediction, weighted_task_quality
-from specialization_cache_frontier.types import QualityResult
+from adapter_cache_bench.bench.quality import evaluate_prediction, weighted_task_quality
+from adapter_cache_bench.types import QualityResult
 
 
 def test_json_quality_scores_valid_schema_and_fields():

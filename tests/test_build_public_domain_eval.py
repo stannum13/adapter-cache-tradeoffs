@@ -1,4 +1,4 @@
-from specialization_cache_frontier.workloads.build_public_domain_eval import (
+from adapter_cache_bench.workloads.build_public_domain_eval import (
     build_records,
     write_dataset,
 )

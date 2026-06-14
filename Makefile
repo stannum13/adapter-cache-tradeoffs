@@ -16,34 +16,34 @@ check: test lint
 	uv run ruff format . --check
 
 small:
-	uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/small.yaml
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/small.yaml
 
 matrix:
-	uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/full.yaml
+	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/full.yaml
 
 report:
-	uv run python -m specialization_cache_frontier.analysis.report --runs-dir artifacts/runs
+	uv run python -m adapter_cache_bench.analysis.report --runs-dir artifacts/runs
 
 compare:
-	uv run python -m specialization_cache_frontier.bench.compare --runs-dir artifacts/runs
+	uv run python -m adapter_cache_bench.bench.compare --runs-dir artifacts/runs
 
 pareto:
-	uv run python -m specialization_cache_frontier.analysis.pareto --runs-dir artifacts/runs
+	uv run python -m adapter_cache_bench.analysis.pareto --runs-dir artifacts/runs
 
 slo:
-	uv run python -m specialization_cache_frontier.analysis.slo --runs-dir artifacts/runs
+	uv run python -m adapter_cache_bench.analysis.slo --runs-dir artifacts/runs
 
 validate-eval:
-	uv run python -m specialization_cache_frontier.workloads.validate_dataset --config configs/benchmark/public_domain_eval.yaml
+	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/public_domain_eval.yaml
 
 validate-eval-large:
-	uv run python -m specialization_cache_frontier.workloads.validate_dataset --config configs/benchmark/public_domain_eval_large.yaml
+	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/public_domain_eval_large.yaml
 
 vllm-example:
-	uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/vllm_example.yaml
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/vllm_example.yaml
 
 reproduce-mock: matrix
-	uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/memory_pressure.yaml
-	uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/repeated.yaml
-	uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/public_domain_eval_large.yaml
+	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/memory_pressure.yaml
+	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/repeated.yaml
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/public_domain_eval_large.yaml
 	$(MAKE) report compare pareto slo

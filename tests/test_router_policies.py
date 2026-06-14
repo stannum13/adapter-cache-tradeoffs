@@ -1,7 +1,7 @@
-from specialization_cache_frontier.cache.standard_lora_cache import StandardLoRACache
-from specialization_cache_frontier.config import CacheConfig, RouterConfig
-from specialization_cache_frontier.routing.base import make_router
-from specialization_cache_frontier.types import RequestRecord
+from adapter_cache_bench.cache.standard_lora_cache import StandardLoRACache
+from adapter_cache_bench.config import CacheConfig, RouterConfig
+from adapter_cache_bench.routing.base import make_router
+from adapter_cache_bench.types import RequestRecord
 
 
 def _request(task="json", session="s1"):
