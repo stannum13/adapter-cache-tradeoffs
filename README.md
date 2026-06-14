@@ -25,6 +25,7 @@ Outputs:
 - `artifacts/runs/{run_id}/requests.jsonl`
 - `artifacts/runs/{run_id}/summary.json`
 - `artifacts/runs/{run_id}/config_resolved.yaml`
+- `artifacts/runs/{run_id}/manifest.json`
 - `reports/specialization-cache-frontier.md`
 - `reports/figures/*.png`
 - `reports/tables/*.csv`
@@ -63,9 +64,20 @@ Outputs:
 uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/small.yaml
 uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/full.yaml
 uv run python -m specialization_cache_frontier.analysis.report --runs-dir artifacts/runs
+uv run python -m specialization_cache_frontier.bench.compare --runs-dir artifacts/runs
 ```
 
 The default path requires no GPU and no internet after dependencies are installed.
+
+Config files compose left to right, so small experiments can override only the
+router, cache model, or workload:
+
+```bash
+uv run python -m specialization_cache_frontier.bench.run_workload \
+  --config configs/benchmark/small.yaml \
+           configs/router/semantic.yaml \
+           configs/cache/standard_lora.yaml
+```
 
 ## Plug in vLLM
 
