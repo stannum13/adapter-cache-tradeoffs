@@ -4,6 +4,6 @@
 __pycache__/
 *.py[cod]
 .DS_Store
+AGENTS.md
 artifacts/runs/
 reports/figures/*.png
-
