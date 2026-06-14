@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from specialization_cache_frontier.tiny_causal_transformer.train import train
+from experimental.tiny_causal_transformer.train import train
 
 
 def main() -> None:

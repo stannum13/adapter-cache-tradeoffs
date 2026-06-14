@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from specialization_cache_frontier.tiny_causal_transformer.dataset import public_domain_tiny_corpus
-from specialization_cache_frontier.tiny_causal_transformer.model import TinyCausalTransformer
-from specialization_cache_frontier.tiny_causal_transformer.tokenizer import TinyTokenizer
+from experimental.tiny_causal_transformer.dataset import public_domain_tiny_corpus
+from experimental.tiny_causal_transformer.model import TinyCausalTransformer
+from experimental.tiny_causal_transformer.tokenizer import TinyTokenizer
 
 
 def train() -> tuple[TinyCausalTransformer, TinyTokenizer]:

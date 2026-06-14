@@ -1,5 +1,5 @@
-from specialization_cache_frontier.tiny_causal_transformer.eval import perplexity
-from specialization_cache_frontier.tiny_causal_transformer.train import train
+from experimental.tiny_causal_transformer.eval import perplexity
+from experimental.tiny_causal_transformer.train import train
 
 
 def test_tiny_causal_transformer_trains_and_generates():
