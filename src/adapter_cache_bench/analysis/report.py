@@ -87,6 +87,33 @@ def _interpretation_lines(cache_means, layouts, repeated, df) -> list[str]:
     return lines or ["- No interpretation available until benchmark summaries are present."]
 
 
+def _evidence_lines(df) -> list[str]:
+    if df.empty:
+        return ["No benchmark evidence is present yet."]
+    if "backend_kind" not in df:
+        return ["Backend provenance is unavailable for these runs."]
+    rows = []
+    grouped = (
+        df.fillna({"backend_kind": "unknown", "backend_model": "unknown"})
+        .groupby(["backend_kind", "backend_model"], as_index=False)
+        .agg(
+            runs=("run_id", "count"),
+            requests=("request_count", "sum"),
+            mean_quality=("mean_quality", "mean"),
+            p95_ttft_ms=("p95_ttft_ms", "mean"),
+        )
+        .sort_values(["backend_kind", "backend_model"])
+    )
+    for row in grouped.to_dict("records"):
+        rows.append(
+            f"- `{row['backend_kind']}` / `{row['backend_model']}`: "
+            f"{int(row['runs'])} runs, {int(row['requests'])} requests, "
+            f"mean quality {row['mean_quality']:.3f}, "
+            f"mean p95 TTFT {row['p95_ttft_ms']:.1f} ms."
+        )
+    return rows
+
+
 def generate_report(
     runs_dir: str | Path = "artifacts/runs",
     report_path: str | Path = "reports/adapter-cache-bench.md",
@@ -204,6 +231,7 @@ def generate_report(
         ],
     )
     interpretation = _interpretation_lines(cache_means, layouts, repeated, df)
+    evidence = _evidence_lines(df)
     lines = [
         "# When is specialization worth its cache footprint?",
         "",
@@ -225,11 +253,15 @@ def generate_report(
         "",
         "## Experimental setup",
         "",
-        "The committed report uses the deterministic mock backend as a systems",
-        "simulator: it isolates routing, prefix-cache locality, finite KV budget,",
-        "eviction, prompt layout, and SLO behavior from GPU and serving noise.",
-        "It is not model-quality evidence. Real model evaluation should use the",
-        "same JSONL workloads with `backend.kind: vllm`.",
+        "The deterministic mock backend is a systems simulator: it isolates routing,",
+        "prefix-cache locality, finite KV budget, eviction, prompt layout, and SLO",
+        "behavior from GPU and serving noise. Real model-server runs use the same",
+        "JSONL workloads with `backend.kind: vllm` or another OpenAI-compatible",
+        "backend.",
+        "",
+        "### Evidence classes",
+        "",
+        *evidence,
         "",
         "## Workloads",
         "",

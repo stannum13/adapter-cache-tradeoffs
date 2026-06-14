@@ -1,7 +1,9 @@
 # gcloud vLLM runbook
 
 Use gcloud when you need a real vLLM server with GPU memory, adapter loading,
-and OpenAI-compatible `/v1/chat/completions`.
+and OpenAI-compatible `/v1/chat/completions`. The helper script in
+`scripts/gcloud_l4_vllm.sh` keeps the create/setup/serve/run/stop flow
+repeatable.
 
 For a first sanity check, prefer the local Hugging Face backend:
 
@@ -22,16 +24,11 @@ Check quota and billing before creating a GPU VM.
 
 ## 2. Create a GPU VM
 
-Example shape:
+Scripted path:
 
 ```bash
-gcloud compute instances create adapter-cache-vllm \
-  --machine-type=g2-standard-8 \
-  --accelerator=type=nvidia-l4,count=1 \
-  --maintenance-policy=TERMINATE \
-  --image-family=common-cu124 \
-  --image-project=deeplearning-platform-release \
-  --boot-disk-size=200GB
+PROJECT=<project-id> ZONE=us-central1-a ./scripts/gcloud_l4_vllm.sh create
+PROJECT=<project-id> ZONE=us-central1-a ./scripts/gcloud_l4_vllm.sh setup
 ```
 
 GPU availability varies by region. If this fails, choose another zone or GPU
@@ -39,37 +36,38 @@ type that has quota in your project.
 
 ## 3. Start vLLM on the VM
 
-SSH in:
+Base-model server:
 
 ```bash
-gcloud compute ssh adapter-cache-vllm
+PROJECT=<project-id> ./scripts/gcloud_l4_vllm.sh serve-base
 ```
 
-Install or update vLLM in an environment appropriate for the image:
+Multi-LoRA server:
 
 ```bash
-python -m pip install -U vllm
+PROJECT=<project-id> ./scripts/gcloud_l4_vllm.sh serve-lora
 ```
 
-Start an OpenAI-compatible server:
+The default LoRA smoke path registers the same public Qwen-compatible adapter
+under four model names:
 
 ```bash
-vllm serve meta-llama/Llama-3.1-8B-Instruct \
-  --host 0.0.0.0 \
-  --port 8000 \
-  --enable-lora
+qa-lora
+json-lora
+summary-lora
+code-lora
 ```
 
-Adapter registration depends on the model and vLLM version. Put deployment
-specific fields in `backend.extra_body` or expose adapters as server-side model
-names.
+Replace `LORA_REPO` or the script command if you have separately trained
+specialist adapters. The benchmark config maps task adapters to vLLM model
+names with `backend.adapter_model_names`.
 
 ## 4. Tunnel the API locally
 
 From your laptop:
 
 ```bash
-gcloud compute ssh adapter-cache-vllm -- -L 8000:localhost:8000
+PROJECT=<project-id> ./scripts/gcloud_l4_vllm.sh tunnel
 ```
 
 Then verify:
@@ -80,11 +78,16 @@ curl http://localhost:8000/v1/models
 
 ## 5. Run the benchmark
 
-Edit `configs/benchmark/source_eval_vllm.yaml` for the served model and adapter
-metadata, then run:
+Base-model run:
 
 ```bash
-make vllm-source-eval
+make vllm-source-eval-l4-qwen
+```
+
+LoRA-serving run:
+
+```bash
+make vllm-source-eval-lora-qwen
 ```
 
 The run writes `requests.jsonl`, `summary.json`, `config_resolved.yaml`, and
@@ -95,7 +98,8 @@ The run writes `requests.jsonl`, `summary.json`, `config_resolved.yaml`, and
 Stop or delete the VM when finished:
 
 ```bash
-gcloud compute instances stop adapter-cache-vllm
-# or
-gcloud compute instances delete adapter-cache-vllm
+PROJECT=<project-id> ./scripts/gcloud_l4_vllm.sh stop
 ```
+
+Stopping the VM stops GPU billing for the instance, but persistent disk storage
+continues until the VM or disk is deleted.

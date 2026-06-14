@@ -96,6 +96,8 @@ used by the benchmark:
 ```bash
 make transformers-source-eval
 make vllm-source-eval
+make vllm-source-eval-l4-qwen
+make vllm-source-eval-lora-qwen
 uv run python -m adapter_cache_bench.bench.run_workload \
   --config configs/benchmark/vllm_example.yaml
 ```
@@ -103,6 +105,11 @@ uv run python -m adapter_cache_bench.bench.run_workload \
 See [docs/vllm.md](docs/vllm.md) for the optional serving flow.
 See [docs/model_backends.md](docs/model_backends.md) for backend options.
 See [docs/gcloud_vllm.md](docs/gcloud_vllm.md) for a GPU/vLLM runbook.
+
+The LoRA vLLM path expects the server to expose adapter model names such as
+`qa-lora`, `json-lora`, `summary-lora`, and `code-lora`. The included Qwen LoRA
+overlay is a serving smoke path; replace it with task-trained adapters before
+claiming specialist quality gains.
 
 See [docs/eval_datasets.md](docs/eval_datasets.md) for the JSONL schema.
 See [docs/release_checklist.md](docs/release_checklist.md) before publishing.
@@ -166,6 +173,9 @@ must stay optional and are skipped unless explicitly enabled.
 - Cache memory accounting is token-based, not byte-accurate KV allocation.
 - The activated-LoRA and copy-on-write paths are simulators, not vLLM kernel
   implementations.
+- The included vLLM LoRA config proves real adapter serving mechanics, but its
+  public smoke adapter is not trained for this benchmark's QA/JSON/summary/code
+  tasks.
 - The included JSONL eval fixtures are intentionally small and public-domain
   style. Replace them before making research claims.
 

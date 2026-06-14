@@ -66,6 +66,8 @@ class BackendResponse(BaseModel):
 class BenchmarkSummary(BaseModel):
     run_id: str
     request_count: int
+    backend_kind: str = "unknown"
+    backend_model: str = "unknown"
     router_policy: str
     cache_model: str
     workload: str

@@ -30,6 +30,8 @@ def summarize(
     return BenchmarkSummary(
         run_id=run_id,
         request_count=len(responses),
+        backend_kind=config.backend.kind,
+        backend_model=config.backend.model,
         router_policy=config.router.policy,
         cache_model=config.cache.model,
         workload=config.workload.name,

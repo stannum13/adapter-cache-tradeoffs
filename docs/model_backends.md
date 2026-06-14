@@ -41,6 +41,7 @@ Configure:
 - `backend.base_url`
 - `backend.api_key`
 - `backend.model`
+- `backend.adapter_model_names` for vLLM LoRA modules served as model names
 - `backend.temperature`
 - `backend.extra_body`
 
@@ -50,7 +51,19 @@ Run the source eval against vLLM:
 make vllm-source-eval
 ```
 
-The request payload keeps adapter metadata in `extra_body.adapter`, so server
-deployments can map it to their LoRA or adapter-loading convention.
+For real vLLM LoRA serving, start vLLM with `--enable-lora --lora-modules`
+and map benchmark adapter IDs to served model names:
+
+```yaml
+backend:
+  model: Qwen/Qwen2.5-3B-Instruct
+  adapter_model_names:
+    qa: qa-lora
+    json: json-lora
+```
+
+When `adapter_model_names` is not set, the backend keeps adapter metadata in
+`extra_body.adapter` for custom OpenAI-compatible servers that use a non-vLLM
+adapter convention.
 
 For a GPU VM setup, see [gcloud_vllm.md](gcloud_vllm.md).

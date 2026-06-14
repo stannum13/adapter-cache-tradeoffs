@@ -5,19 +5,63 @@ The default benchmark path uses `MockBackend` and requires no GPU. The optional
 generic local server, set `backend.kind: openai_compatible`; for vLLM-specific
 configs, use `backend.kind: vllm`.
 
-## Start a Server
+## Start a Base-Model Server
 
 Example shape:
 
 ```bash
-vllm serve meta-llama/Llama-3.1-8B-Instruct \
+vllm serve Qwen/Qwen2.5-3B-Instruct \
   --host 0.0.0.0 \
-  --port 8000 \
-  --enable-lora
+  --port 8000
 ```
 
-Adapter naming and LoRA registration depend on the vLLM version and serving
-layout. Keep those choices in `backend.extra_body` or server-side model names.
+Run the source-backed benchmark against that server:
+
+```bash
+make vllm-source-eval-l4-qwen
+```
+
+## Start a Multi-LoRA Server
+
+vLLM's OpenAI-compatible server selects a registered LoRA adapter through the
+request `model` field. Start vLLM with `--enable-lora` and one or more
+`--lora-modules` entries:
+
+```bash
+vllm serve Qwen/Qwen2.5-3B-Instruct \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --enable-lora \
+  --max-loras 4 \
+  --max-lora-rank 64 \
+  --lora-modules \
+    qa-lora=ngxson/LoRA-Qwen2.5-3B-Instruct-abliterated \
+    json-lora=ngxson/LoRA-Qwen2.5-3B-Instruct-abliterated \
+    summary-lora=ngxson/LoRA-Qwen2.5-3B-Instruct-abliterated \
+    code-lora=ngxson/LoRA-Qwen2.5-3B-Instruct-abliterated
+```
+
+Then run:
+
+```bash
+make vllm-source-eval-lora-qwen
+```
+
+`configs/benchmark/source_eval_vllm_lora_qwen.yaml` maps benchmark adapter IDs
+to those served model names:
+
+```yaml
+backend:
+  adapter_model_names:
+    qa: qa-lora
+    json: json-lora
+    summary: summary-lora
+    code: code-lora
+```
+
+The public LoRA listed above is a serving smoke adapter, not a task-specialist
+adapter trained for this benchmark. Replace those module paths with your own
+QA, JSON, summary, and code adapters for task-quality claims.
 
 See [model_backends.md](model_backends.md) for the backend matrix.
 

@@ -17,7 +17,10 @@ def load_summaries(runs_dir: str | Path) -> pd.DataFrame:
     rows = []
     for path in Path(runs_dir).glob("*/summary.json"):
         with path.open("r", encoding="utf-8") as handle:
-            rows.append(json.load(handle))
+            row = json.load(handle)
+            row.setdefault("backend_kind", "unknown")
+            row.setdefault("backend_model", "unknown")
+            rows.append(row)
     return pd.DataFrame(rows)
 
 
@@ -170,6 +173,8 @@ def load_request_rows(runs_dir: str | Path) -> pd.DataFrame:
                 summary = json.load(handle)
             metadata = {
                 "run_id": summary["run_id"],
+                "backend_kind": summary.get("backend_kind", "unknown"),
+                "backend_model": summary.get("backend_model", "unknown"),
                 "router_policy": summary["router_policy"],
                 "cache_model": summary["cache_model"],
                 "workload": summary["workload"],
