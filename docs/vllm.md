@@ -80,6 +80,28 @@ source-backed eval bundle against the same OpenAI-compatible endpoint:
 make vllm-source-eval
 ```
 
+## Run Concurrent Load
+
+The sequential runner is useful for quality and cache-accounting sanity. Use
+`run_concurrent` when you need wall-clock goodput and SLO behavior under bounded
+request concurrency:
+
+```bash
+make vllm-heldout-xlarge-lora-trained-qwen15b-concurrent
+```
+
+Concurrent configs set:
+
+```yaml
+backend:
+  max_concurrency: 8
+  request_spacing_ms: 0
+```
+
+The runner still writes `requests.jsonl`, `summary.json`,
+`config_resolved.yaml`, and `manifest.json`. Its throughput and goodput metrics
+use wall-clock run duration rather than the sum of per-request latencies.
+
 Configure `backend.base_url`, `backend.model`, and adapter metadata for your
 server. Use the mock backend for unit tests, CI, and CPU-only development. vLLM
 responses are scored with the benchmark's task metrics (`qa`, `json`,

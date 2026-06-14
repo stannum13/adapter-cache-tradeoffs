@@ -53,6 +53,9 @@ make vllm-heldout-lora-trained-qwen15b
 make vllm-heldout-lora-multitask-qwen15b
 make vllm-heldout-trained-matrix-qwen15b
 make vllm-heldout-trained-repeated-qwen15b
+make vllm-heldout-xlarge-qwen15b-concurrent
+make vllm-heldout-xlarge-lora-trained-qwen15b-concurrent
+make vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent
 ```
 
 The result supports the full hypothesis only if the trained specialist adapters

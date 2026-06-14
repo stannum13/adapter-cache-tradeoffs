@@ -100,6 +100,8 @@ make vllm-source-eval-l4-qwen
 make vllm-source-eval-lora-qwen
 uv run python -m adapter_cache_bench.bench.run_workload \
   --config configs/benchmark/vllm_example.yaml
+uv run python -m adapter_cache_bench.bench.run_concurrent \
+  --config configs/benchmark/heldout_xlarge_sft_eval_vllm_lora_trained_qwen15b_concurrent.yaml
 ```
 
 See [docs/vllm.md](docs/vllm.md) for the optional serving flow.

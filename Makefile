@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval source-eval transformers-source-eval vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
+.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval source-eval transformers-source-eval vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b-concurrent vllm-heldout-xlarge-lora-trained-qwen15b-concurrent vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
 
 sync:
 	uv sync --extra dev
@@ -89,6 +89,15 @@ vllm-heldout-xlarge-lora-trained-qwen15b:
 
 vllm-heldout-xlarge-lora-multitask-qwen15b:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/heldout_xlarge_sft_eval_vllm_lora_multitask_qwen15b.yaml
+
+vllm-heldout-xlarge-qwen15b-concurrent:
+	uv run python -m adapter_cache_bench.bench.run_concurrent --config configs/benchmark/heldout_xlarge_sft_eval_vllm_qwen15b_concurrent.yaml
+
+vllm-heldout-xlarge-lora-trained-qwen15b-concurrent:
+	uv run python -m adapter_cache_bench.bench.run_concurrent --config configs/benchmark/heldout_xlarge_sft_eval_vllm_lora_trained_qwen15b_concurrent.yaml
+
+vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent:
+	uv run python -m adapter_cache_bench.bench.run_concurrent --config configs/benchmark/heldout_xlarge_sft_eval_vllm_lora_multitask_qwen15b_concurrent.yaml
 
 vllm-heldout-trained-matrix-qwen15b:
 	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/heldout_trained_matrix_vllm_qwen15b.yaml
