@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from specialization_cache_frontier.analysis.pareto import workload_pareto_frontiers
 from specialization_cache_frontier.analysis.plots import generate_plots
 from specialization_cache_frontier.bench.aggregate import (
     cache_model_means,
@@ -45,6 +46,7 @@ def generate_report(
     cache_means = cache_model_means(df)
     routers = router_means(df)
     layouts = layout_ablation_means(request_df)
+    pareto = workload_pareto_frontiers(df)
     report = Path(report_path)
     report.parent.mkdir(parents=True, exist_ok=True)
     if df.empty:
@@ -100,6 +102,17 @@ def generate_report(
     layout_lines = _markdown_table(
         layouts.head(12).to_dict("records") if not layouts.empty else [],
         ["prompt_layout", "cache_model", "ttft_ms", "quality", "cached_prompt_tokens"],
+    )
+    pareto_lines = _markdown_table(
+        pareto.head(12).to_dict("records") if not pareto.empty else [],
+        [
+            "pareto_workload",
+            "router_policy",
+            "cache_model",
+            "mean_quality",
+            "p95_ttft_ms",
+            "quality_adjusted_goodput",
+        ],
     )
     lines = [
         "# When is specialization worth its cache footprint?",
@@ -168,6 +181,10 @@ def generate_report(
         "### Prompt-layout ablation",
         "",
         *layout_lines,
+        "",
+        "### Pareto frontier",
+        "",
+        *pareto_lines,
         "",
         "## Takeaways",
         "",

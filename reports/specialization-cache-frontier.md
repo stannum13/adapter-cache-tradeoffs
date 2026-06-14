@@ -57,6 +57,7 @@ Generated tables:
 - `reports/tables/cache_model_means.csv`
 - `reports/tables/router_means.csv`
 - `reports/tables/layout_ablation.csv`
+- `reports/tables/pareto_frontier.csv`
 
 ### Workload leaders
 
@@ -72,18 +73,18 @@ Generated tables:
 
 | cache_model | adapter_strategy | quality_adjusted_goodput | p95_ttft_ms | cache_hit_rate | fragmentation_index |
 | --- | --- | --- | --- | --- | --- |
-| activated_lora | activated-late-specialization | 14.620 | 48.714 | 0.838 | 1.016 |
+| activated_lora | activated-late-specialization | 14.807 | 47.698 | 0.841 | 1.015 |
 | base_shared | multitask-or-shared-base | 13.940 | 52.145 | 0.844 | 1.000 |
 | copy_on_write | copy-on-write-delta | 13.940 | 52.145 | 0.844 | 1.026 |
-| standard_lora | specialist-adapter | 12.863 | 65.348 | 0.798 | 1.347 |
+| standard_lora | specialist-adapter | 13.093 | 65.083 | 0.803 | 1.350 |
 
 ### Router means
 
 | router_policy | quality_adjusted_goodput | mean_quality | p95_ttft_ms |
 | --- | --- | --- | --- |
-| cache_aware | 14.964 | 0.896 | 47.788 |
+| cache_aware | 15.177 | 0.896 | 46.599 |
+| semantic | 14.764 | 0.919 | 56.288 |
 | oracle | 14.560 | 0.920 | 56.178 |
-| semantic | 14.560 | 0.920 | 56.178 |
 | sticky_session | 14.560 | 0.920 | 56.178 |
 | random | 10.508 | 0.685 | 56.757 |
 
@@ -99,6 +100,19 @@ Generated tables:
 | instruction_before_document | base_shared | 69.129 | 0.895 | 7.333 |
 | instruction_before_document | copy_on_write | 69.129 | 0.895 | 7.333 |
 | instruction_before_document | standard_lora | 69.293 | 0.895 | 6.867 |
+
+### Pareto frontier
+
+| pareto_workload | router_policy | cache_model | mean_quality | p95_ttft_ms | quality_adjusted_goodput |
+| --- | --- | --- | --- | --- | --- |
+| agent_session | oracle | activated_lora | 0.922 | 23.241 | 17.118 |
+| low_overlap_control | random | copy_on_write | 0.646 | 72.236 | 6.201 |
+| low_overlap_control | semantic | activated_lora | 0.916 | 72.620 | 8.911 |
+| mixed_tasks_same_doc | cache_aware | standard_lora | 0.690 | 17.731 | 13.988 |
+| mixed_tasks_same_doc | cache_aware | activated_lora | 0.915 | 19.255 | 20.062 |
+| prompt_layout_ablation | oracle | copy_on_write | 0.932 | 71.645 | 12.195 |
+| shared_doc_qa | random | copy_on_write | 0.709 | 72.749 | 13.379 |
+| shared_doc_qa | oracle | activated_lora | 0.913 | 73.764 | 16.822 |
 
 ## Takeaways
 

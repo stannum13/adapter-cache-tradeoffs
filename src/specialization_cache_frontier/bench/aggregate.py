@@ -115,6 +115,8 @@ def write_analysis_tables(
     request_df: pd.DataFrame,
     output_dir: str | Path = "reports/tables",
 ) -> dict[str, Path]:
+    from specialization_cache_frontier.analysis.pareto import workload_pareto_frontiers
+
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
     tables = {
@@ -123,6 +125,7 @@ def write_analysis_tables(
         "cache_model_means": cache_model_means(df),
         "router_means": router_means(df),
         "layout_ablation": layout_ablation_means(request_df),
+        "pareto_frontier": workload_pareto_frontiers(df),
     }
     paths = {}
     for name, table in tables.items():
