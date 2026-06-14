@@ -6,12 +6,12 @@ from typing import Any
 import httpx
 
 from specialization_cache_frontier.backends.base import Backend
+from specialization_cache_frontier.bench.quality import evaluate_prediction
 from specialization_cache_frontier.cache.cache_models import CacheModel
 from specialization_cache_frontier.cache.tokenizer import count_tokens
 from specialization_cache_frontier.config import BackendConfig
 from specialization_cache_frontier.types import (
     BackendResponse,
-    QualityResult,
     RequestMetrics,
     RequestRecord,
     RoutingDecision,
@@ -79,10 +79,11 @@ class VLLMBackend(Backend):
             e2e_ms=elapsed_ms,
             output_tokens=output_tokens,
         )
-        quality = QualityResult(
+        quality = evaluate_prediction(
             task_type=request.task_type,
             adapter_id=decision.adapter_id,
-            score=0.0,
+            prediction=text,
+            ground_truth=request.ground_truth,
         )
         cache_model.observe_request(
             decision.adapter_id,

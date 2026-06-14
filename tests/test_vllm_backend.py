@@ -15,6 +15,7 @@ def _request() -> RequestRecord:
         task_type="qa",
         prompt="Document: shared text <ADAPTER:qa> answer",
         expected_adapter="qa",
+        ground_truth="answer text",
         max_tokens=12,
     )
 
@@ -55,4 +56,6 @@ def test_vllm_backend_parses_openai_compatible_response_without_network():
     assert response.text == "answer text"
     assert response.metrics.prompt_tokens == 6
     assert response.metrics.output_tokens == 2
+    assert response.quality.exact_match_like_score == 1.0
+    assert response.quality.score == 1.0
     assert cache.estimate_cached_prefix_tokens("qa", _request().prompt, "t1", "g1") == 5
