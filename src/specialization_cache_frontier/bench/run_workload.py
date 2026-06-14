@@ -4,12 +4,34 @@ import argparse
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 from specialization_cache_frontier.backends.mock_backend import MockBackend
 from specialization_cache_frontier.cache.cache_models import make_cache_model
 from specialization_cache_frontier.config import BenchmarkConfig, dump_config, load_config
 from specialization_cache_frontier.routing.base import make_router
 from specialization_cache_frontier.workloads.generator import generate_workload
+
+
+def build_manifest(
+    run_id: str,
+    config: BenchmarkConfig,
+    request_count: int,
+    artifact_files: list[str],
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "run_name": config.run_name,
+        "created_at_unix_ms": int(time.time() * 1000),
+        "model": config.model.name,
+        "backend": config.backend.kind,
+        "workload": config.workload.name,
+        "router_policy": config.router.policy,
+        "cache_model": config.cache.model,
+        "adapter_ids": config.adapters.adapter_ids,
+        "request_count": request_count,
+        "artifact_files": artifact_files,
+    }
 
 
 def run(
@@ -45,6 +67,14 @@ def run(
     with (run_dir / "summary.json").open("w", encoding="utf-8") as handle:
         json.dump(summary.model_dump(mode="json"), handle, indent=2)
     dump_config(config, run_dir / "config_resolved.yaml")
+    manifest = build_manifest(
+        run_id,
+        config,
+        request_count=len(responses),
+        artifact_files=["requests.jsonl", "summary.json", "config_resolved.yaml", "manifest.json"],
+    )
+    with (run_dir / "manifest.json").open("w", encoding="utf-8") as handle:
+        json.dump(manifest, handle, indent=2)
 
     from specialization_cache_frontier.analysis.report import generate_report
 
