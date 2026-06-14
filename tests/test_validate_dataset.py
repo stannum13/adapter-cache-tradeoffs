@@ -20,6 +20,17 @@ def test_validate_large_public_domain_eval_config():
     }
 
 
+def test_validate_source_eval_config():
+    result = validate_workload_config("configs/benchmark/source_eval.yaml")
+
+    assert result["request_count"] == 24
+    assert set(result["task_types"]) == {"qa", "json", "summary", "code"}
+    assert set(result["prompt_layouts"]) == {
+        "document_before_instruction",
+        "instruction_before_document",
+    }
+
+
 def test_validate_workload_rejects_missing_ground_truth(tmp_path):
     dataset = tmp_path / "bad.jsonl"
     dataset.write_text(

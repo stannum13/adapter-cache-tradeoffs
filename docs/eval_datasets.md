@@ -40,16 +40,24 @@ Validate a dataset-backed config before running:
 
 ```bash
 uv run python -m adapter_cache_bench.workloads.validate_dataset \
-  --config configs/benchmark/public_domain_eval_large.yaml
+  --config configs/benchmark/source_eval.yaml
 ```
 
 Run it with the mock backend for cache/routing sanity:
 
 ```bash
 uv run python -m adapter_cache_bench.bench.run_workload \
-  --config configs/benchmark/public_domain_eval_large.yaml
+  --config configs/benchmark/source_eval.yaml
 ```
 
 Run the same shape through a served causal transformer by setting
 `backend.kind: vllm` and configuring `backend.base_url`, `backend.model`, and
 adapter routing metadata. See [vllm.md](vllm.md).
+
+Included datasets:
+
+- `data/eval/source_eval.jsonl`: 24 source-backed public-domain records across
+  QA, JSON extraction, summarization, and code-style parser checks.
+- `data/eval/public_domain_eval.jsonl`: five-record smoke fixture.
+- `data/eval/public_domain_eval_large.jsonl`: generated 100-record cache/routing
+  fixture, useful for repeated systems experiments but not a research claim.

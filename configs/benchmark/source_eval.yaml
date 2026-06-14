@@ -1,0 +1,18 @@
+run_name: source-eval
+output_dir: artifacts/runs
+workload:
+  name: jsonl_eval
+  dataset_path: data/eval/source_eval.jsonl
+  request_count: 24
+  sessions: 12
+  tenants: 1
+  max_tokens: 64
+router:
+  policy: cache_aware
+cache:
+  model: activated_lora
+  block_size: 8
+backend:
+  kind: mock
+  seed: 47
+  ttft_slo_ms: 180

@@ -82,6 +82,8 @@ Use JSONL eval configs when you want task records with ground truth:
 
 ```bash
 make validate-eval-large
+make validate-source-eval
+make source-eval
 uv run python -m adapter_cache_bench.bench.run_workload \
   --config configs/benchmark/public_domain_eval_large.yaml
 ```
@@ -98,6 +100,7 @@ uv run python -m adapter_cache_bench.bench.run_workload \
 See [docs/vllm.md](docs/vllm.md) for the optional serving flow.
 
 See [docs/eval_datasets.md](docs/eval_datasets.md) for the JSONL schema.
+See [docs/release_checklist.md](docs/release_checklist.md) before publishing.
 
 ## Workloads
 
