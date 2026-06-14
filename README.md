@@ -63,6 +63,7 @@ Outputs:
 ```bash
 uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/small.yaml
 uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/public_domain_eval.yaml
+uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/public_domain_eval_large.yaml
 uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/full.yaml
 uv run python -m specialization_cache_frontier.analysis.report --runs-dir artifacts/runs
 uv run python -m specialization_cache_frontier.bench.compare --runs-dir artifacts/runs
@@ -79,9 +80,10 @@ For repeated-seed estimates, use:
 uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/repeated.yaml
 ```
 
-`configs/benchmark/public_domain_eval.yaml` runs a small file-backed eval set in
-`data/eval/public_domain_eval.jsonl`. It is intentionally tiny, public-domain
-style, and easy to replace with a larger JSONL task set.
+`configs/benchmark/public_domain_eval.yaml` runs a tiny file-backed smoke eval.
+`configs/benchmark/public_domain_eval_large.yaml` runs the 100-record fixture in
+`data/eval/public_domain_eval_large.jsonl`. Both are public-domain style and
+easy to replace with a larger JSONL task set.
 
 Config files compose left to right, so small experiments can override only the
 router, cache model, or workload:

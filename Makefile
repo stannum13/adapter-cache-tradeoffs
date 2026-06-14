@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval
+.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large
 
 sync:
 	uv sync --extra dev
@@ -35,3 +35,6 @@ slo:
 
 validate-eval:
 	uv run python -m specialization_cache_frontier.workloads.validate_dataset --config configs/benchmark/public_domain_eval.yaml
+
+validate-eval-large:
+	uv run python -m specialization_cache_frontier.workloads.validate_dataset --config configs/benchmark/public_domain_eval_large.yaml
