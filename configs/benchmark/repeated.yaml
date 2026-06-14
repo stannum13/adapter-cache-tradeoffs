@@ -19,7 +19,7 @@ backend:
   seed: 11
   ttft_slo_ms: 220
 matrix:
-  routers: [semantic, cache_aware, oracle]
+  routers: [semantic, multitask, cache_aware, oracle]
   caches: [standard_lora, activated_lora, copy_on_write]
   workloads: [shared_doc_qa, mixed_tasks_same_doc, prompt_layout_ablation]
   seeds: [11, 17, 23]

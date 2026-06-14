@@ -51,7 +51,7 @@ Outputs:
 
 - `configs/`: benchmark, router, cache, and workload YAMLs
 - `src/specialization_cache_frontier/cache/`: whitespace tokenizer and block prefix cache simulators
-- `src/specialization_cache_frontier/routing/`: random, semantic, sticky, cache-aware, and oracle policies
+- `src/specialization_cache_frontier/routing/`: random, semantic, multitask, sticky, cache-aware, and oracle policies
 - `src/specialization_cache_frontier/backends/`: mock backend plus optional vLLM client stub
 - `src/specialization_cache_frontier/bench/`: workload and matrix runners
 - `src/specialization_cache_frontier/analysis/`: plots, report, and Pareto helpers

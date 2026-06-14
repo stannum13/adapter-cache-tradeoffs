@@ -24,6 +24,15 @@ def test_semantic_routes_by_task_type():
     assert decision.adapter_id == "json"
 
 
+def test_multitask_policy_forces_multitask_adapter():
+    router = make_router(RouterConfig(policy="multitask"))
+    cache = StandardLoRACache(CacheConfig(block_size=2))
+
+    decision = router.route(_request("json"), ["qa", "json", "multitask"], cache)
+
+    assert decision.adapter_id == "multitask"
+
+
 def test_random_policy_is_deterministic_for_seed():
     cache = StandardLoRACache(CacheConfig(block_size=2))
     first = make_router(RouterConfig(policy="random", seed=3))

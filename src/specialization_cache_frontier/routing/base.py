@@ -40,6 +40,10 @@ def make_router(config: RouterConfig, state: SessionState | None = None) -> Rout
         from specialization_cache_frontier.routing.semantic_policy import SemanticPolicy
 
         return SemanticPolicy(config, state)
+    if config.policy == "multitask":
+        from specialization_cache_frontier.routing.multitask_policy import MultitaskPolicy
+
+        return MultitaskPolicy(config, state)
     if config.policy == "sticky_session":
         from specialization_cache_frontier.routing.sticky_session_policy import StickySessionPolicy
 

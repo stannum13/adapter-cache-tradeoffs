@@ -19,7 +19,6 @@ backend:
   seed: 13
   ttft_slo_ms: 220
 matrix:
-  routers: [random, semantic, sticky_session, cache_aware, oracle]
+  routers: [random, semantic, multitask, sticky_session, cache_aware, oracle]
   caches: [standard_lora, base_shared, activated_lora, copy_on_write]
   workloads: [shared_doc_qa, mixed_tasks_same_doc, agent_session, low_overlap_control, prompt_layout_ablation]
-
