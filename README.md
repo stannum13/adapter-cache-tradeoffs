@@ -114,6 +114,10 @@ uv run ruff format . --check
 
 The GitHub Actions workflow runs the same CPU-only checks.
 
+## License
+
+MIT. See `LICENSE`.
+
 ## Limitations
 
 The first pass uses whitespace tokenization, approximate block caching, synthetic quality priors, and a deterministic mock backend. It is designed to make cache-routing tradeoffs reproducible before validating them on real serving stacks.
