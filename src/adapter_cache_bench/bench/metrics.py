@@ -16,12 +16,16 @@ def percentile(values: list[float], p: float) -> float:
 
 
 def summarize(
-    run_id: str, config: BenchmarkConfig, responses: list[BackendResponse], cache_model: CacheModel
+    run_id: str,
+    config: BenchmarkConfig,
+    responses: list[BackendResponse],
+    cache_model: CacheModel,
+    duration_s: float | None = None,
 ) -> BenchmarkSummary:
     ttft = [response.metrics.ttft_ms for response in responses]
     e2e = [response.metrics.e2e_ms for response in responses]
     output_tokens = [response.metrics.output_tokens for response in responses]
-    duration_s = max(0.001, sum(e2e) / 1000.0)
+    duration_s = max(0.001, duration_s if duration_s is not None else sum(e2e) / 1000.0)
     good = [
         response for response in responses if response.metrics.ttft_ms <= config.backend.ttft_slo_ms
     ]

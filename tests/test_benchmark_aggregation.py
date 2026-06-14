@@ -9,6 +9,7 @@ from adapter_cache_bench.bench.aggregate import (
     write_analysis_tables,
 )
 from adapter_cache_bench.bench.compare import compare_runs
+from adapter_cache_bench.bench.run_concurrent import run_concurrent
 from adapter_cache_bench.bench.run_workload import run
 from adapter_cache_bench.config import (
     BackendConfig,
@@ -102,6 +103,34 @@ def test_benchmark_run_can_skip_report_artifacts(tmp_path):
 
     assert not (tmp_path / "report.md").exists()
     assert not (tmp_path / "tables").exists()
+
+
+def test_concurrent_benchmark_run_writes_artifacts(tmp_path):
+    config = BenchmarkConfig(
+        run_name="concurrent-test",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="mixed_tasks_same_doc", request_count=6, document_tokens=24),
+        cache=CacheConfig(model="activated_lora", block_size=4),
+        router=RouterConfig(policy="cache_aware"),
+        backend=BackendConfig(kind="mock", max_concurrency=3),
+    )
+
+    run_dir = run_concurrent(
+        config,
+        run_id="unit-concurrent",
+        report_path=tmp_path / "report.md",
+        tables_dir=tmp_path / "tables",
+        generate_report_artifacts=False,
+    )
+
+    assert (run_dir / "requests.jsonl").exists()
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    first_row = json.loads((run_dir / "requests.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert summary["request_count"] == 6
+    assert summary["request_throughput"] > 0.0
+    assert manifest["max_concurrency"] == 3
+    assert first_row["load"]["max_concurrency"] == 3
 
 
 def test_load_request_rows_reads_layout_and_metrics(tmp_path):

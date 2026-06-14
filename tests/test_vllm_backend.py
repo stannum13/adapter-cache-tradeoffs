@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 
 from adapter_cache_bench.backends.vllm_backend import VLLMBackend
@@ -159,3 +161,34 @@ def test_vllm_backend_parses_completion_response_without_network():
     assert response.text == "answer text"
     assert response.metrics.prompt_tokens == 6
     assert response.metrics.output_tokens == 2
+
+
+def test_vllm_backend_async_generate_without_network():
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/chat/completions")
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": "answer text"}}],
+                "usage": {"prompt_tokens": 6, "completion_tokens": 2},
+            },
+        )
+
+    async def run_case():
+        async with httpx.AsyncClient(
+            base_url="http://testserver/v1",
+            transport=httpx.MockTransport(handler),
+        ) as client:
+            backend = VLLMBackend(
+                BackendConfig(base_url="http://testserver/v1"),
+                async_client=client,
+            )
+            cache = StandardLoRACache(CacheConfig(block_size=2))
+            decision = RoutingDecision(request_id="r1", adapter_id="qa", policy_name="semantic")
+
+            return await backend.async_generate(_request(), decision, cache)
+
+    response = asyncio.run(run_case())
+    assert response.text == "answer text"
+    assert response.metrics.prompt_tokens == 6
+    assert response.quality.score == 1.0

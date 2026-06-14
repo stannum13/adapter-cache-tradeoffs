@@ -25,13 +25,19 @@ class VLLMBackend(Backend):
     callers opt into integration testing.
     """
 
-    def __init__(self, config: BackendConfig, client: httpx.Client | None = None) -> None:
+    def __init__(
+        self,
+        config: BackendConfig,
+        client: httpx.Client | None = None,
+        async_client: httpx.AsyncClient | None = None,
+    ) -> None:
         self.config = config
         self.client = client or httpx.Client(
             base_url=config.base_url,
             headers={"Authorization": f"Bearer {config.api_key}"},
             timeout=60.0,
         )
+        self.async_client = async_client
 
     def endpoint(self) -> str:
         return str(self.config.extra_body.get("endpoint", "chat_completions"))
@@ -79,22 +85,15 @@ class VLLMBackend(Backend):
             return str(choice.get("text") or "")
         return str(choice.get("message", {}).get("content", ""))
 
-    def generate(
-        self, request: RequestRecord, decision: RoutingDecision, cache_model: CacheModel
+    def build_response(
+        self,
+        request: RequestRecord,
+        decision: RoutingDecision,
+        cache_model: CacheModel,
+        payload: dict[str, Any],
+        elapsed_ms: float,
+        cached: int,
     ) -> BackendResponse:
-        cached = cache_model.estimate_cached_prefix_tokens(
-            decision.adapter_id,
-            request.prompt,
-            request.tenant_id,
-            request.trust_group_id,
-        )
-        started = time.perf_counter()
-        response = self.client.post(
-            self.request_path(), json=self.completion_payload(request, decision)
-        )
-        elapsed_ms = (time.perf_counter() - started) * 1000.0
-        response.raise_for_status()
-        payload = response.json()
         text = self.response_text(payload)
         usage = payload.get("usage", {})
         prompt_tokens = int(usage.get("prompt_tokens") or count_tokens(request.prompt))
@@ -131,4 +130,66 @@ class VLLMBackend(Backend):
             text=text,
             metrics=metrics,
             quality=quality,
+        )
+
+    def generate(
+        self, request: RequestRecord, decision: RoutingDecision, cache_model: CacheModel
+    ) -> BackendResponse:
+        cached = cache_model.estimate_cached_prefix_tokens(
+            decision.adapter_id,
+            request.prompt,
+            request.tenant_id,
+            request.trust_group_id,
+        )
+        started = time.perf_counter()
+        response = self.client.post(
+            self.request_path(), json=self.completion_payload(request, decision)
+        )
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
+        response.raise_for_status()
+        return self.build_response(
+            request,
+            decision,
+            cache_model,
+            response.json(),
+            elapsed_ms,
+            cached,
+        )
+
+    async def async_generate(
+        self, request: RequestRecord, decision: RoutingDecision, cache_model: CacheModel
+    ) -> BackendResponse:
+        cached = cache_model.estimate_cached_prefix_tokens(
+            decision.adapter_id,
+            request.prompt,
+            request.tenant_id,
+            request.trust_group_id,
+        )
+        if self.async_client is None:
+            async with httpx.AsyncClient(
+                base_url=self.config.base_url,
+                headers={"Authorization": f"Bearer {self.config.api_key}"},
+                timeout=60.0,
+            ) as client:
+                started = time.perf_counter()
+                response = await client.post(
+                    self.request_path(),
+                    json=self.completion_payload(request, decision),
+                )
+                elapsed_ms = (time.perf_counter() - started) * 1000.0
+        else:
+            started = time.perf_counter()
+            response = await self.async_client.post(
+                self.request_path(),
+                json=self.completion_payload(request, decision),
+            )
+            elapsed_ms = (time.perf_counter() - started) * 1000.0
+        response.raise_for_status()
+        return self.build_response(
+            request,
+            decision,
+            cache_model,
+            response.json(),
+            elapsed_ms,
+            cached,
         )

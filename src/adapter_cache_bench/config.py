@@ -79,6 +79,8 @@ class BackendConfig(BaseModel):
     extra_body: dict[str, Any] = Field(default_factory=dict)
     scrape_metrics: bool = False
     metrics_url: str = "http://localhost:8000/metrics"
+    max_concurrency: int = 1
+    request_spacing_ms: float = 0.0
 
 
 class BenchmarkConfig(BaseModel):
