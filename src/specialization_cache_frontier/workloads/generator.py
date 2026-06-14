@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import random
 from collections.abc import Iterable
+from pathlib import Path
+from typing import Any
+
+import yaml
 
 from specialization_cache_frontier.config import CacheConfig, WorkloadConfig
 from specialization_cache_frontier.routing.scoring import expected_adapter_for_task
@@ -24,6 +28,8 @@ def generate_workload(
         return list(_low_overlap_control(config, cache_config))
     if config.name == "prompt_layout_ablation":
         return list(_prompt_layout_ablation(config, cache_config))
+    if config.name == "jsonl_eval":
+        return list(_jsonl_eval(config, cache_config))
     raise ValueError(f"Unknown workload: {config.name}")
 
 
@@ -158,3 +164,55 @@ def _prompt_layout_ablation(
             cache_config,
         )
         yield RequestRecord(**_base_fields(config, i, task, 0), prompt=prompt, prompt_layout=layout)
+
+
+def _read_jsonl_or_yaml(path: Path) -> list[dict[str, Any]]:
+    text = path.read_text(encoding="utf-8")
+    if path.suffix in {".yaml", ".yml"}:
+        data = yaml.safe_load(text) or []
+        if not isinstance(data, list):
+            raise ValueError(f"Expected list in workload dataset: {path}")
+        return data
+    rows = []
+    for line in text.splitlines():
+        if line.strip():
+            import json
+
+            rows.append(json.loads(line))
+    return rows
+
+
+def _jsonl_eval(
+    config: WorkloadConfig, cache_config: CacheConfig | None
+) -> Iterable[RequestRecord]:
+    if not config.dataset_path:
+        raise ValueError("jsonl_eval workload requires workload.dataset_path")
+    rows = _read_jsonl_or_yaml(Path(config.dataset_path))
+    for i, row in enumerate(rows[: config.request_count]):
+        task = row["task_type"]
+        document = row["document"]
+        adapter = row.get("expected_adapter") or expected_adapter_for_task(task)
+        layout = row.get("prompt_layout", "document_before_instruction")
+        prompt = row.get("prompt") or prompt_for(
+            task,
+            document,
+            row.get("question", f"Evaluate record {i}."),
+            layout,
+            adapter,
+            True,
+            cache_config,
+        )
+        yield RequestRecord(
+            request_id=row.get("request_id", f"jsonl-eval-{i:05d}"),
+            session_id=row.get("session_id", f"eval-session-{i % max(1, config.sessions)}"),
+            tenant_id=row.get("tenant_id", "eval-tenant"),
+            trust_group_id=row.get("trust_group_id", "eval-trust"),
+            task_type=task,
+            prompt=prompt,
+            shared_prefix_id=row.get("shared_prefix_id", row.get("document_id", "eval-doc")),
+            expected_adapter=adapter,
+            ground_truth=row.get("ground_truth"),
+            max_tokens=int(row.get("max_tokens", config.max_tokens)),
+            prompt_layout=layout,
+            requires_json=bool(row.get("requires_json", task == "json")),
+        )

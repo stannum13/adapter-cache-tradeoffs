@@ -51,6 +51,7 @@ class RouterConfig(BaseModel):
 
 class WorkloadConfig(BaseModel):
     name: str = "shared_doc_qa"
+    dataset_path: str | None = None
     request_count: int = 40
     shared_document_count: int = 2
     sessions: int = 8

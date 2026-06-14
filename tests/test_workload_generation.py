@@ -22,3 +22,17 @@ def test_prompt_layout_ablation_has_both_layouts():
         "instruction_before_document",
         "document_before_instruction",
     }
+
+
+def test_jsonl_eval_workload_loads_public_domain_fixture():
+    records = generate_workload(
+        WorkloadConfig(
+            name="jsonl_eval",
+            dataset_path="data/eval/public_domain_eval.jsonl",
+            request_count=5,
+        )
+    )
+
+    assert len(records) == 5
+    assert {record.task_type for record in records} >= {"qa", "json", "summary", "code"}
+    assert records[1].requires_json
