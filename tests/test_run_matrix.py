@@ -1,5 +1,5 @@
 from specialization_cache_frontier.bench.run_matrix import expand_matrix
-from specialization_cache_frontier.config import BenchmarkConfig
+from specialization_cache_frontier.config import BenchmarkConfig, load_config
 
 
 def test_expand_matrix_supports_repeated_seed_dimension():
@@ -19,3 +19,12 @@ def test_expand_matrix_supports_repeated_seed_dimension():
     assert {child.backend.seed for child in expanded} == {11, 17}
     assert {child.router.seed for child in expanded} == {11, 17}
     assert all("seed" in child.run_name for child in expanded)
+
+
+def test_memory_pressure_matrix_uses_finite_cache_budget():
+    config = load_config("configs/benchmark/memory_pressure.yaml")
+    expanded = expand_matrix(config)
+
+    assert expanded
+    assert all(child.cache.max_memory_tokens == 512 for child in expanded)
+    assert {child.workload.seed for child in expanded} == {11, 17}

@@ -65,6 +65,7 @@ uv run python -m specialization_cache_frontier.bench.run_workload --config confi
 uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/public_domain_eval.yaml
 uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/public_domain_eval_large.yaml
 uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/full.yaml
+uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/memory_pressure.yaml
 uv run python -m specialization_cache_frontier.analysis.report --runs-dir artifacts/runs
 uv run python -m specialization_cache_frontier.bench.compare --runs-dir artifacts/runs
 uv run python -m specialization_cache_frontier.analysis.pareto --runs-dir artifacts/runs

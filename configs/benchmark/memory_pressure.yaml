@@ -1,0 +1,27 @@
+run_name: memory-pressure
+output_dir: artifacts/runs
+workload:
+  name: mixed_tasks_same_doc
+  request_count: 64
+  shared_document_count: 2
+  sessions: 8
+  tenants: 2
+  max_tokens: 64
+  seed: 11
+  document_tokens: 180
+router:
+  policy: cache_aware
+cache:
+  model: standard_lora
+  block_size: 8
+  max_memory_tokens: 512
+  eviction_policy: lru
+backend:
+  kind: mock
+  seed: 11
+  ttft_slo_ms: 220
+matrix:
+  routers: [semantic, cache_aware, oracle]
+  caches: [standard_lora, base_shared, activated_lora, copy_on_write]
+  workloads: [shared_doc_qa, mixed_tasks_same_doc, prompt_layout_ablation]
+  seeds: [11, 17]
