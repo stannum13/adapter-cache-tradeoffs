@@ -107,6 +107,9 @@ Configure `backend.base_url`, `backend.api_key`, `backend.model`, adapter names,
 `max_tokens`, `temperature`, and `extra_body`. Unit tests use `httpx.MockTransport`;
 real serving tests should be skipped unless `RUN_VLLM_TESTS=1`.
 
+See `docs/vllm.md` and `configs/benchmark/vllm_example.yaml` for a concrete
+optional serving flow.
+
 ## Local verification
 
 ```bash

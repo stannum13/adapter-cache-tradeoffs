@@ -51,3 +51,10 @@ cache:
     assert config.router.alpha == 0.02
     assert config.cache.model == "activated_lora"
     assert config.workload.request_count == 5
+
+
+def test_vllm_example_config_loads_optional_backend():
+    config = load_config("configs/benchmark/vllm_example.yaml")
+
+    assert config.backend.kind == "vllm"
+    assert config.workload.request_count == 5
