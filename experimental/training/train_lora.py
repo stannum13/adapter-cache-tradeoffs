@@ -74,11 +74,13 @@ def train_lora(
     model = AutoModelForCausalLM.from_pretrained(
         base_model,
         torch_dtype=dtype,
-        device_map="auto" if device == "cuda" else None,
     )
+    model.to(device)
     model.config.use_cache = False
     if hasattr(model, "gradient_checkpointing_enable"):
         model.gradient_checkpointing_enable()
+    if hasattr(model, "enable_input_require_grads"):
+        model.enable_input_require_grads()
     peft_config = LoraConfig(
         r=lora_rank,
         lora_alpha=lora_alpha,
@@ -98,12 +100,15 @@ def train_lora(
     model = get_peft_model(model, peft_config)
     model.train()
     loader = DataLoader(SFTDataset(), batch_size=1, shuffle=True)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.AdamW(
+        [parameter for parameter in model.parameters() if parameter.requires_grad],
+        lr=learning_rate,
+    )
     step = 0
     optimizer.zero_grad(set_to_none=True)
     while step < max_steps:
         for batch in loader:
-            batch = {key: value.to(model.device) for key, value in batch.items()}
+            batch = {key: value.to(device) for key, value in batch.items()}
             output = model(**batch)
             loss = output.loss / gradient_accumulation_steps
             loss.backward()
