@@ -81,6 +81,44 @@ This strengthens and sharpens the claim:
   find the concurrency and cache-footprint region where specialization remains
   worth it.
 
+## Concurrency frontier sweep
+
+The overnight frontier config expands `base`, `specialists`, and `multitask`
+over `max_concurrency` values `1, 2, 4, 8, 16`:
+
+```bash
+make vllm-overnight-frontier
+```
+
+| strategy | concurrency | quality | p95 TTFT ms | SLO attainment | request/s | QAG |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| base | 1 | 0.218 | 1759.6 | 0.080 | 0.721 | 0.013 |
+| base | 2 | 0.217 | 2031.4 | 0.010 | 1.308 | 0.003 |
+| base | 4 | 0.217 | 2014.0 | 0.030 | 2.626 | 0.017 |
+| base | 8 | 0.214 | 2055.9 | 0.080 | 5.243 | 0.090 |
+| base | 16 | 0.211 | 3442.1 | 0.010 | 6.906 | 0.015 |
+| specialists | 1 | 0.850 | 1588.8 | 0.320 | 0.886 | 0.241 |
+| specialists | 2 | 0.856 | 1522.2 | 0.060 | 1.612 | 0.083 |
+| specialists | 4 | 0.856 | 1530.4 | 0.110 | 3.258 | 0.307 |
+| specialists | 8 | 0.856 | 2043.9 | 0.270 | 6.312 | 1.459 |
+| specialists | 16 | 0.850 | 2040.7 | 0.480 | 12.295 | 5.019 |
+| multitask | 1 | 0.723 | 1402.8 | 0.310 | 0.894 | 0.200 |
+| multitask | 2 | 0.727 | 1741.1 | 0.010 | 1.513 | 0.011 |
+| multitask | 4 | 0.730 | 1530.9 | 0.060 | 3.180 | 0.139 |
+| multitask | 8 | 0.725 | 1392.7 | 0.350 | 7.009 | 1.778 |
+| multitask | 16 | 0.722 | 1535.4 | 0.480 | 12.980 | 4.498 |
+
+Interpretation:
+
+- Specialists dominate base quality and QAG at every tested concurrency.
+- Specialists beat multitask at low concurrency and at concurrency 16, while
+  multitask leads raw QAG at concurrency 8 in this run.
+- None of the strategies satisfy a 1s p95 TTFT SLO on the client-side
+  non-streaming latency proxy. The next measurement improvement is streaming
+  TTFT or server-side TTFT export per request.
+- The generated report now includes concurrency plots for p95 TTFT, QAG, SLO
+  attainment, and request throughput.
+
 ## Router/cache matrix means
 
 | router | cache | runs | quality | p95 TTFT ms | QAG | QAG / memory token | memory tokens |
