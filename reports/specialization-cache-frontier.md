@@ -39,7 +39,7 @@ activated-LoRA-style late specialization, and copy-on-write deltas.
 
 ## Results
 
-Best quality-adjusted goodput in the current artifact set is `cache_aware` with `activated_lora` on `mixed_tasks_same_doc`. Mean quality is 0.915, p95 TTFT is 19.3 ms, and fragmentation index is 1.00. `document_before_instruction` mean TTFT is 19.2 ms. `instruction_before_document` mean TTFT is 69.2 ms.
+Best quality-adjusted goodput in the current artifact set is `cache_aware` with `activated_lora` on `mixed_tasks_same_doc`. Mean quality is 0.914, p95 TTFT is 19.3 ms, and fragmentation index is 1.00. `document_before_instruction` mean TTFT is 19.2 ms. `instruction_before_document` mean TTFT is 69.2 ms.
 
 Generated figures:
 
@@ -65,28 +65,28 @@ Generated tables:
 | workload | router_policy | cache_model | quality_adjusted_goodput | mean_quality | p95_ttft_ms |
 | --- | --- | --- | --- | --- | --- |
 | agent_session | oracle | activated_lora | 17.118 | 0.922 | 23.241 |
-| low_overlap_control | semantic | activated_lora | 8.911 | 0.916 | 72.620 |
-| mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 0.915 | 19.255 |
-| prompt_layout_ablation | sticky_session | activated_lora | 12.220 | 0.932 | 71.645 |
+| low_overlap_control | oracle | standard_lora | 8.911 | 0.916 | 72.620 |
+| mixed_tasks_same_doc | oracle | activated_lora | 18.603 | 0.914 | 19.255 |
+| prompt_layout_ablation | cache_aware | activated_lora | 12.220 | 0.932 | 71.645 |
 | shared_doc_qa | oracle | activated_lora | 16.822 | 0.913 | 73.764 |
 
 ### Cache-model means
 
-| cache_model | adapter_strategy | quality_adjusted_goodput | p95_ttft_ms | cache_hit_rate | fragmentation_index |
-| --- | --- | --- | --- | --- | --- |
-| activated_lora | activated-late-specialization | 14.807 | 47.698 | 0.841 | 1.015 |
-| base_shared | multitask-or-shared-base | 13.940 | 52.145 | 0.844 | 1.000 |
-| copy_on_write | copy-on-write-delta | 13.940 | 52.145 | 0.844 | 1.026 |
-| standard_lora | specialist-adapter | 13.093 | 65.083 | 0.803 | 1.350 |
+| cache_model | adapter_strategy | quality_adjusted_goodput | p95_ttft_ms | cache_hit_rate | fragmentation_index | eviction_count |
+| --- | --- | --- | --- | --- | --- | --- |
+| activated_lora | activated-late-specialization | 13.967 | 52.249 | 0.841 | 1.018 | 0.000 |
+| base_shared | multitask-or-shared-base | 13.940 | 52.145 | 0.844 | 1.000 | 0.000 |
+| copy_on_write | copy-on-write-delta | 13.940 | 52.145 | 0.844 | 1.026 | 0.000 |
+| standard_lora | specialist-adapter | 12.863 | 65.348 | 0.834 | 1.347 | 0.000 |
 
 ### Router means
 
 | router_policy | quality_adjusted_goodput | mean_quality | p95_ttft_ms |
 | --- | --- | --- | --- |
-| cache_aware | 15.177 | 0.896 | 46.599 |
-| semantic | 14.764 | 0.919 | 56.288 |
 | oracle | 14.560 | 0.920 | 56.178 |
+| semantic | 14.560 | 0.920 | 56.178 |
 | sticky_session | 14.560 | 0.920 | 56.178 |
+| cache_aware | 14.200 | 0.893 | 52.068 |
 | random | 10.508 | 0.685 | 56.757 |
 
 ### Prompt-layout ablation
@@ -108,10 +108,10 @@ Generated tables:
 | --- | --- | --- | --- | --- | --- |
 | agent_session | oracle | activated_lora | 0.922 | 23.241 | 17.118 |
 | low_overlap_control | random | copy_on_write | 0.646 | 72.236 | 6.201 |
-| low_overlap_control | semantic | activated_lora | 0.916 | 72.620 | 8.911 |
+| low_overlap_control | oracle | standard_lora | 0.916 | 72.620 | 8.911 |
 | mixed_tasks_same_doc | cache_aware | standard_lora | 0.690 | 17.731 | 13.988 |
-| mixed_tasks_same_doc | cache_aware | activated_lora | 0.915 | 19.255 | 20.062 |
-| prompt_layout_ablation | oracle | copy_on_write | 0.932 | 71.645 | 12.195 |
+| mixed_tasks_same_doc | oracle | activated_lora | 0.914 | 19.255 | 18.603 |
+| prompt_layout_ablation | cache_aware | activated_lora | 0.932 | 71.645 | 12.220 |
 | shared_doc_qa | random | copy_on_write | 0.709 | 72.749 | 13.379 |
 | shared_doc_qa | oracle | activated_lora | 0.913 | 73.764 | 16.822 |
 
@@ -119,11 +119,11 @@ Generated tables:
 
 | ttft_slo_ms | workload | router_policy | cache_model | quality_adjusted_goodput | requests_under_slo |
 | --- | --- | --- | --- | --- | --- |
-| 250.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
-| 150.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
-| 100.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
-| 25.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 18.808 | 30 |
-| 50.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 18.808 | 30 |
+| 250.000 | mixed_tasks_same_doc | oracle | activated_lora | 18.603 | 48 |
+| 100.000 | mixed_tasks_same_doc | semantic | activated_lora | 18.603 | 48 |
+| 150.000 | mixed_tasks_same_doc | oracle | activated_lora | 18.603 | 48 |
+| 50.000 | mixed_tasks_same_doc | sticky_session | activated_lora | 17.828 | 46 |
+| 25.000 | mixed_tasks_same_doc | sticky_session | activated_lora | 17.828 | 46 |
 
 ## Takeaways
 

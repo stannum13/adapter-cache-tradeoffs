@@ -95,6 +95,7 @@ def generate_report(
             "p95_ttft_ms",
             "cache_hit_rate",
             "fragmentation_index",
+            "eviction_count",
         ],
     )
     router_lines = _markdown_table(

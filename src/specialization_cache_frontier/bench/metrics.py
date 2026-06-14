@@ -53,5 +53,7 @@ def summarize(
         cached_prompt_token_ratio=cache_model.cached_prompt_token_ratio(),
         fragmentation_index=cache_model.fragmentation_index(),
         memory_token_footprint=cache_model.memory_tokens(),
+        eviction_count=cache_model.eviction_count(),
+        evicted_tokens=cache_model.evicted_tokens(),
         adapter_distribution=dict(adapter_distribution),
     )

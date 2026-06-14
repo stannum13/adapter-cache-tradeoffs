@@ -68,6 +68,8 @@ def cache_model_means(df: pd.DataFrame) -> pd.DataFrame:
             cache_hit_rate=("cache_hit_rate", "mean"),
             memory_token_footprint=("memory_token_footprint", "mean"),
             fragmentation_index=("fragmentation_index", "mean"),
+            eviction_count=("eviction_count", "mean"),
+            evicted_tokens=("evicted_tokens", "mean"),
         )
         .sort_values("quality_adjusted_goodput", ascending=False)
         .reset_index(drop=True)

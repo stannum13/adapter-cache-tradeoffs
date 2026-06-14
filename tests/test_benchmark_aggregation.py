@@ -96,6 +96,8 @@ def test_analysis_tables_rank_workloads_and_export_csv(tmp_path):
                 "cache_hit_rate": 0.5,
                 "memory_token_footprint": 100,
                 "fragmentation_index": 2.0,
+                "eviction_count": 0,
+                "evicted_tokens": 0,
             },
             {
                 "workload": "shared_doc_qa",
@@ -107,6 +109,8 @@ def test_analysis_tables_rank_workloads_and_export_csv(tmp_path):
                 "cache_hit_rate": 0.8,
                 "memory_token_footprint": 70,
                 "fragmentation_index": 1.1,
+                "eviction_count": 0,
+                "evicted_tokens": 0,
             },
         ]
     )
@@ -153,6 +157,8 @@ def test_compare_runs_returns_leader_tables(tmp_path):
                 "cached_prompt_token_ratio": 0.5,
                 "fragmentation_index": 1.0,
                 "memory_token_footprint": 10,
+                "eviction_count": 0,
+                "evicted_tokens": 0,
                 "adapter_distribution": {"qa": 1},
             }
         ),

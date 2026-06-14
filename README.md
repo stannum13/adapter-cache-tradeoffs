@@ -81,6 +81,10 @@ uv run python -m specialization_cache_frontier.bench.run_workload \
            configs/cache/standard_lora.yaml
 ```
 
+To test memory pressure, add `configs/cache/memory_limited.yaml` after a cache
+model config. Cache models then use an LRU token budget and summaries report
+`eviction_count` and `evicted_tokens`.
+
 ## Plug in vLLM
 
 `VLLMBackend` has a non-streaming OpenAI-compatible path for `/chat/completions`.

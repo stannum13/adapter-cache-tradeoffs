@@ -24,6 +24,20 @@ def test_cache_estimates_do_not_pollute_hit_rate_metrics():
     assert cache.cache_hit_rate() == 2 / 3
 
 
+def test_cache_model_respects_memory_token_budget_with_lru_eviction():
+    cache = StandardLoRACache(CacheConfig(block_size=2, max_memory_tokens=4))
+    first = "alpha beta gamma delta"
+    second = "one two three four"
+
+    cache.observe_request("qa", first, "tenant-a", "trust-a")
+    cache.observe_request("qa", second, "tenant-a", "trust-a")
+
+    assert cache.memory_tokens() <= 4
+    assert cache.eviction_count() > 0
+    assert cache.evicted_tokens() > 0
+    assert cache.estimate_cached_prefix_tokens("qa", first, "tenant-a", "trust-a") == 0
+
+
 def test_same_prompt_different_adapter_fragments_standard_lora_cache():
     cache = StandardLoRACache(CacheConfig(block_size=2))
     prompt = "alpha beta gamma delta"

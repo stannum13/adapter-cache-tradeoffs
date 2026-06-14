@@ -2,5 +2,6 @@ cache:
   model: copy_on_write
   block_size: 8
   isolation_scope: trust_group
+  max_memory_tokens: null
+  eviction_policy: lru
   copy_on_write_delta_fraction: 0.15
-

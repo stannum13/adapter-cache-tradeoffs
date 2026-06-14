@@ -23,6 +23,8 @@ class AdapterConfig(BaseModel):
 class CacheConfig(BaseModel):
     model: str = "standard_lora"
     block_size: int = 16
+    max_memory_tokens: int | None = None
+    eviction_policy: str = "lru"
     invocation_markers: dict[str, str] = Field(
         default_factory=lambda: {
             "qa": "<ADAPTER:qa>",

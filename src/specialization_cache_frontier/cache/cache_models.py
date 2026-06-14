@@ -13,7 +13,10 @@ class CacheModel(ABC):
     def __init__(self, config: CacheConfig | None = None) -> None:
         self.config = config or CacheConfig()
         self.tokenizer = WhitespaceTokenizer()
-        self.table = PrefixTable()
+        self.table = PrefixTable(
+            max_memory_tokens=self.config.max_memory_tokens,
+            eviction_policy=self.config.eviction_policy,
+        )
         self.request_count = 0
         self.total_prompt_tokens = 0
         self.total_cached_prefix_tokens = 0
@@ -130,6 +133,12 @@ class CacheModel(ABC):
         if logical == 0:
             return 0.0
         return self.memory_tokens() / logical
+
+    def eviction_count(self) -> int:
+        return self.table.eviction_count
+
+    def evicted_tokens(self) -> int:
+        return self.table.evicted_token_count
 
 
 def make_cache_model(config: CacheConfig) -> CacheModel:

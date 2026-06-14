@@ -2,4 +2,5 @@ cache:
   model: base_shared
   block_size: 8
   isolation_scope: trust_group
-
+  max_memory_tokens: null
+  eviction_policy: lru

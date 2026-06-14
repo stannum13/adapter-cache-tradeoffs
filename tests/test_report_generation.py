@@ -31,6 +31,8 @@ def test_report_generation_from_summary(tmp_path):
         "cached_prompt_token_ratio": 0.5,
         "fragmentation_index": 1.0,
         "memory_token_footprint": 10,
+        "eviction_count": 0,
+        "evicted_tokens": 0,
         "adapter_distribution": {"qa": 1},
     }
     (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")

@@ -88,4 +88,6 @@ class BenchmarkSummary(BaseModel):
     cached_prompt_token_ratio: float
     fragmentation_index: float
     memory_token_footprint: int
+    eviction_count: int = 0
+    evicted_tokens: int = 0
     adapter_distribution: dict[str, int] = Field(default_factory=dict)

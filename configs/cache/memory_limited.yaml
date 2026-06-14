@@ -1,0 +1,4 @@
+cache:
+  block_size: 8
+  max_memory_tokens: 512
+  eviction_policy: lru
