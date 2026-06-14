@@ -55,8 +55,7 @@ def summarize(
         slo_attainment_rate=len(good) / max(1, len(responses)),
         mean_quality=mean_quality,
         quality_adjusted_goodput=quality_adjusted_goodput,
-        quality_adjusted_goodput_per_memory_token=quality_adjusted_goodput
-        / max(1, memory_tokens),
+        quality_adjusted_goodput_per_memory_token=quality_adjusted_goodput / max(1, memory_tokens),
         cache_hit_rate=cache_model.cache_hit_rate(),
         cached_prompt_token_ratio=cache_model.cached_prompt_token_ratio(),
         fragmentation_index=cache_model.fragmentation_index(),

@@ -31,9 +31,12 @@ def with_strategy_columns(df: pd.DataFrame) -> pd.DataFrame:
         return df
     enriched = df.copy()
     if "quality_adjusted_goodput_per_memory_token" not in enriched:
-        enriched["quality_adjusted_goodput_per_memory_token"] = (
-            enriched["quality_adjusted_goodput"] / enriched["memory_token_footprint"].clip(lower=1)
-        )
+        if {"quality_adjusted_goodput", "memory_token_footprint"} <= set(enriched.columns):
+            enriched["quality_adjusted_goodput_per_memory_token"] = enriched[
+                "quality_adjusted_goodput"
+            ] / enriched["memory_token_footprint"].clip(lower=1)
+        else:
+            enriched["quality_adjusted_goodput_per_memory_token"] = 0.0
     if "slo_attainment_rate" not in enriched:
         enriched["slo_attainment_rate"] = 0.0
     enriched["adapter_strategy"] = (
