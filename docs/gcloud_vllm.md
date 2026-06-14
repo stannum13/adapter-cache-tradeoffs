@@ -48,8 +48,8 @@ Multi-LoRA server:
 PROJECT=<project-id> ./scripts/gcloud_l4_vllm.sh serve-lora
 ```
 
-The default LoRA smoke path registers the same public Qwen-compatible adapter
-under four model names:
+The default LoRA smoke path serves `Qwen/Qwen2.5-1.5B-Instruct` and registers
+the same public vLLM-compatible Qwen LoRA adapter under four model names:
 
 ```bash
 qa-lora

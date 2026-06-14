@@ -1,11 +1,11 @@
-run_name: source-eval-vllm-lora-qwen3b
+run_name: source-eval-vllm-lora-qwen15b
 workload:
   request_count: 24
 backend:
   kind: vllm
   base_url: http://localhost:8000/v1
   api_key: EMPTY
-  model: Qwen/Qwen2.5-3B-Instruct
+  model: Qwen/Qwen2.5-1.5B-Instruct
   adapter_model_names:
     qa: qa-lora
     json: json-lora

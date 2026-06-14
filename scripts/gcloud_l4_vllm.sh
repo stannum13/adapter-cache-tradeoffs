@@ -8,7 +8,8 @@ MACHINE_TYPE="${MACHINE_TYPE:-g2-standard-8}"
 BOOT_DISK_SIZE="${BOOT_DISK_SIZE:-150GB}"
 SSH_KEY_FILE="${SSH_KEY_FILE:-.tmp-gcloud/adapter_cache_vllm_key}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B-Instruct}"
-LORA_REPO="${LORA_REPO:-ngxson/LoRA-Qwen2.5-3B-Instruct-abliterated}"
+LORA_BASE_MODEL="${LORA_BASE_MODEL:-Qwen/Qwen2.5-1.5B-Instruct}"
+LORA_REPO="${LORA_REPO:-uditjain/lori-qwen2.5-1.5b-medical}"
 VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai:latest}"
 LOCAL_PORT="${LOCAL_PORT:-8000}"
 REMOTE_PORT="${REMOTE_PORT:-8000}"
@@ -36,6 +37,7 @@ Common overrides:
   ZONE=${ZONE}
   INSTANCE=${INSTANCE}
   BASE_MODEL=${BASE_MODEL}
+  LORA_BASE_MODEL=${LORA_BASE_MODEL}
   LORA_REPO=${LORA_REPO}
 EOF
 }
@@ -116,7 +118,7 @@ serve_base() {
       -p ${REMOTE_PORT}:8000 \
       -v ~/.cache/huggingface:/root/.cache/huggingface \
       ${VLLM_IMAGE} \
-      --model ${BASE_MODEL} \
+      --model ${LORA_BASE_MODEL} \
       --host 0.0.0.0 \
       --port 8000 \
       --max-model-len 4096 \
@@ -133,7 +135,7 @@ serve_lora() {
       -p ${REMOTE_PORT}:8000 \
       -v ~/.cache/huggingface:/root/.cache/huggingface \
       ${VLLM_IMAGE} \
-      --model ${BASE_MODEL} \
+      --model ${LORA_BASE_MODEL} \
       --host 0.0.0.0 \
       --port 8000 \
       --max-model-len 4096 \
