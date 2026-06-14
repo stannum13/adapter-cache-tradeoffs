@@ -4,6 +4,7 @@
 __pycache__/
 *.py[cod]
 .DS_Store
+.tmp-gcloud/
 AGENTS.md
 artifacts/runs/
 reports/figures/*.png
