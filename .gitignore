@@ -6,7 +6,7 @@ __pycache__/
 .DS_Store
 .tmp-gcloud/
 AGENTS.md
-artifacts/runs/
+artifacts/
 reports/figures/*.png
 reports/adapter-cache-bench.md
 reports/specialization-cache-frontier.md
