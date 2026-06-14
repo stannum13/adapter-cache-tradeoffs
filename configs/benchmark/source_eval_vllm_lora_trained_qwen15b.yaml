@@ -1,0 +1,17 @@
+run_name: source-eval-vllm-lora-trained-qwen15b
+workload:
+  request_count: 24
+backend:
+  kind: vllm
+  base_url: http://localhost:8000/v1
+  api_key: EMPTY
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  adapter_model_names:
+    qa: qa-lora
+    json: json-lora
+    summary: summary-lora
+    code: code-lora
+  temperature: 0.0
+  ttft_slo_ms: 1000
+  e2e_slo_ms: 12000
+  extra_body: {}

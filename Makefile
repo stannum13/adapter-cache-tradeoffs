@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large validate-source-eval source-eval transformers-source-eval vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-lora-qwen reproduce-mock
+.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large validate-source-eval source-eval transformers-source-eval vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b reproduce-mock
 
 sync:
 	uv sync --extra dev
@@ -57,8 +57,14 @@ vllm-source-eval:
 vllm-source-eval-l4-qwen:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_l4_qwen.yaml
 
+vllm-source-eval-l4-qwen15b:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_l4_qwen15b.yaml
+
 vllm-source-eval-lora-qwen:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_lora_qwen.yaml
+
+vllm-source-eval-lora-trained-qwen15b:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_lora_trained_qwen15b.yaml
 
 reproduce-mock: matrix
 	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/memory_pressure.yaml

@@ -10,6 +10,7 @@ SSH_KEY_FILE="${SSH_KEY_FILE:-.tmp-gcloud/adapter_cache_vllm_key}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B-Instruct}"
 LORA_BASE_MODEL="${LORA_BASE_MODEL:-Qwen/Qwen2.5-1.5B-Instruct}"
 LORA_REPO="${LORA_REPO:-uditjain/lori-qwen2.5-1.5b-medical}"
+LORA_MODULES="${LORA_MODULES:-qa-lora=${LORA_REPO} json-lora=${LORA_REPO} summary-lora=${LORA_REPO} code-lora=${LORA_REPO}}"
 VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai:latest}"
 LOCAL_PORT="${LOCAL_PORT:-8000}"
 REMOTE_PORT="${REMOTE_PORT:-8000}"
@@ -39,6 +40,7 @@ Common overrides:
   BASE_MODEL=${BASE_MODEL}
   LORA_BASE_MODEL=${LORA_BASE_MODEL}
   LORA_REPO=${LORA_REPO}
+  LORA_MODULES=${LORA_MODULES}
 EOF
 }
 
@@ -143,7 +145,7 @@ serve_lora() {
       --enable-lora \
       --max-loras 4 \
       --max-lora-rank 64 \
-      --lora-modules qa-lora=${LORA_REPO} json-lora=${LORA_REPO} summary-lora=${LORA_REPO} code-lora=${LORA_REPO}
+      --lora-modules ${LORA_MODULES}
   "
 }
 
