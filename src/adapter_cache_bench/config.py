@@ -75,6 +75,7 @@ class BackendConfig(BaseModel):
     api_key: str = "EMPTY"
     model: str = "mock-causal-transformer"
     temperature: float = 0.0
+    adapter_model_names: dict[str, str] = Field(default_factory=dict)
     extra_body: dict[str, Any] = Field(default_factory=dict)
 
 

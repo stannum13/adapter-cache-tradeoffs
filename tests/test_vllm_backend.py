@@ -32,6 +32,39 @@ def test_vllm_payload_uses_openai_compatible_shape():
     assert payload["extra_body"]["adapter"] == "qa"
 
 
+def test_vllm_payload_uses_lora_adapter_as_model_name_when_configured():
+    backend = VLLMBackend(
+        BackendConfig(
+            model="Qwen/Qwen2.5-3B-Instruct",
+            adapter_model_names={
+                "qa": "qa-lora",
+                "json": "json-lora",
+            },
+        )
+    )
+    decision = RoutingDecision(request_id="r1", adapter_id="qa", policy_name="semantic")
+
+    payload = backend.completion_payload(_request(), decision)
+
+    assert payload["model"] == "qa-lora"
+    assert "extra_body" not in payload
+
+
+def test_vllm_payload_falls_back_to_base_model_for_unmapped_adapter():
+    backend = VLLMBackend(
+        BackendConfig(
+            model="Qwen/Qwen2.5-3B-Instruct",
+            adapter_model_names={"json": "json-lora"},
+        )
+    )
+    decision = RoutingDecision(request_id="r1", adapter_id="qa", policy_name="semantic")
+
+    payload = backend.completion_payload(_request(), decision)
+
+    assert payload["model"] == "Qwen/Qwen2.5-3B-Instruct"
+    assert "extra_body" not in payload
+
+
 def test_vllm_payload_can_use_completion_endpoint_for_base_models():
     backend = VLLMBackend(
         BackendConfig(
@@ -48,6 +81,23 @@ def test_vllm_payload_can_use_completion_endpoint_for_base_models():
     assert payload["prompt"] == _request().prompt
     assert "messages" not in payload
     assert "endpoint" not in payload
+
+
+def test_vllm_completion_payload_uses_lora_adapter_as_model_name():
+    backend = VLLMBackend(
+        BackendConfig(
+            model="Qwen/Qwen2.5-3B-Instruct",
+            adapter_model_names={"qa": "qa-lora"},
+            extra_body={"endpoint": "completions"},
+        )
+    )
+    decision = RoutingDecision(request_id="r1", adapter_id="qa", policy_name="semantic")
+
+    payload = backend.completion_payload(_request(), decision)
+
+    assert backend.request_path() == "/completions"
+    assert payload["model"] == "qa-lora"
+    assert payload["prompt"] == _request().prompt
 
 
 def test_vllm_backend_parses_openai_compatible_response_without_network():

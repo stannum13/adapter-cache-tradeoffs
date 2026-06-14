@@ -36,28 +36,36 @@ class VLLMBackend(Backend):
     def endpoint(self) -> str:
         return str(self.config.extra_body.get("endpoint", "chat_completions"))
 
+    def model_name(self, decision: RoutingDecision) -> str:
+        return self.config.adapter_model_names.get(decision.adapter_id, self.config.model)
+
     def completion_payload(
         self, request: RequestRecord, decision: RoutingDecision
     ) -> dict[str, Any]:
         extra_body = {
             key: value for key, value in self.config.extra_body.items() if key != "endpoint"
         }
+        model_name = self.model_name(decision)
         if self.endpoint() in {"completions", "completion"}:
             payload = {
-                "model": self.config.model,
+                "model": model_name,
                 "prompt": request.prompt,
                 "max_tokens": request.max_tokens,
                 "temperature": self.config.temperature,
             }
             payload.update(extra_body)
             return payload
+        adapter_extra_body = dict(extra_body)
+        if not self.config.adapter_model_names:
+            adapter_extra_body["adapter"] = decision.adapter_id
         payload = {
-            "model": self.config.model,
+            "model": model_name,
             "messages": [{"role": "user", "content": request.prompt}],
             "max_tokens": request.max_tokens,
             "temperature": self.config.temperature,
-            "extra_body": {**extra_body, "adapter": decision.adapter_id},
         }
+        if adapter_extra_body:
+            payload["extra_body"] = adapter_extra_body
         return payload
 
     def request_path(self) -> str:
