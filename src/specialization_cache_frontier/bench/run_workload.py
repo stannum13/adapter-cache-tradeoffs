@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from specialization_cache_frontier.backends.mock_backend import MockBackend
+from specialization_cache_frontier.backends.base import make_backend
 from specialization_cache_frontier.cache.cache_models import make_cache_model
 from specialization_cache_frontier.config import BenchmarkConfig, dump_config, load_config
 from specialization_cache_frontier.routing.base import make_router
@@ -45,7 +45,7 @@ def run(
 
     cache_model = make_cache_model(config.cache)
     router = make_router(config.router)
-    backend = MockBackend(config.backend)
+    backend = make_backend(config.backend)
     requests = generate_workload(config.workload, config.cache)
 
     responses = []
