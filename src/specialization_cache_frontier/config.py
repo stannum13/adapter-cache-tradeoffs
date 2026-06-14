@@ -92,8 +92,27 @@ def load_yaml(path: str | Path) -> dict[str, Any]:
         return yaml.safe_load(handle) or {}
 
 
-def load_config(path: str | Path) -> BenchmarkConfig:
-    return BenchmarkConfig.model_validate(load_yaml(path))
+def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            merged[key] = deep_merge(existing, value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def load_config(path: str | Path | list[str | Path] | tuple[str | Path, ...]) -> BenchmarkConfig:
+    paths: list[str | Path]
+    if isinstance(path, str | Path):
+        paths = [path]
+    else:
+        paths = list(path)
+    merged: dict[str, Any] = {}
+    for item in paths:
+        merged = deep_merge(merged, load_yaml(item))
+    return BenchmarkConfig.model_validate(merged)
 
 
 def dump_config(config: BenchmarkConfig, path: str | Path) -> None:

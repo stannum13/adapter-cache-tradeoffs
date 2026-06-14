@@ -84,7 +84,7 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True)
+    parser.add_argument("--config", required=True, nargs="+")
     args = parser.parse_args()
     run_dir = run(load_config(args.config))
     print(run_dir)

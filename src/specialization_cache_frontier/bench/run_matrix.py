@@ -27,7 +27,7 @@ def expand_matrix(config: BenchmarkConfig) -> list[BenchmarkConfig]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True)
+    parser.add_argument("--config", required=True, nargs="+")
     args = parser.parse_args()
     config = load_config(args.config)
     for child in expand_matrix(config):
