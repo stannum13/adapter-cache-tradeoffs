@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import random
+from typing import Any
 
 from specialization_cache_frontier.backends.base import Backend
+from specialization_cache_frontier.bench.quality import evaluate_prediction
 from specialization_cache_frontier.cache.cache_models import CacheModel
 from specialization_cache_frontier.cache.tokenizer import count_tokens
 from specialization_cache_frontier.config import BackendConfig
@@ -25,27 +27,33 @@ class MockBackend(Backend):
         seed = f"{self.config.seed}:{request.request_id}:{adapter_id}"
         return random.Random(seed)
 
+    def _prediction_for_quality(
+        self, request: RequestRecord, adapter_id: str, target_score: float
+    ) -> tuple[str, Any]:
+        if request.task_type == "json":
+            if target_score > 0.55:
+                return json.dumps(request.ground_truth), request.ground_truth
+            return "{invalid json", request.ground_truth
+        if request.task_type == "code":
+            tests = []
+            if isinstance(request.ground_truth, dict):
+                tests = list(request.ground_truth.get("tests", []))
+            passed = tests if target_score > 0.65 else tests[:1]
+            return " ".join(str(test) for test in passed), request.ground_truth
+        if request.task_type == "summary":
+            return str(request.ground_truth), request.ground_truth
+        if target_score > 0.65:
+            return str(request.ground_truth), request.ground_truth
+        return f"partial {request.task_type} answer", request.ground_truth
+
     def _quality(self, request: RequestRecord, adapter_id: str) -> QualityResult:
         rng = self._rng(request, adapter_id)
-        score = min(
+        target_score = min(
             1.0, max(0.0, quality_prior(request.task_type, adapter_id) + rng.gauss(0, 0.025))
         )
-        kwargs = {}
-        if request.task_type == "json":
-            kwargs = {
-                "valid_json_rate": score,
-                "schema_match": score * 0.97,
-                "field_f1": score * 0.94,
-            }
-        elif request.task_type == "qa":
-            kwargs = {"exact_match_like_score": score}
-        elif request.task_type == "code":
-            kwargs = {"unit_test_like_score": score}
-        elif request.task_type == "summary":
-            kwargs = {"rubric_score": score}
-        return QualityResult(
-            task_type=request.task_type, adapter_id=adapter_id, score=score, **kwargs
-        )
+        prediction, ground_truth = self._prediction_for_quality(request, adapter_id, target_score)
+        measured = evaluate_prediction(request.task_type, adapter_id, prediction, ground_truth)
+        return measured.model_copy(update={"score": target_score})
 
     def generate(
         self, request: RequestRecord, decision: RoutingDecision, cache_model: CacheModel
