@@ -6,6 +6,9 @@ workload:
   sessions: 10
   tenants: 2
   max_tokens: 64
+cache:
+  model: activated_lora
+  block_size: 8
 backend:
   kind: vllm
   base_url: http://localhost:8000/v1
