@@ -116,6 +116,7 @@ def write_analysis_tables(
     output_dir: str | Path = "reports/tables",
 ) -> dict[str, Path]:
     from specialization_cache_frontier.analysis.pareto import workload_pareto_frontiers
+    from specialization_cache_frontier.analysis.slo import slo_sweep
 
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -126,6 +127,7 @@ def write_analysis_tables(
         "router_means": router_means(df),
         "layout_ablation": layout_ablation_means(request_df),
         "pareto_frontier": workload_pareto_frontiers(df),
+        "slo_sweep": slo_sweep(request_df),
     }
     paths = {}
     for name, table in tables.items():

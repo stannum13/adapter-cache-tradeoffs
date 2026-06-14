@@ -1,0 +1,6 @@
+run_id,workload,router_policy,cache_model,ttft_slo_ms,requests_under_slo,goodput_under_slo,quality_adjusted_goodput,mean_quality
+unit,mixed_tasks_same_doc,cache_aware,activated_lora,25.0,6,15.663480940349483,14.134172035338878,0.9023646843996809
+unit,mixed_tasks_same_doc,cache_aware,activated_lora,50.0,8,20.884641253799312,18.84556271378517,0.9023646843996809
+unit,mixed_tasks_same_doc,cache_aware,activated_lora,100.0,8,20.884641253799312,18.84556271378517,0.9023646843996809
+unit,mixed_tasks_same_doc,cache_aware,activated_lora,150.0,8,20.884641253799312,18.84556271378517,0.9023646843996809
+unit,mixed_tasks_same_doc,cache_aware,activated_lora,250.0,8,20.884641253799312,18.84556271378517,0.9023646843996809

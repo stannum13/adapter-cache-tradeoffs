@@ -5,6 +5,7 @@ from pathlib import Path
 
 from specialization_cache_frontier.analysis.pareto import workload_pareto_frontiers
 from specialization_cache_frontier.analysis.plots import generate_plots
+from specialization_cache_frontier.analysis.slo import slo_sweep
 from specialization_cache_frontier.bench.aggregate import (
     cache_model_means,
     layout_ablation_means,
@@ -47,6 +48,7 @@ def generate_report(
     routers = router_means(df)
     layouts = layout_ablation_means(request_df)
     pareto = workload_pareto_frontiers(df)
+    slo = slo_sweep(request_df)
     report = Path(report_path)
     report.parent.mkdir(parents=True, exist_ok=True)
     if df.empty:
@@ -112,6 +114,24 @@ def generate_report(
             "mean_quality",
             "p95_ttft_ms",
             "quality_adjusted_goodput",
+        ],
+    )
+    slo_leaders = (
+        slo.sort_values("quality_adjusted_goodput", ascending=False)
+        .groupby("ttft_slo_ms", as_index=False)
+        .head(1)
+        if not slo.empty
+        else slo
+    )
+    slo_lines = _markdown_table(
+        slo_leaders.head(12).to_dict("records") if not slo_leaders.empty else [],
+        [
+            "ttft_slo_ms",
+            "workload",
+            "router_policy",
+            "cache_model",
+            "quality_adjusted_goodput",
+            "requests_under_slo",
         ],
     )
     lines = [
@@ -185,6 +205,10 @@ def generate_report(
         "### Pareto frontier",
         "",
         *pareto_lines,
+        "",
+        "### SLO sweep leaders",
+        "",
+        *slo_lines,
         "",
         "## Takeaways",
         "",

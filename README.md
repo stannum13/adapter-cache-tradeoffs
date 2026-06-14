@@ -66,6 +66,7 @@ uv run python -m specialization_cache_frontier.bench.run_matrix --config configs
 uv run python -m specialization_cache_frontier.analysis.report --runs-dir artifacts/runs
 uv run python -m specialization_cache_frontier.bench.compare --runs-dir artifacts/runs
 uv run python -m specialization_cache_frontier.analysis.pareto --runs-dir artifacts/runs
+uv run python -m specialization_cache_frontier.analysis.slo --runs-dir artifacts/runs
 ```
 
 The default path requires no GPU and no internet after dependencies are installed.

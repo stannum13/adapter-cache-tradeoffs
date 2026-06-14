@@ -58,6 +58,7 @@ Generated tables:
 - `reports/tables/router_means.csv`
 - `reports/tables/layout_ablation.csv`
 - `reports/tables/pareto_frontier.csv`
+- `reports/tables/slo_sweep.csv`
 
 ### Workload leaders
 
@@ -113,6 +114,16 @@ Generated tables:
 | prompt_layout_ablation | oracle | copy_on_write | 0.932 | 71.645 | 12.195 |
 | shared_doc_qa | random | copy_on_write | 0.709 | 72.749 | 13.379 |
 | shared_doc_qa | oracle | activated_lora | 0.913 | 73.764 | 16.822 |
+
+### SLO sweep leaders
+
+| ttft_slo_ms | workload | router_policy | cache_model | quality_adjusted_goodput | requests_under_slo |
+| --- | --- | --- | --- | --- | --- |
+| 250.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
+| 150.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
+| 100.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
+| 25.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 18.808 | 30 |
+| 50.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 18.808 | 30 |
 
 ## Takeaways
 

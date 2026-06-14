@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report compare pareto
+.PHONY: sync test lint format check small matrix report compare pareto slo
 
 sync:
 	uv sync --extra dev
@@ -29,3 +29,6 @@ compare:
 
 pareto:
 	uv run python -m specialization_cache_frontier.analysis.pareto --runs-dir artifacts/runs
+
+slo:
+	uv run python -m specialization_cache_frontier.analysis.slo --runs-dir artifacts/runs
