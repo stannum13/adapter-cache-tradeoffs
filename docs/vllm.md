@@ -21,12 +21,13 @@ layout. Keep those choices in `backend.extra_body` or server-side model names.
 
 ```bash
 RUN_VLLM_TESTS=1 uv run pytest tests/test_optional_integrations.py -q
-uv run python -m specialization_cache_frontier.bench.run_workload \
-  --config configs/benchmark/vllm_example.yaml
+make vllm-example
 ```
 
 `vllm_example.yaml` is intentionally small. Use the mock backend for unit tests,
-CI, and CPU-only development.
+CI, and CPU-only development. vLLM responses are scored with the benchmark's
+task metrics (`qa`, `json`, `summary`, and `code`) when `ground_truth` is
+present in the request record.
 
 ## Metrics
 

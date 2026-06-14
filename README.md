@@ -1,121 +1,141 @@
 # The hidden cache footprint of specialization
 
-Specialist adapters improve quality, but every routing decision is also a cache decision. This repo benchmarks when semantic routing, sticky routing, cache-aware routing, multitask adapters, and activated adapters win under shared-prefix workloads.
+Specialist adapters improve quality, but every routing decision is also a cache
+decision. This repo is a reproducible cache/routing benchmark harness for
+testing when semantic routing, sticky routing, cache-aware routing, multitask
+adapters, and activated-style adapters help or hurt under shared-prefix
+workloads.
 
-## Research question
+It does not claim model-quality results from the mock backend. The mock path is
+for systems sanity: prefix reuse, cache fragmentation, memory pressure, routing
+policy behavior, and latency SLO accounting. Real quality evidence should come
+from file-backed eval sets run through a served causal transformer, such as the
+optional vLLM path.
+
+## Core question
 
 When is model/adaptor specialization worth its KV-cache footprint?
 
-The thesis: specialist adapters can improve task quality, but they can fragment prefix-cache reuse because cache namespaces often depend on adapter identity. A serving system should jointly optimize quality, cache locality, latency SLOs, and tenant isolation.
+The thesis is simple: specialist adapters can improve task quality, but standard
+LoRA-style serving often namespaces prefix cache entries by adapter identity. In
+shared-prefix workloads, the same long document can be cached once per adapter
+instead of once per trust group. A serving system should jointly optimize
+quality, cache locality, latency SLOs, memory footprint, and tenant isolation.
 
 ## Why naive semantic routing can hurt
 
-Semantic routing sends QA to a QA adapter, JSON extraction to a JSON adapter, and code/documentation tasks to a code adapter. Under a shared long document, that looks right locally, but standard LoRA-style prefix cache keys include adapter identity. The same document prefix can be cached once per adapter instead of once per trust group, increasing prefill work, TTFT, and memory footprint.
+Semantic routing sends QA to a QA adapter, JSON extraction to a JSON adapter,
+and code/documentation tasks to a code adapter. That is locally sensible, but if
+the prefix cache key includes the adapter, a workload that repeatedly uses the
+same document may fragment into multiple adapter-specific copies.
+
+The benchmark makes that tradeoff measurable:
+
+- `standard_lora`: adapter identity is part of the prefix cache key.
+- `base_shared`: optimistic base-model sharing baseline.
+- `activated_lora`: tokens before an invocation marker can be shared.
+- `copy_on_write`: shared base prefix plus adapter-specific deltas in the
+  simulator.
 
 ## Quickstart
 
 ```bash
 uv sync --extra dev
-uv run pytest tests -q
-uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/small.yaml
+make check
+make small
 ```
 
-Outputs:
+The default path runs on CPU and does not require internet after dependencies
+are installed.
+
+Each benchmark run writes:
 
 - `artifacts/runs/{run_id}/requests.jsonl`
 - `artifacts/runs/{run_id}/summary.json`
 - `artifacts/runs/{run_id}/config_resolved.yaml`
 - `artifacts/runs/{run_id}/manifest.json`
-- `reports/specialization-cache-frontier.md`
-- `reports/figures/*.png`
-- `reports/tables/*.csv`
 
-## Expected plots
-
-- quality vs p95 TTFT, bubble size = goodput, color = router policy
-- prefix/cache hit rate by router policy and cache model
-- quality-adjusted goodput by router policy
-- memory token footprint by cache model
-- prompt layout ablation
-- adapter strategy frontier
-
-## Expected tables
-
-- `summaries.csv`: one row per benchmark run
-- `workload_leaders.csv`: best router/cache pair per workload by quality-adjusted goodput
-- `cache_model_means.csv`: aggregate strategy comparison across cache models
-- `router_means.csv`: aggregate router comparison
-- `layout_ablation.csv`: request-level prompt layout metrics from `requests.jsonl`
-
-## Repo structure
-
-- `configs/`: benchmark, router, cache, and workload YAMLs
-- `src/specialization_cache_frontier/cache/`: whitespace tokenizer and block prefix cache simulators
-- `src/specialization_cache_frontier/routing/`: random, semantic, multitask, sticky, cache-aware, and oracle policies
-- `src/specialization_cache_frontier/backends/`: mock backend plus optional vLLM client stub
-- `src/specialization_cache_frontier/bench/`: workload and matrix runners
-- `src/specialization_cache_frontier/analysis/`: plots, report, and Pareto helpers
-- `src/specialization_cache_frontier/tiny_causal_transformer/`: minimal decoder-only causal transformer fundamentals
-- `src/specialization_cache_frontier/physical_ai_analogue/`: scene-cache simulator and mapping notes
-
-## Run the Benchmark
+Generated reports, figures, and CSV tables are ignored by git. Recreate them
+locally with:
 
 ```bash
-uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/small.yaml
-uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/public_domain_eval.yaml
-uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/public_domain_eval_large.yaml
-uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/full.yaml
-uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/memory_pressure.yaml
-uv run python -m specialization_cache_frontier.analysis.report --runs-dir artifacts/runs
-uv run python -m specialization_cache_frontier.bench.compare --runs-dir artifacts/runs
-uv run python -m specialization_cache_frontier.analysis.pareto --runs-dir artifacts/runs
-uv run python -m specialization_cache_frontier.analysis.slo --runs-dir artifacts/runs
-uv run python -m specialization_cache_frontier.workloads.validate_dataset --config configs/benchmark/public_domain_eval.yaml
+make report
+make compare
+make pareto
+make slo
 ```
 
-The default path requires no GPU and no internet after dependencies are installed.
+## What is real vs simulated
 
-The mock backend is a systems simulator and CI baseline. It is useful for
-reproducing routing, prefix-cache locality, finite KV budget, eviction, prompt
-layout, and SLO tradeoffs on a laptop. It is not evidence that a real model got
-better at a task. Use the file-backed JSONL eval configs with `backend.kind:
-vllm` when you want real model outputs; keep the mock backend for regression
-tests and capacity-model experiments.
-
-For repeated-seed estimates, use:
+Use the mock backend when you want deterministic cache and routing experiments:
 
 ```bash
-uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/repeated.yaml
+make small
+make matrix
+uv run python -m specialization_cache_frontier.bench.run_matrix \
+  --config configs/benchmark/memory_pressure.yaml
+uv run python -m specialization_cache_frontier.bench.run_matrix \
+  --config configs/benchmark/repeated.yaml
 ```
 
-`configs/benchmark/public_domain_eval.yaml` runs a tiny file-backed smoke eval.
-`configs/benchmark/public_domain_eval_large.yaml` runs the 100-record fixture in
-`data/eval/public_domain_eval_large.jsonl`. Both are public-domain style and
-easy to replace with a larger JSONL task set.
+Use JSONL eval configs when you want task records with ground truth:
 
-Config files compose left to right, so small experiments can override only the
-router, cache model, or workload:
+```bash
+make validate-eval-large
+uv run python -m specialization_cache_frontier.bench.run_workload \
+  --config configs/benchmark/public_domain_eval_large.yaml
+```
+
+Use vLLM when you want real model outputs. The vLLM backend sends
+OpenAI-compatible `/chat/completions` requests and scores responses with the
+same task metrics used by the benchmark:
 
 ```bash
 uv run python -m specialization_cache_frontier.bench.run_workload \
-  --config configs/benchmark/small.yaml \
-           configs/router/semantic.yaml \
-           configs/cache/standard_lora.yaml
+  --config configs/benchmark/vllm_example.yaml
 ```
 
-To test memory pressure, add `configs/cache/memory_limited.yaml` after a cache
-model config. Cache models then use an LRU token budget and summaries report
-`eviction_count` and `evicted_tokens`.
+See [docs/vllm.md](/Users/shiva/repos/specialization-cache-frontier/docs/vllm.md)
+for the optional serving flow.
 
-## Plug in vLLM
+## Workloads
 
-`VLLMBackend` has a non-streaming OpenAI-compatible path for `/chat/completions`.
-Configure `backend.base_url`, `backend.api_key`, `backend.model`, adapter names,
-`max_tokens`, `temperature`, and `extra_body`. Unit tests use `httpx.MockTransport`;
-real serving tests should be skipped unless `RUN_VLLM_TESTS=1`.
+- `shared_doc_qa`: many questions over the same long document.
+- `mixed_tasks_same_doc`: QA, JSON extraction, summarization, and code/doc tasks
+  over the same document.
+- `agent_session`: multi-turn sessions with growing history and repeated tool
+  traces.
+- `low_overlap_control`: random prompts with little shared prefix.
+- `prompt_layout_ablation`: compares task-before-document against
+  document-before-task layouts to test late-specialization locality.
+- `jsonl_eval`: file-backed records for replacing synthetic prompts with real
+  evaluation sets.
 
-See `docs/vllm.md` and `configs/benchmark/vllm_example.yaml` for a concrete
-optional serving flow.
+## Router policies
+
+- `random`: baseline traffic spread.
+- `semantic`: route by task type to the expected specialist.
+- `multitask`: route every task to a shared multitask adapter.
+- `sticky_session`: keep a session on the same adapter when compatible.
+- `cache_aware`: combine quality prior, estimated cached tokens, queue penalty,
+  switch penalty, isolation penalty, and cold-adapter penalty.
+- `oracle`: simulator upper bound using known ground truth and backend quality.
+
+## Repo structure
+
+- `configs/`: benchmark, router, cache, and workload YAMLs.
+- `data/eval/`: small public-domain style JSONL fixtures.
+- `src/specialization_cache_frontier/cache/`: whitespace tokenizer and block
+  prefix-cache simulators.
+- `src/specialization_cache_frontier/routing/`: router policies.
+- `src/specialization_cache_frontier/backends/`: mock backend and optional vLLM
+  client.
+- `src/specialization_cache_frontier/bench/`: workload, matrix, metric, and
+  comparison runners.
+- `src/specialization_cache_frontier/analysis/`: report, plot, SLO, and Pareto
+  helpers.
+- `src/specialization_cache_frontier/physical_ai_analogue/`: lightweight
+  scene-cache analogy for VLA/world-model serving.
 
 ## Local verification
 
@@ -125,16 +145,31 @@ uv run ruff check .
 uv run ruff format . --check
 ```
 
-The GitHub Actions workflow runs the same CPU-only checks.
+The GitHub Actions workflow runs the same CPU-only checks. GPU or serving tests
+must stay optional and are skipped unless explicitly enabled.
 
-## License
+## Current limitations
 
-MIT. See `LICENSE`.
-
-## Limitations
-
-The first pass uses whitespace tokenization, approximate block caching, synthetic quality priors, and a deterministic mock backend. It is designed to make cache-routing tradeoffs reproducible before validating them on real serving stacks.
+- Whitespace tokenization approximates prefix blocks; it is not a tokenizer
+  match for any serving engine.
+- Mock quality uses deterministic priors and noise; it is useful for regression
+  testing, not model evaluation.
+- Cache memory accounting is token-based, not byte-accurate KV allocation.
+- The activated-LoRA and copy-on-write paths are simulators, not vLLM kernel
+  implementations.
+- The included JSONL eval fixtures are intentionally small and public-domain
+  style. Replace them before making research claims.
 
 ## Physical AI analogue
 
-The same issue appears in VLA serving: repeated visual/proprioceptive scene tokens map to a world-state cache, skill adapters map to specialization, and goodput maps to success-rate-adjusted control Hz. See `src/specialization_cache_frontier/physical_ai_analogue/README.md`.
+The same cache-specialization problem appears in VLA serving. Text prefix tokens
+map to repeated visual/proprioceptive scene tokens; KV cache maps to a
+world-state cache; LoRA adapters map to skill or embodiment adapters; TTFT and
+goodput map to control latency and success-rate-adjusted control Hz.
+
+See
+[src/specialization_cache_frontier/physical_ai_analogue/README.md](/Users/shiva/repos/specialization-cache-frontier/src/specialization_cache_frontier/physical_ai_analogue/README.md).
+
+## License
+
+MIT. See [LICENSE](/Users/shiva/repos/specialization-cache-frontier/LICENSE).

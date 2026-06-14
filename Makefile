@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large
+.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large vllm-example reproduce-mock
 
 sync:
 	uv sync --extra dev
@@ -38,3 +38,12 @@ validate-eval:
 
 validate-eval-large:
 	uv run python -m specialization_cache_frontier.workloads.validate_dataset --config configs/benchmark/public_domain_eval_large.yaml
+
+vllm-example:
+	uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/vllm_example.yaml
+
+reproduce-mock: matrix
+	uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/memory_pressure.yaml
+	uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/repeated.yaml
+	uv run python -m specialization_cache_frontier.bench.run_workload --config configs/benchmark/public_domain_eval_large.yaml
+	$(MAKE) report compare pareto slo
