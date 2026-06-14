@@ -88,16 +88,21 @@ uv run python -m adapter_cache_bench.bench.run_workload \
   --config configs/benchmark/public_domain_eval_large.yaml
 ```
 
-Use vLLM when you want real model outputs. The vLLM backend sends
-OpenAI-compatible `/chat/completions` requests and scores responses with the
-same task metrics used by the benchmark:
+Use a real backend when you want model outputs. The local Hugging Face backend
+loads a causal LM directly, while the vLLM/OpenAI-compatible backend sends
+`/chat/completions` requests and scores responses with the same task metrics
+used by the benchmark:
 
 ```bash
+make transformers-source-eval
+make vllm-source-eval
 uv run python -m adapter_cache_bench.bench.run_workload \
   --config configs/benchmark/vllm_example.yaml
 ```
 
 See [docs/vllm.md](docs/vllm.md) for the optional serving flow.
+See [docs/model_backends.md](docs/model_backends.md) for backend options.
+See [docs/gcloud_vllm.md](docs/gcloud_vllm.md) for a GPU/vLLM runbook.
 
 See [docs/eval_datasets.md](docs/eval_datasets.md) for the JSONL schema.
 See [docs/release_checklist.md](docs/release_checklist.md) before publishing.
@@ -132,8 +137,8 @@ See [docs/release_checklist.md](docs/release_checklist.md) before publishing.
 - `src/adapter_cache_bench/cache/`: whitespace tokenizer and block
   prefix-cache simulators.
 - `src/adapter_cache_bench/routing/`: router policies.
-- `src/adapter_cache_bench/backends/`: mock backend and optional vLLM
-  client.
+- `src/adapter_cache_bench/backends/`: mock, local Hugging Face, and
+  OpenAI-compatible/vLLM clients.
 - `src/adapter_cache_bench/bench/`: workload, matrix, metric, and
   comparison runners.
 - `src/adapter_cache_bench/analysis/`: report, plot, SLO, and Pareto

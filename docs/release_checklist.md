@@ -31,6 +31,13 @@ Use this before pushing a public repository.
   make vllm-source-eval
   ```
 
+- If you do not have vLLM running, use the local Hugging Face causal LM smoke
+  path:
+
+  ```bash
+  make transformers-source-eval
+  ```
+
 - Do not commit generated local results as claims unless the exact serving stack,
   model, adapters, prompts, seeds, and hardware are documented.
 

@@ -18,6 +18,12 @@ def test_make_backend_returns_vllm_backend_for_vllm_kind():
     assert isinstance(backend, VLLMBackend)
 
 
+def test_make_backend_accepts_openai_compatible_alias():
+    backend = make_backend(BackendConfig(kind="openai_compatible"))
+
+    assert isinstance(backend, VLLMBackend)
+
+
 def test_make_backend_rejects_unknown_kind():
     with pytest.raises(ValueError, match="Unknown backend kind"):
         make_backend(BackendConfig(kind="other"))

@@ -1,7 +1,9 @@
-# vLLM Integration
+# vLLM and local model servers
 
 The default benchmark path uses `MockBackend` and requires no GPU. The optional
-`VLLMBackend` uses an OpenAI-compatible `/chat/completions` endpoint.
+`VLLMBackend` uses an OpenAI-compatible `/chat/completions` endpoint. For a
+generic local server, set `backend.kind: openai_compatible`; for vLLM-specific
+configs, use `backend.kind: vllm`.
 
 ## Start a Server
 
@@ -16,6 +18,8 @@ vllm serve meta-llama/Llama-3.1-8B-Instruct \
 
 Adapter naming and LoRA registration depend on the vLLM version and serving
 layout. Keep those choices in `backend.extra_body` or server-side model names.
+
+See [model_backends.md](model_backends.md) for the backend matrix.
 
 ## Run an Optional Smoke Benchmark
 
@@ -35,6 +39,13 @@ Configure `backend.base_url`, `backend.model`, and adapter metadata for your
 server. Use the mock backend for unit tests, CI, and CPU-only development. vLLM
 responses are scored with the benchmark's task metrics (`qa`, `json`,
 `summary`, and `code`) when `ground_truth` is present in the request record.
+
+If no vLLM server is available, `configs/benchmark/source_eval_transformers.yaml`
+runs the same benchmark harness through a local Hugging Face causal LM backend:
+
+```bash
+make transformers-source-eval
+```
 
 ## Metrics
 

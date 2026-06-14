@@ -20,8 +20,12 @@ def make_backend(config: BackendConfig) -> Backend:
         from adapter_cache_bench.backends.mock_backend import MockBackend
 
         return MockBackend(config)
-    if config.kind == "vllm":
+    if config.kind in {"vllm", "openai_compatible"}:
         from adapter_cache_bench.backends.vllm_backend import VLLMBackend
 
         return VLLMBackend(config)
+    if config.kind == "transformers":
+        from adapter_cache_bench.backends.transformers_backend import TransformersBackend
+
+        return TransformersBackend(config)
     raise ValueError(f"Unknown backend kind: {config.kind}")

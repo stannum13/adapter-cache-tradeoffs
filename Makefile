@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large validate-source-eval source-eval vllm-example vllm-source-eval reproduce-mock
+.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large validate-source-eval source-eval transformers-source-eval vllm-example vllm-source-eval reproduce-mock
 
 sync:
 	uv sync --extra dev
@@ -44,6 +44,9 @@ validate-source-eval:
 
 source-eval:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval.yaml
+
+transformers-source-eval:
+	uv run --extra real python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_transformers.yaml
 
 vllm-example:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/vllm_example.yaml
