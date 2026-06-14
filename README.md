@@ -98,6 +98,10 @@ uv run python -m specialization_cache_frontier.bench.run_workload \
 See [docs/vllm.md](/Users/shiva/repos/specialization-cache-frontier/docs/vllm.md)
 for the optional serving flow.
 
+See
+[docs/eval_datasets.md](/Users/shiva/repos/specialization-cache-frontier/docs/eval_datasets.md)
+for the JSONL schema.
+
 ## Workloads
 
 - `shared_doc_qa`: many questions over the same long document.
