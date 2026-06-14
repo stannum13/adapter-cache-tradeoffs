@@ -17,6 +17,11 @@ uv run --extra real python experimental/training/build_sft_data.py \
   --eval-fraction 0.2
 ```
 
+This writes both SFT rows and benchmark-compatible request rows:
+
+- `train.jsonl`, `train_*.jsonl`: prompt/completion rows for training.
+- `eval_requests.jsonl`: held-out request records for benchmark evaluation.
+
 Train one adapter per task:
 
 ```bash
@@ -43,6 +48,8 @@ Run the same-base base-model and trained-adapter evals:
 ```bash
 make vllm-source-eval-l4-qwen15b
 make vllm-source-eval-lora-trained-qwen15b
+make vllm-heldout-qwen15b
+make vllm-heldout-lora-trained-qwen15b
 ```
 
 The result supports the full hypothesis only if the trained specialist adapters

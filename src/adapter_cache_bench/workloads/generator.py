@@ -190,7 +190,7 @@ def _jsonl_eval(
     rows = _read_jsonl_or_yaml(Path(config.dataset_path))
     for i, row in enumerate(rows[: config.request_count]):
         task = row["task_type"]
-        document = row["document"]
+        document = row.get("document", "")
         adapter = row.get("expected_adapter") or expected_adapter_for_task(task)
         layout = row.get("prompt_layout", "document_before_instruction")
         prompt = row.get("prompt") or prompt_for(

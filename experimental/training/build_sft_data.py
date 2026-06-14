@@ -30,6 +30,10 @@ def sft_row(record: RequestRecord) -> dict[str, Any]:
     }
 
 
+def request_row(record: RequestRecord) -> dict[str, Any]:
+    return record.model_dump(mode="json")
+
+
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
@@ -44,19 +48,26 @@ def build_sft_split(
     seed: int = 17,
 ) -> dict[str, Path]:
     config = load_config(config_paths)
-    rows = [sft_row(record) for record in generate_workload(config.workload, config.cache)]
+    records = generate_workload(config.workload, config.cache)
     rng = random.Random(seed)
-    rng.shuffle(rows)
-    eval_count = max(1, int(round(len(rows) * eval_fraction))) if len(rows) > 1 else 0
-    eval_rows = rows[:eval_count]
-    train_rows = rows[eval_count:]
+    rng.shuffle(records)
+    eval_count = max(1, int(round(len(records) * eval_fraction))) if len(records) > 1 else 0
+    eval_records = records[:eval_count]
+    train_records = records[eval_count:]
+    train_rows = [sft_row(record) for record in train_records]
+    eval_rows = [sft_row(record) for record in eval_records]
     output = Path(output_dir)
     paths: dict[str, Path] = {}
     paths["train"] = output / "train.jsonl"
     paths["eval"] = output / "eval.jsonl"
+    paths["train_requests"] = output / "train_requests.jsonl"
+    paths["eval_requests"] = output / "eval_requests.jsonl"
     write_jsonl(paths["train"], train_rows)
     write_jsonl(paths["eval"], eval_rows)
-    for task in sorted({row["task_type"] for row in rows}):
+    write_jsonl(paths["train_requests"], [request_row(record) for record in train_records])
+    write_jsonl(paths["eval_requests"], [request_row(record) for record in eval_records])
+    all_rows = train_rows + eval_rows
+    for task in sorted({row["task_type"] for row in all_rows}):
         task_train = [row for row in train_rows if row["task_type"] == task]
         task_eval = [row for row in eval_rows if row["task_type"] == task]
         paths[f"train_{task}"] = output / f"train_{task}.jsonl"
@@ -65,10 +76,10 @@ def build_sft_split(
         write_jsonl(paths[f"eval_{task}"], task_eval)
     metadata = {
         "config_paths": config_paths,
-        "row_count": len(rows),
+        "row_count": len(all_rows),
         "train_count": len(train_rows),
         "eval_count": len(eval_rows),
-        "tasks": sorted({row["task_type"] for row in rows}),
+        "tasks": sorted({row["task_type"] for row in all_rows}),
         "paths": {key: str(value) for key, value in paths.items()},
     }
     paths["metadata"] = output / "metadata.json"
