@@ -1,4 +1,9 @@
-run_name: heldout-sft-eval-vllm-lora-trained-qwen15b
+run_name: heldout-sft-eval-vllm-lora-multitask-qwen15b
+adapters:
+  adapter_ids: [multitask]
+  default_adapter: multitask
+router:
+  policy: multitask
 workload:
   name: jsonl_eval
   dataset_path: artifacts/sft/public_domain_large/eval_requests.jsonl
@@ -15,10 +20,7 @@ backend:
   api_key: EMPTY
   model: Qwen/Qwen2.5-1.5B-Instruct
   adapter_model_names:
-    qa: qa-lora
-    json: json-lora
-    summary: summary-lora
-    code: code-lora
+    multitask: multitask-lora
   temperature: 0.0
   ttft_slo_ms: 1000
   e2e_slo_ms: 12000

@@ -125,17 +125,23 @@ def build_records(count: int = 100) -> list[dict[str, Any]]:
         task_type = TASKS[index % len(TASKS)]
         question, ground_truth = document[task_type]
         layout = LAYOUTS[(index // len(TASKS)) % len(LAYOUTS)]
+        variant = index // (len(DOCUMENTS) * len(TASKS))
+        document_id = f"{document['document_id']}-v{variant:03d}"
+        variant_document = (
+            f"{document['document']} audit-batch-{variant:03d} notes reference "
+            f"marker public-domain-{variant % 17}."
+        )
         records.append(
             {
                 "request_id": f"eval-large-{index:04d}",
                 "session_id": f"eval-session-{index % 10}",
                 "tenant_id": f"eval-tenant-{index % 2}",
                 "trust_group_id": f"eval-trust-{index % 2}",
-                "document_id": document["document_id"],
-                "shared_prefix_id": document["document_id"],
+                "document_id": document_id,
+                "shared_prefix_id": document_id,
                 "task_type": task_type,
-                "document": document["document"],
-                "question": question,
+                "document": variant_document,
+                "question": f"{question} Use audit batch {variant:03d}.",
                 "ground_truth": ground_truth,
                 "expected_adapter": task_type,
                 "prompt_layout": layout,

@@ -20,6 +20,13 @@ def test_validate_large_public_domain_eval_config():
     }
 
 
+def test_validate_xlarge_public_domain_eval_config():
+    result = validate_workload_config("configs/benchmark/public_domain_eval_xlarge.yaml")
+
+    assert result["request_count"] == 500
+    assert set(result["task_types"]) == {"qa", "json", "summary", "code"}
+
+
 def test_validate_source_eval_config():
     result = validate_workload_config("configs/benchmark/source_eval.yaml")
 

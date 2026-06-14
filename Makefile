@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large validate-source-eval source-eval transformers-source-eval vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b reproduce-mock
+.PHONY: sync test lint format check small matrix report compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval source-eval transformers-source-eval vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
 
 sync:
 	uv sync --extra dev
@@ -39,6 +39,9 @@ validate-eval:
 validate-eval-large:
 	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/public_domain_eval_large.yaml
 
+validate-eval-xlarge:
+	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/public_domain_eval_xlarge.yaml
+
 validate-source-eval:
 	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/source_eval.yaml
 
@@ -71,6 +74,18 @@ vllm-heldout-qwen15b:
 
 vllm-heldout-lora-trained-qwen15b:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/heldout_sft_eval_vllm_lora_trained_qwen15b.yaml
+
+vllm-heldout-lora-trained-qwen15b-standard:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/heldout_sft_eval_vllm_lora_trained_qwen15b_standard.yaml
+
+vllm-heldout-lora-multitask-qwen15b:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/heldout_sft_eval_vllm_lora_multitask_qwen15b.yaml
+
+vllm-heldout-trained-matrix-qwen15b:
+	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/heldout_trained_matrix_vllm_qwen15b.yaml
+
+vllm-heldout-trained-repeated-qwen15b:
+	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/heldout_trained_repeated_vllm_qwen15b.yaml
 
 reproduce-mock: matrix
 	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/memory_pressure.yaml

@@ -1,4 +1,5 @@
-run_name: heldout-sft-eval-vllm-lora-trained-qwen15b
+run_name: heldout-trained-repeated-vllm-qwen15b
+output_dir: artifacts/runs
 workload:
   name: jsonl_eval
   dataset_path: artifacts/sft/public_domain_large/eval_requests.jsonl
@@ -9,6 +10,8 @@ workload:
 cache:
   model: activated_lora
   block_size: 8
+router:
+  policy: cache_aware
 backend:
   kind: vllm
   base_url: http://localhost:8000/v1
@@ -19,9 +22,15 @@ backend:
     json: json-lora
     summary: summary-lora
     code: code-lora
+    multitask: multitask-lora
   temperature: 0.0
   ttft_slo_ms: 1000
   e2e_slo_ms: 12000
   scrape_metrics: true
   metrics_url: http://localhost:8000/metrics
   extra_body: {}
+matrix:
+  routers: [semantic, cache_aware]
+  caches: [standard_lora, activated_lora, copy_on_write]
+  workloads: [jsonl_eval]
+  seeds: [17, 23, 31]

@@ -1,4 +1,4 @@
-run_name: heldout-sft-eval-vllm-lora-trained-qwen15b
+run_name: heldout-sft-eval-vllm-lora-trained-qwen15b-standard
 workload:
   name: jsonl_eval
   dataset_path: artifacts/sft/public_domain_large/eval_requests.jsonl
@@ -7,7 +7,7 @@ workload:
   tenants: 2
   max_tokens: 64
 cache:
-  model: activated_lora
+  model: standard_lora
   block_size: 8
 backend:
   kind: vllm
