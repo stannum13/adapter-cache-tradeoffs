@@ -26,7 +26,12 @@ def test_benchmark_run_writes_artifacts(tmp_path):
         cache=CacheConfig(model="activated_lora", block_size=4),
         router=RouterConfig(policy="cache_aware"),
     )
-    run_dir = run(config, run_id="unit", report_path=tmp_path / "report.md")
+    run_dir = run(
+        config,
+        run_id="unit",
+        report_path=tmp_path / "report.md",
+        tables_dir=tmp_path / "tables",
+    )
     assert (run_dir / "requests.jsonl").exists()
     assert (run_dir / "summary.json").exists()
     assert (run_dir / "config_resolved.yaml").exists()

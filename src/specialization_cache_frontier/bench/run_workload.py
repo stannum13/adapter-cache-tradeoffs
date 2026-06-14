@@ -61,6 +61,7 @@ def run(
     config: BenchmarkConfig,
     run_id: str | None = None,
     report_path: str | Path = "reports/specialization-cache-frontier.md",
+    tables_dir: str | Path = "reports/tables",
 ) -> Path:
     run_id = run_id or f"{config.run_name}-{int(time.time() * 1000)}"
     run_dir = Path(config.output_dir) / run_id
@@ -101,7 +102,7 @@ def run(
 
     from specialization_cache_frontier.analysis.report import generate_report
 
-    generate_report(config.output_dir, report_path=report_path)
+    generate_report(config.output_dir, report_path=report_path, tables_dir=tables_dir)
     return run_dir
 
 
