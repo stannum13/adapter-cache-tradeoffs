@@ -33,6 +33,8 @@ def test_benchmark_run_writes_artifacts(tmp_path):
     assert manifest["run_id"] == "unit"
     assert manifest["request_count"] == 8
     assert manifest["cache_model"] == "activated_lora"
+    assert "git_commit" in manifest
+    assert "git_dirty" in manifest
 
 
 def test_load_request_rows_reads_layout_and_metrics(tmp_path):

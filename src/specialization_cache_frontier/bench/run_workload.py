@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import time
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,27 @@ from specialization_cache_frontier.cache.cache_models import make_cache_model
 from specialization_cache_frontier.config import BenchmarkConfig, dump_config, load_config
 from specialization_cache_frontier.routing.base import make_router
 from specialization_cache_frontier.workloads.generator import generate_workload
+
+
+def git_metadata(cwd: str | Path = ".") -> dict[str, Any]:
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return {"git_commit": None, "git_dirty": None}
+    return {"git_commit": commit, "git_dirty": bool(status)}
 
 
 def build_manifest(
@@ -31,6 +53,7 @@ def build_manifest(
         "adapter_ids": config.adapters.adapter_ids,
         "request_count": request_count,
         "artifact_files": artifact_files,
+        **git_metadata(),
     }
 
 
