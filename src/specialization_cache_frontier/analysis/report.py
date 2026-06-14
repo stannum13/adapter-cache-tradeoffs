@@ -35,6 +35,58 @@ def _markdown_table(rows: list[dict[str, object]], columns: list[str]) -> list[s
     return [header, divider, *body]
 
 
+def _interpretation_lines(cache_means, layouts, repeated, df) -> list[str]:
+    lines = []
+    if not cache_means.empty:
+        best_cache = cache_means.sort_values(
+            "quality_adjusted_goodput",
+            ascending=False,
+        ).iloc[0]
+        lines.append(
+            f"- Best aggregate cache strategy: `{best_cache['cache_model']}` "
+            f"with mean quality-adjusted goodput {best_cache['quality_adjusted_goodput']:.3f}."
+        )
+    if not layouts.empty:
+        layout_means = layouts.groupby("prompt_layout")["ttft_ms"].mean()
+        if {
+            "document_before_instruction",
+            "instruction_before_document",
+        } <= set(layout_means.index):
+            document_first = layout_means["document_before_instruction"]
+            instruction_first = layout_means["instruction_before_document"]
+            delta = instruction_first - document_first
+            lines.append(
+                "- Prompt layout matters: `document_before_instruction` is "
+                f"{delta:.1f} ms lower mean TTFT than `instruction_before_document` "
+                "in the current artifact set."
+            )
+    if not df.empty and "eviction_count" in df:
+        eviction_runs = df[df["eviction_count"] > 0]
+        if eviction_runs.empty:
+            lines.append(
+                "- No committed baseline run evicted cache blocks; use the memory-pressure "
+                "matrix to exercise finite-cache behavior."
+            )
+        else:
+            worst = eviction_runs.sort_values("eviction_count", ascending=False).iloc[0]
+            lines.append(
+                f"- Highest eviction pressure: `{worst['cache_model']}` on "
+                f"`{worst['workload']}` with {int(worst['eviction_count'])} evictions."
+            )
+    if not repeated.empty and (repeated["run_count"] > 1).any():
+        best_repeated = repeated[repeated["run_count"] > 1].iloc[0]
+        lines.append(
+            f"- Repeated-seed leader: `{best_repeated['router_policy']}` with "
+            f"`{best_repeated['cache_model']}` on `{best_repeated['workload']}`."
+        )
+    else:
+        lines.append(
+            "- Repeated-seed support is available; run `configs/benchmark/repeated.yaml` "
+            "to populate variance rows."
+        )
+    return lines or ["- No interpretation available until benchmark summaries are present."]
+
+
 def generate_report(
     runs_dir: str | Path = "artifacts/runs",
     report_path: str | Path = "reports/specialization-cache-frontier.md",
@@ -151,6 +203,7 @@ def generate_report(
             "requests_under_slo",
         ],
     )
+    interpretation = _interpretation_lines(cache_means, layouts, repeated, df)
     lines = [
         "# When is specialization worth its cache footprint?",
         "",
@@ -194,6 +247,10 @@ def generate_report(
         "## Results",
         "",
         results,
+        "",
+        "### Interpretation",
+        "",
+        *interpretation,
         "",
         "Generated figures:",
         "",
