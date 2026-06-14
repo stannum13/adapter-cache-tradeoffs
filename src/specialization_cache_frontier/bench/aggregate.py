@@ -92,6 +92,26 @@ def router_means(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def repeated_seed_summary(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    return (
+        df.groupby(["workload", "router_policy", "cache_model"], as_index=False)
+        .agg(
+            run_count=("quality_adjusted_goodput", "count"),
+            quality_adjusted_goodput_mean=("quality_adjusted_goodput", "mean"),
+            quality_adjusted_goodput_std=("quality_adjusted_goodput", "std"),
+            mean_quality_mean=("mean_quality", "mean"),
+            mean_quality_std=("mean_quality", "std"),
+            p95_ttft_ms_mean=("p95_ttft_ms", "mean"),
+            p95_ttft_ms_std=("p95_ttft_ms", "std"),
+        )
+        .sort_values("quality_adjusted_goodput_mean", ascending=False)
+        .reset_index(drop=True)
+        .fillna(0.0)
+    )
+
+
 def layout_ablation_means(request_df: pd.DataFrame) -> pd.DataFrame:
     if request_df.empty or "workload" not in request_df:
         return pd.DataFrame()
@@ -127,6 +147,7 @@ def write_analysis_tables(
         "workload_leaders": workload_leaders(df),
         "cache_model_means": cache_model_means(df),
         "router_means": router_means(df),
+        "repeated_seed_summary": repeated_seed_summary(df),
         "layout_ablation": layout_ablation_means(request_df),
         "pareto_frontier": workload_pareto_frontiers(df),
         "slo_sweep": slo_sweep(request_df),

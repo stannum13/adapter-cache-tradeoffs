@@ -71,6 +71,12 @@ uv run python -m specialization_cache_frontier.analysis.slo --runs-dir artifacts
 
 The default path requires no GPU and no internet after dependencies are installed.
 
+For repeated-seed estimates, use:
+
+```bash
+uv run python -m specialization_cache_frontier.bench.run_matrix --config configs/benchmark/repeated.yaml
+```
+
 Config files compose left to right, so small experiments can override only the
 router, cache model, or workload:
 

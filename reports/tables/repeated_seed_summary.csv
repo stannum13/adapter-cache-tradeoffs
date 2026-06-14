@@ -1,0 +1,2 @@
+workload,router_policy,cache_model,run_count,quality_adjusted_goodput_mean,quality_adjusted_goodput_std,mean_quality_mean,mean_quality_std,p95_ttft_ms_mean,p95_ttft_ms_std
+mixed_tasks_same_doc,cache_aware,activated_lora,1,18.84556271378517,0.0,0.9023646843996809,0.0,27.81773276959156,0.0

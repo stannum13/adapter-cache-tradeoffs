@@ -13,13 +13,17 @@ def expand_matrix(config: BenchmarkConfig) -> list[BenchmarkConfig]:
     routers = matrix.get("routers", [config.router.policy])
     caches = matrix.get("caches", [config.cache.model])
     workloads = matrix.get("workloads", [config.workload.name])
+    seeds = [int(seed) for seed in matrix.get("seeds", [config.workload.seed])]
     configs = []
-    for router, cache, workload in itertools.product(routers, caches, workloads):
+    for router, cache, workload, seed in itertools.product(routers, caches, workloads, seeds):
         child = copy.deepcopy(config)
-        child.router.policy = router
-        child.cache.model = cache
-        child.workload.name = workload
-        child.run_name = f"{workload}-{router}-{cache}"
+        child.router.policy = str(router)
+        child.cache.model = str(cache)
+        child.workload.name = str(workload)
+        child.workload.seed = seed
+        child.router.seed = seed
+        child.backend.seed = seed
+        child.run_name = f"{workload}-{router}-{cache}-seed{seed}"
         child.matrix = {}
         configs.append(child)
     return configs

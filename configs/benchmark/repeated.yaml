@@ -1,0 +1,25 @@
+run_name: repeated
+output_dir: artifacts/runs
+workload:
+  name: mixed_tasks_same_doc
+  request_count: 48
+  shared_document_count: 2
+  sessions: 8
+  tenants: 2
+  max_tokens: 64
+  seed: 11
+  document_tokens: 160
+router:
+  policy: semantic
+cache:
+  model: standard_lora
+  block_size: 8
+backend:
+  kind: mock
+  seed: 11
+  ttft_slo_ms: 220
+matrix:
+  routers: [semantic, cache_aware, oracle]
+  caches: [standard_lora, activated_lora, copy_on_write]
+  workloads: [shared_doc_qa, mixed_tasks_same_doc, prompt_layout_ablation]
+  seeds: [11, 17, 23]

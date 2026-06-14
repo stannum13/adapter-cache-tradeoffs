@@ -56,6 +56,7 @@ Generated tables:
 - `reports/tables/workload_leaders.csv`
 - `reports/tables/cache_model_means.csv`
 - `reports/tables/router_means.csv`
+- `reports/tables/repeated_seed_summary.csv`
 - `reports/tables/layout_ablation.csv`
 - `reports/tables/pareto_frontier.csv`
 - `reports/tables/slo_sweep.csv`
@@ -88,6 +89,10 @@ Generated tables:
 | sticky_session | 14.560 | 0.920 | 56.178 |
 | cache_aware | 14.200 | 0.893 | 52.068 |
 | random | 10.508 | 0.685 | 56.757 |
+
+### Repeated-seed summary
+
+No rows available.
 
 ### Prompt-layout ablation
 

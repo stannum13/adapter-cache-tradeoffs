@@ -3,6 +3,7 @@ import json
 from specialization_cache_frontier.bench.aggregate import (
     cache_model_means,
     load_request_rows,
+    repeated_seed_summary,
     router_means,
     workload_leaders,
     write_analysis_tables,
@@ -125,6 +126,39 @@ def test_analysis_tables_rank_workloads_and_export_csv(tmp_path):
     assert cache_means.iloc[0]["cache_model"] == "activated_lora"
     assert routers.iloc[0]["router_policy"] == "cache_aware"
     assert paths["workload_leaders"].exists()
+
+
+def test_repeated_seed_summary_reports_mean_and_std():
+    import pandas as pd
+
+    summaries = pd.DataFrame(
+        [
+            {
+                "run_id": "a",
+                "workload": "shared_doc_qa",
+                "router_policy": "semantic",
+                "cache_model": "standard_lora",
+                "quality_adjusted_goodput": 1.0,
+                "mean_quality": 0.8,
+                "p95_ttft_ms": 10.0,
+            },
+            {
+                "run_id": "b",
+                "workload": "shared_doc_qa",
+                "router_policy": "semantic",
+                "cache_model": "standard_lora",
+                "quality_adjusted_goodput": 3.0,
+                "mean_quality": 1.0,
+                "p95_ttft_ms": 20.0,
+            },
+        ]
+    )
+
+    summary = repeated_seed_summary(summaries)
+
+    assert summary.iloc[0]["run_count"] == 2
+    assert summary.iloc[0]["quality_adjusted_goodput_mean"] == 2.0
+    assert summary.iloc[0]["quality_adjusted_goodput_std"] > 0
 
 
 def test_compare_runs_returns_leader_tables(tmp_path):

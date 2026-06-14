@@ -11,6 +11,7 @@ from specialization_cache_frontier.bench.aggregate import (
     layout_ablation_means,
     load_request_rows,
     load_summaries,
+    repeated_seed_summary,
     router_means,
     workload_leaders,
     write_analysis_tables,
@@ -46,6 +47,7 @@ def generate_report(
     leaders = workload_leaders(df)
     cache_means = cache_model_means(df)
     routers = router_means(df)
+    repeated = repeated_seed_summary(df)
     layouts = layout_ablation_means(request_df)
     pareto = workload_pareto_frontiers(df)
     slo = slo_sweep(request_df)
@@ -101,6 +103,20 @@ def generate_report(
     router_lines = _markdown_table(
         routers.head(8).to_dict("records") if not routers.empty else [],
         ["router_policy", "quality_adjusted_goodput", "mean_quality", "p95_ttft_ms"],
+    )
+    repeated_lines = _markdown_table(
+        repeated[repeated["run_count"] > 1].head(12).to_dict("records")
+        if not repeated.empty
+        else [],
+        [
+            "workload",
+            "router_policy",
+            "cache_model",
+            "run_count",
+            "quality_adjusted_goodput_mean",
+            "quality_adjusted_goodput_std",
+            "p95_ttft_ms_mean",
+        ],
     )
     layout_lines = _markdown_table(
         layouts.head(12).to_dict("records") if not layouts.empty else [],
@@ -198,6 +214,10 @@ def generate_report(
         "### Router means",
         "",
         *router_lines,
+        "",
+        "### Repeated-seed summary",
+        "",
+        *repeated_lines,
         "",
         "### Prompt-layout ablation",
         "",

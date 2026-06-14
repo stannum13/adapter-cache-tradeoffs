@@ -86,7 +86,7 @@ class BenchmarkConfig(BaseModel):
     workload: WorkloadConfig = Field(default_factory=WorkloadConfig)
     backend: BackendConfig = Field(default_factory=BackendConfig)
     output_dir: str = "artifacts/runs"
-    matrix: dict[str, list[str]] = Field(default_factory=dict)
+    matrix: dict[str, list[str | int]] = Field(default_factory=dict)
 
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
