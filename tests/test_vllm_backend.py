@@ -32,6 +32,24 @@ def test_vllm_payload_uses_openai_compatible_shape():
     assert payload["extra_body"]["adapter"] == "qa"
 
 
+def test_vllm_payload_can_use_completion_endpoint_for_base_models():
+    backend = VLLMBackend(
+        BackendConfig(
+            model="facebook/opt-125m",
+            extra_body={"endpoint": "completions"},
+        )
+    )
+    decision = RoutingDecision(request_id="r1", adapter_id="qa", policy_name="semantic")
+
+    payload = backend.completion_payload(_request(), decision)
+
+    assert backend.request_path() == "/completions"
+    assert payload["model"] == "facebook/opt-125m"
+    assert payload["prompt"] == _request().prompt
+    assert "messages" not in payload
+    assert "endpoint" not in payload
+
+
 def test_vllm_backend_parses_openai_compatible_response_without_network():
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path.endswith("/chat/completions")
@@ -59,3 +77,35 @@ def test_vllm_backend_parses_openai_compatible_response_without_network():
     assert response.quality.exact_match_like_score == 1.0
     assert response.quality.score == 1.0
     assert cache.estimate_cached_prefix_tokens("qa", _request().prompt, "t1", "g1") == 5
+
+
+def test_vllm_backend_parses_completion_response_without_network():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/completions")
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"text": "answer text"}],
+                "usage": {"prompt_tokens": 6, "completion_tokens": 2},
+            },
+        )
+
+    client = httpx.Client(
+        base_url="http://testserver/v1",
+        transport=httpx.MockTransport(handler),
+    )
+    backend = VLLMBackend(
+        BackendConfig(
+            base_url="http://testserver/v1",
+            extra_body={"endpoint": "completions"},
+        ),
+        client=client,
+    )
+    cache = StandardLoRACache(CacheConfig(block_size=2))
+    decision = RoutingDecision(request_id="r1", adapter_id="qa", policy_name="semantic")
+
+    response = backend.generate(_request(), decision, cache)
+
+    assert response.text == "answer text"
+    assert response.metrics.prompt_tokens == 6
+    assert response.metrics.output_tokens == 2

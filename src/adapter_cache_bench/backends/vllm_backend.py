@@ -33,17 +33,43 @@ class VLLMBackend(Backend):
             timeout=60.0,
         )
 
+    def endpoint(self) -> str:
+        return str(self.config.extra_body.get("endpoint", "chat_completions"))
+
     def completion_payload(
         self, request: RequestRecord, decision: RoutingDecision
     ) -> dict[str, Any]:
+        extra_body = {
+            key: value for key, value in self.config.extra_body.items() if key != "endpoint"
+        }
+        if self.endpoint() in {"completions", "completion"}:
+            payload = {
+                "model": self.config.model,
+                "prompt": request.prompt,
+                "max_tokens": request.max_tokens,
+                "temperature": self.config.temperature,
+            }
+            payload.update(extra_body)
+            return payload
         payload = {
             "model": self.config.model,
             "messages": [{"role": "user", "content": request.prompt}],
             "max_tokens": request.max_tokens,
             "temperature": self.config.temperature,
-            "extra_body": {**self.config.extra_body, "adapter": decision.adapter_id},
+            "extra_body": {**extra_body, "adapter": decision.adapter_id},
         }
         return payload
+
+    def request_path(self) -> str:
+        if self.endpoint() in {"completions", "completion"}:
+            return "/completions"
+        return "/chat/completions"
+
+    def response_text(self, payload: dict[str, Any]) -> str:
+        choice = payload["choices"][0]
+        if "text" in choice:
+            return str(choice.get("text") or "")
+        return str(choice.get("message", {}).get("content", ""))
 
     def generate(
         self, request: RequestRecord, decision: RoutingDecision, cache_model: CacheModel
@@ -56,12 +82,12 @@ class VLLMBackend(Backend):
         )
         started = time.perf_counter()
         response = self.client.post(
-            "/chat/completions", json=self.completion_payload(request, decision)
+            self.request_path(), json=self.completion_payload(request, decision)
         )
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         response.raise_for_status()
         payload = response.json()
-        text = payload["choices"][0]["message"].get("content", "")
+        text = self.response_text(payload)
         usage = payload.get("usage", {})
         prompt_tokens = int(usage.get("prompt_tokens") or count_tokens(request.prompt))
         output_tokens = int(usage.get("completion_tokens") or count_tokens(text) or 1)
