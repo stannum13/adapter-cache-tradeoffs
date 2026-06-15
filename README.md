@@ -107,6 +107,8 @@ uv run python -m adapter_cache_bench.bench.run_concurrent \
 See [docs/vllm.md](docs/vllm.md) for the optional serving flow.
 See [docs/model_backends.md](docs/model_backends.md) for backend options.
 See [docs/gcloud_vllm.md](docs/gcloud_vllm.md) for a GPU/vLLM runbook.
+See [docs/external_eval.md](docs/external_eval.md) for replacing the included
+fixtures with stronger external eval data and multi-model comparisons.
 
 The LoRA vLLM path expects the server to expose adapter model names such as
 `qa-lora`, `json-lora`, `summary-lora`, and `code-lora`. The included Qwen LoRA
@@ -134,6 +136,14 @@ To reproduce the exhaustive real-server suite after starting vLLM:
 
 ```bash
 make vllm-exhaustive-all
+```
+
+For a stronger external eval or multi-model pass:
+
+```bash
+make validate-external-eval
+make vllm-external-eval
+make vllm-model-family
 ```
 
 ## Workloads

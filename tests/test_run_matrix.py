@@ -86,6 +86,41 @@ def test_expand_exhaustive_sweep_applies_dimensions():
     assert dimensions["isolation_scope"] == "tenant"
 
 
+def test_expand_exhaustive_sweep_supports_model_dimension():
+    config = BenchmarkConfig(
+        run_name="models",
+        matrix={
+            "strategies": ["specialists", "multitask"],
+            "concurrencies": [8],
+            "workloads": ["jsonl_eval"],
+            "models": [
+                {
+                    "name": "Qwen/Qwen2.5-1.5B-Instruct",
+                    "alias": "qwen15b",
+                    "adapter_model_names": {
+                        "qa": "qwen15b-qa-lora",
+                        "json": "qwen15b-json-lora",
+                        "summary": "qwen15b-summary-lora",
+                        "code": "qwen15b-code-lora",
+                        "multitask": "qwen15b-multitask-lora",
+                    },
+                }
+            ],
+            "adapter_counts": [4],
+            "seeds": [17],
+        },
+    )
+
+    expanded = expand_exhaustive_sweep(config)
+
+    specialists = [child for child, _ in expanded if "specialists" in child.run_name][0]
+    multitask = [child for child, _ in expanded if "multitask" in child.run_name][0]
+    assert specialists.backend.model == "Qwen/Qwen2.5-1.5B-Instruct"
+    assert specialists.backend.adapter_model_names["qa"] == "qwen15b-qa-lora"
+    assert multitask.backend.adapter_model_names == {"multitask": "qwen15b-multitask-lora"}
+    assert all(dimensions["model_alias"] == "qwen15b" for _, dimensions in expanded)
+
+
 def test_record_sweep_dimensions_updates_manifest(tmp_path):
     import json
 

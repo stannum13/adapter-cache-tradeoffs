@@ -30,7 +30,7 @@ ADAPTER_IDS_BY_COUNT = {
 }
 
 
-def _matrix_values(matrix: dict[str, list[str | int | float]], key: str, default: Any) -> list[Any]:
+def _matrix_values(matrix: dict[str, Any], key: str, default: Any) -> list[Any]:
     return list(matrix.get(key, [default]))
 
 
@@ -39,11 +39,39 @@ def _slug(value: Any) -> str:
     return re.sub(r"[^a-zA-Z0-9_+-]+", "-", text).strip("-")
 
 
-def apply_adapter_count(config: BenchmarkConfig, strategy: str, adapter_count: int) -> None:
+def _model_alias(model_name: str) -> str:
+    return model_name.rsplit("/", 1)[-1]
+
+
+def _model_specs(config: BenchmarkConfig) -> list[dict[str, Any]]:
+    raw_specs = _matrix_values(
+        config.matrix or {},
+        "models",
+        {"name": config.backend.model, "alias": _model_alias(config.backend.model)},
+    )
+    specs = []
+    for raw in raw_specs:
+        if isinstance(raw, str):
+            specs.append({"name": raw, "alias": _model_alias(raw)})
+        elif isinstance(raw, dict):
+            if "name" not in raw:
+                raise ValueError(f"Model sweep entry is missing name: {raw}")
+            specs.append({"alias": _model_alias(str(raw["name"])), **raw})
+        else:
+            raise TypeError(f"Unsupported model sweep entry: {raw!r}")
+    return specs
+
+
+def apply_adapter_count(
+    config: BenchmarkConfig,
+    strategy: str,
+    adapter_count: int,
+    adapter_model_names: dict[str, str],
+) -> None:
     if strategy == "multitask":
         config.adapters.adapter_ids = ["multitask"]
         config.adapters.default_adapter = "multitask"
-        config.backend.adapter_model_names = {"multitask": ADAPTER_MODEL_NAMES["multitask"]}
+        config.backend.adapter_model_names = {"multitask": adapter_model_names["multitask"]}
         return
     if strategy == "base":
         return
@@ -52,7 +80,7 @@ def apply_adapter_count(config: BenchmarkConfig, strategy: str, adapter_count: i
         raise ValueError(f"Unsupported adapter_count={adapter_count}; use 1..5")
     config.adapters.adapter_ids = adapter_ids
     config.backend.adapter_model_names = {
-        adapter_id: ADAPTER_MODEL_NAMES[adapter_id] for adapter_id in adapter_ids
+        adapter_id: adapter_model_names[adapter_id] for adapter_id in adapter_ids
     }
 
 
@@ -91,6 +119,7 @@ def expand_exhaustive_sweep(
         str(item)
         for item in _matrix_values(matrix, "isolation_scopes", config.cache.isolation_scope)
     ]
+    model_specs = _model_specs(config)
 
     children: list[tuple[BenchmarkConfig, dict[str, Any]]] = []
     for (
@@ -103,6 +132,7 @@ def expand_exhaustive_sweep(
         adapter_count,
         tenant_count,
         isolation_scope,
+        model_spec,
     ) in itertools.product(
         strategies,
         concurrencies,
@@ -113,8 +143,14 @@ def expand_exhaustive_sweep(
         adapter_counts,
         tenants,
         isolation_scopes,
+        model_specs,
     ):
         child = apply_strategy(copy.deepcopy(config), strategy)
+        child.backend.model = str(model_spec["name"])
+        adapter_model_names = {
+            **ADAPTER_MODEL_NAMES,
+            **dict(model_spec.get("adapter_model_names") or {}),
+        }
         child.backend.max_concurrency = concurrency
         child.workload.name = workload
         child.cache.model = cache
@@ -124,10 +160,12 @@ def expand_exhaustive_sweep(
         child.workload.shared_prefix_fraction = overlap_fraction
         child.workload.tenants = tenant_count
         child.cache.isolation_scope = isolation_scope
-        apply_adapter_count(child, strategy, adapter_count)
+        apply_adapter_count(child, strategy, adapter_count, adapter_model_names)
         dimensions = {
             "strategy": strategy,
             "concurrency": concurrency,
+            "model": child.backend.model,
+            "model_alias": str(model_spec["alias"]),
             "workload": workload,
             "cache": cache,
             "seed": seed,
@@ -139,7 +177,8 @@ def expand_exhaustive_sweep(
             "isolation_scope": isolation_scope,
         }
         child.run_name = (
-            f"{config.run_name}-{_slug(strategy)}-c{concurrency}-{_slug(workload)}"
+            f"{config.run_name}-{_slug(strategy)}-{_slug(model_spec['alias'])}"
+            f"-c{concurrency}-{_slug(workload)}"
             f"-{_slug(cache)}-ov{_slug(overlap_fraction)}-a{dimensions['adapter_count']}"
             f"-t{tenant_count}-{_slug(isolation_scope)}-seed{seed}"
         )
