@@ -125,6 +125,7 @@ def check_research_readiness(
     ]
     report_paths = [
         Path("docs/real_eval_results.md"),
+        Path("docs/benchmark_quality_plan.md"),
         Path("docs/research_plan.md"),
         Path("README.md"),
     ]
@@ -135,7 +136,8 @@ def check_research_readiness(
         items.append(
             _ok(
                 "public_result_refresh",
-                "README, real-eval notes, research plan, and public figures are present",
+                "README, benchmark-quality plan, real-eval notes, research plan, "
+                "and public figures are present",
             )
         )
 

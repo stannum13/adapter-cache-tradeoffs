@@ -58,3 +58,25 @@ def test_vllm_example_config_loads_optional_backend():
 
     assert config.backend.kind == "vllm"
     assert config.workload.request_count == 5
+
+
+def test_benchmark_v0_mock_config_freezes_core_dimensions():
+    config = load_config("configs/benchmark/benchmark_v0_mock.yaml")
+
+    assert config.run_name == "benchmark-v0-mock"
+    assert config.backend.kind == "mock"
+    assert config.workload.request_count == 96
+    assert config.cache.block_size == 8
+    assert config.matrix["routers"] == [
+        "semantic",
+        "multitask",
+        "sticky_session",
+        "cache_aware",
+        "oracle",
+    ]
+    assert config.matrix["caches"] == [
+        "standard_lora",
+        "activated_lora",
+        "copy_on_write",
+    ]
+    assert config.matrix["seeds"] == [17, 23, 31]
