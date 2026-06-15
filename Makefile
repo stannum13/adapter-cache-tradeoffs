@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report whitepaper-figure adapter-metrics research-readiness compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval validate-external-eval source-eval transformers-source-eval vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-external-eval vllm-model-family vllm-large-model-pilot vllm-large-model vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b-concurrent vllm-heldout-xlarge-lora-trained-qwen15b-concurrent vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent vllm-overnight-frontier vllm-overnight-frontier-streaming vllm-exhaustive-layout vllm-exhaustive-overlap vllm-exhaustive-adapter-count vllm-exhaustive-tenant-isolation vllm-exhaustive-confidence vllm-exhaustive-all vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
+.PHONY: sync test lint format check small matrix report whitepaper-figure adapter-metrics research-readiness compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval validate-external-eval source-eval transformers-source-eval vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-external-eval vllm-model-family vllm-large-model-pilot vllm-large-model-confidence vllm-large-model-confidence-reset vllm-large-model vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b-concurrent vllm-heldout-xlarge-lora-trained-qwen15b-concurrent vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent vllm-overnight-frontier vllm-overnight-frontier-streaming vllm-exhaustive-layout vllm-exhaustive-overlap vllm-exhaustive-adapter-count vllm-exhaustive-tenant-isolation vllm-exhaustive-confidence vllm-exhaustive-all vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
 
 sync:
 	uv sync --extra dev
@@ -89,6 +89,12 @@ vllm-model-family:
 
 vllm-large-model-pilot:
 	uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep --config configs/benchmark/large_model_pilot_vllm.yaml
+
+vllm-large-model-confidence:
+	uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep --config configs/benchmark/large_model_overlap_confidence_vllm.yaml
+
+vllm-large-model-confidence-reset:
+	uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep --config configs/benchmark/large_model_overlap_confidence_vllm.yaml configs/benchmark/gcloud_7b_reset_template.yaml
 
 vllm-large-model:
 	uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep --config configs/benchmark/large_model_vllm_template.yaml
