@@ -213,6 +213,13 @@ def load_request_rows(runs_dir: str | Path) -> pd.DataFrame:
                 "cache_model": summary["cache_model"],
                 "workload": summary["workload"],
             }
+        manifest_path = path.parent / "manifest.json"
+        if manifest_path.exists():
+            with manifest_path.open("r", encoding="utf-8") as manifest_handle:
+                manifest = json.load(manifest_handle)
+            metadata["max_concurrency"] = manifest.get("max_concurrency", 1)
+            for key, value in manifest.get("sweep_dimensions", {}).items():
+                metadata[f"sweep_{key}"] = value
         with path.open("r", encoding="utf-8") as handle:
             for line in handle:
                 record = json.loads(line)

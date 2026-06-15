@@ -195,6 +195,15 @@ def test_load_request_rows_reads_layout_and_metrics(tmp_path):
         ),
         encoding="utf-8",
     )
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "max_concurrency": 8,
+                "sweep_dimensions": {"strategy": "specialists", "overlap_fraction": 0.75},
+            }
+        ),
+        encoding="utf-8",
+    )
     (run_dir / "requests.jsonl").write_text(
         json.dumps(
             {
@@ -223,6 +232,9 @@ def test_load_request_rows_reads_layout_and_metrics(tmp_path):
 
     assert df.iloc[0]["prompt_layout"] == "document_before_instruction"
     assert df.iloc[0]["ttft_ms"] == 10.0
+    assert df.iloc[0]["max_concurrency"] == 8
+    assert df.iloc[0]["sweep_strategy"] == "specialists"
+    assert df.iloc[0]["sweep_overlap_fraction"] == 0.75
 
 
 def test_load_summaries_reads_concurrency_metadata_from_manifest(tmp_path):
