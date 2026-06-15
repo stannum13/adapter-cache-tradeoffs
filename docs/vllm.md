@@ -126,6 +126,23 @@ count, tenant isolation, and repeated-seed confidence checks:
 make vllm-exhaustive-all
 ```
 
+For cleaner per-condition server metrics, configure a reset hook. The runner
+executes `backend.server_reset_command`, waits for `backend.server_warmup_url`,
+then scrapes `/metrics` before sending benchmark requests:
+
+```yaml
+backend:
+  server_reset_command: ./scripts/restart_local_vllm_lora.sh
+  server_reset_timeout_s: 300
+  server_warmup_url: http://localhost:8000/health
+  server_warmup_timeout_s: 300
+  server_warmup_interval_s: 2
+```
+
+The reset command is intentionally environment-specific. Use it when you need
+isolated vLLM prefix-cache counters per run; leave it unset for faster frontier
+sweeps.
+
 Configure `backend.base_url`, `backend.model`, and adapter metadata for your
 server. Use the mock backend for unit tests, CI, and CPU-only development. vLLM
 responses are scored with the benchmark's task metrics (`qa`, `json`,

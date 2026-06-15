@@ -9,6 +9,7 @@ from typing import Any
 
 from adapter_cache_bench.backends.base import make_backend
 from adapter_cache_bench.backends.metrics_client import MetricsClient, prometheus_delta
+from adapter_cache_bench.backends.server_control import prepare_backend_server
 from adapter_cache_bench.cache.cache_models import make_cache_model
 from adapter_cache_bench.config import BenchmarkConfig, dump_config, load_config
 from adapter_cache_bench.routing.base import make_router
@@ -94,11 +95,14 @@ def run(
     run_dir = Path(config.output_dir) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
+    artifact_files = ["requests.jsonl", "summary.json", "config_resolved.yaml", "manifest.json"]
+    reset_artifact = prepare_backend_server(config.backend, run_dir)
+    if reset_artifact:
+        artifact_files.append(reset_artifact)
     cache_model = make_cache_model(config.cache)
     router = make_router(config.router)
     backend = make_backend(config.backend)
     requests = generate_workload(config.workload, config.cache)
-    artifact_files = ["requests.jsonl", "summary.json", "config_resolved.yaml", "manifest.json"]
     before_metrics = scrape_backend_metrics(config, run_dir, "before")
     if before_metrics:
         artifact_files.append(before_metrics)

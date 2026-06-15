@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from adapter_cache_bench.backends.base import make_backend
+from adapter_cache_bench.backends.server_control import prepare_backend_server
 from adapter_cache_bench.backends.vllm_backend import VLLMBackend
 from adapter_cache_bench.bench.metrics import summarize
 from adapter_cache_bench.bench.run_workload import (
@@ -43,6 +44,10 @@ async def _run_async(
     run_dir = Path(config.output_dir) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
+    artifact_files = ["requests.jsonl", "summary.json", "config_resolved.yaml", "manifest.json"]
+    reset_artifact = prepare_backend_server(config.backend, run_dir)
+    if reset_artifact:
+        artifact_files.append(reset_artifact)
     cache_model = make_cache_model(config.cache)
     router = make_router(config.router)
     backend = make_backend(config.backend)
@@ -52,7 +57,6 @@ async def _run_async(
         for request in requests
     ]
 
-    artifact_files = ["requests.jsonl", "summary.json", "config_resolved.yaml", "manifest.json"]
     before_metrics = scrape_backend_metrics(config, run_dir, "before")
     if before_metrics:
         artifact_files.append(before_metrics)

@@ -83,6 +83,11 @@ class BackendConfig(BaseModel):
     metrics_url: str = "http://localhost:8000/metrics"
     max_concurrency: int = 1
     request_spacing_ms: float = 0.0
+    server_reset_command: str | None = None
+    server_reset_timeout_s: float = 300.0
+    server_warmup_url: str | None = None
+    server_warmup_timeout_s: float = 300.0
+    server_warmup_interval_s: float = 2.0
 
 
 class BenchmarkConfig(BaseModel):
