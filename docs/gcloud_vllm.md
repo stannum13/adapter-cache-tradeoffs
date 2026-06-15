@@ -39,6 +39,24 @@ using the default single-L4 shape. See
 [large_model_benchmarking.md](large_model_benchmarking.md) for the staged
 7B/14B/70B run path.
 
+Spot/preemptible GPU quota and driver-ready images are also supported:
+
+```bash
+PROJECT=<project-id> \
+ZONE=us-central1-c \
+INSTANCE=adapter-cache-vllm-h100-spot \
+MACHINE_TYPE=a3-highgpu-1g \
+GPU_TYPE=nvidia-h100-80gb \
+GPU_COUNT=1 \
+PROVISIONING_MODEL=SPOT \
+IMAGE_FAMILY=ubuntu-accelerator-2204-amd64-with-nvidia-580 \
+IMAGE_PROJECT=ubuntu-os-accelerator-images \
+./scripts/gcloud_l4_vllm.sh create
+```
+
+The accelerator image avoids a slow DKMS driver install, which matters for spot
+VMs that can be reclaimed during setup.
+
 ## 3. Start vLLM on the VM
 
 Base-model server:

@@ -180,9 +180,57 @@ To serve at least one request with the model's max seq len (4096), 0.22 GiB KV c
 The ten-LoRA failure reported no available memory for cache blocks. This is a
 direct systems result: adding adapter registrations can consume enough serving
 headroom that the server cannot reserve KV cache for even one max-length
-request. The current GCP project has quota for one L4 GPU in `asia-south1` and
-zero A100 quota, so a larger-GPU confirmation needs a quota increase before it
-can be run.
+request.
+
+## H100 spot capacity confirmation
+
+A follow-up run used the same trained Qwen2.5-7B adapters on a GCP
+`a3-highgpu-1g` spot VM with one NVIDIA H100 80GB HBM3 in `us-central1-c`.
+Standard 2x L4, A100 80GB, and all-regions GPU quota requests were denied, but
+`PREEMPTIBLE-NVIDIA-H100-GPUS-per-project-region` was approved to one GPU.
+
+The H100 VM used `ubuntu-accelerator-2204-amd64-with-nvidia-580`, vLLM
+`0.23.0`, `max_model_len=4096`, `gpu_memory_utilization=0.90`, prefix caching,
+and ten rank-8 LoRA registrations:
+
+- seed-17/default: `qa-lora`, `json-lora`, `summary-lora`, `code-lora`,
+  `multitask-lora`;
+- seed-23: `seed23-qa-lora`, `seed23-json-lora`, `seed23-summary-lora`,
+  `seed23-code-lora`, `seed23-multitask-lora`.
+
+vLLM loaded all ten LoRAs successfully. The startup log reported:
+
+- available KV cache memory: `53.34 GiB`;
+- GPU KV cache size: `998,768` tokens;
+- maximum concurrency for 4096-token requests: `243.84x`.
+
+This directly closes the one-L4 capacity question: the same 4096-context
+10-LoRA registration pattern that failed on one L4 starts successfully on one
+H100 80GB.
+
+The same expanded source-backed workload was then run against the 10-LoRA-loaded
+H100 server:
+
+| condition | run id | requests | p95 TTFT ms | mean quality | QAG | server prefix hit rate |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| base | `source-eval-expanded-vllm-qwen7b-1781558787102` | 240 | 474.5 | 0.326 | 0.503 | 0.550 |
+| specialist LoRAs | `source-eval-expanded-vllm-lora-trained-qwen7b-1781558622688` | 240 | 557.5 | 0.552 | 0.964 | 0.500 |
+| multitask LoRA | `source-eval-expanded-vllm-lora-multitask-qwen7b-1781558968104` | 240 | 561.9 | 0.541 | 0.921 | 0.550 |
+
+Interpretation:
+
+- This is primarily a capacity result, not a clean L4-versus-H100 latency
+  comparison. The H100 server kept ten LoRAs resident while the earlier L4
+  expanded eval used the smaller feasible LoRA set.
+- The quality direction still matches the L4 expanded eval: specialists beat
+  base and multitask on the source-backed workload.
+- The cache-fragmentation pattern remains visible at the server counter level:
+  specialist routing has a lower prefix-hit rate than base/multitask because
+  adapter identity is part of the effective cache namespace.
+- The practical frontier is now clearer: one L4 is enough for a small
+  specialist-plus-multitask deployment, but not enough for broader multi-seed or
+  many-tenant adapter registration at 4096 context. One H100 80GB has ample KV
+  headroom for that shape.
 
 ## Five-seed isolated confidence sweep
 
