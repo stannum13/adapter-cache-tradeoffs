@@ -20,6 +20,9 @@ It is base-only by default. That is intentional: it isolates the systems effect
 of prefill cost, shared-prefix reuse, concurrency, and tenant isolation without
 waiting for large-model adapter training.
 
+For the first real 7B pilot result, see
+[large_model_results.md](large_model_results.md).
+
 Recommended progression:
 
 | tier | purpose | expected hardware shape |
