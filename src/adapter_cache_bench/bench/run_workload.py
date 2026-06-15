@@ -86,7 +86,7 @@ def backend_metrics_delta(run_dir: Path) -> dict[str, float]:
 def run(
     config: BenchmarkConfig,
     run_id: str | None = None,
-    report_path: str | Path = "reports/adapter-cache-bench.md",
+    report_path: str | Path = "reports/adapter-cache-tradeoffs.md",
     tables_dir: str | Path = "reports/tables",
     generate_report_artifacts: bool = True,
 ) -> Path:

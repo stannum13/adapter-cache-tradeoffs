@@ -35,7 +35,7 @@ async def _generate_one(
 async def _run_async(
     config: BenchmarkConfig,
     run_id: str | None = None,
-    report_path: str | Path = "reports/adapter-cache-bench.md",
+    report_path: str | Path = "reports/adapter-cache-tradeoffs.md",
     tables_dir: str | Path = "reports/tables",
     generate_report_artifacts: bool = True,
 ) -> Path:
@@ -121,7 +121,7 @@ async def _run_async(
 def run_concurrent(
     config: BenchmarkConfig,
     run_id: str | None = None,
-    report_path: str | Path = "reports/adapter-cache-bench.md",
+    report_path: str | Path = "reports/adapter-cache-tradeoffs.md",
     tables_dir: str | Path = "reports/tables",
     generate_report_artifacts: bool = True,
 ) -> Path:

@@ -151,7 +151,7 @@ def expand_exhaustive_sweep(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True, nargs="+")
-    parser.add_argument("--report-path", default="reports/adapter-cache-bench.md")
+    parser.add_argument("--report-path", default="reports/adapter-cache-tradeoffs.md")
     parser.add_argument("--tables-dir", default="reports/tables")
     args = parser.parse_args()
     config = load_config(args.config)

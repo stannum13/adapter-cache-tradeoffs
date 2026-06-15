@@ -31,7 +31,7 @@ wheels = [
 ]
 
 [[package]]
-name = "adapter-cache-bench"
+name = "adapter-cache-tradeoffs"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

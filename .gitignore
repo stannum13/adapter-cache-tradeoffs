@@ -5,9 +5,9 @@ __pycache__/
 *.py[cod]
 .DS_Store
 .tmp-gcloud/
-AGENTS.md
 artifacts/
 reports/figures/*.png
 reports/adapter-cache-bench.md
+reports/adapter-cache-tradeoffs.md
 reports/specialization-cache-frontier.md
 reports/tables/*.csv

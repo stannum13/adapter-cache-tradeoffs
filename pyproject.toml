@@ -1,5 +1,5 @@
 [project]
-name = "adapter-cache-bench"
+name = "adapter-cache-tradeoffs"
 version = "0.1.0"
 description = "Benchmark when adapter specialization is worth its KV-cache footprint."
 readme = "README.md"

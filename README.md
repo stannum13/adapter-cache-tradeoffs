@@ -1,4 +1,4 @@
-# Adapter Cache Bench
+# Adapter Cache Tradeoffs
 
 Specialist adapters improve quality, but every routing decision is also a cache
 decision. This repo is a reproducible cache/routing benchmark harness for

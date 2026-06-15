@@ -63,7 +63,7 @@ push a squashed public branch rather than the local build-out history:
 
 ```bash
 git switch public/main
-git remote add origin git@github.com:<owner>/adapter-cache-bench.git
+git remote add origin git@github.com:<owner>/adapter-cache-tradeoffs.git
 git push -u origin public/main:main
 ```
 

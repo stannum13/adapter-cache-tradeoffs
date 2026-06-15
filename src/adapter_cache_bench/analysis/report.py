@@ -126,7 +126,7 @@ def _evidence_lines(df) -> list[str]:
 
 def generate_report(
     runs_dir: str | Path = "artifacts/runs",
-    report_path: str | Path = "reports/adapter-cache-bench.md",
+    report_path: str | Path = "reports/adapter-cache-tradeoffs.md",
     tables_dir: str | Path = "reports/tables",
 ) -> Path:
     df = load_summaries(runs_dir)
@@ -375,7 +375,7 @@ def generate_report(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runs-dir", default="artifacts/runs")
-    parser.add_argument("--report-path", default="reports/adapter-cache-bench.md")
+    parser.add_argument("--report-path", default="reports/adapter-cache-tradeoffs.md")
     parser.add_argument("--tables-dir", default="reports/tables")
     args = parser.parse_args()
     print(generate_report(args.runs_dir, args.report_path, args.tables_dir))
