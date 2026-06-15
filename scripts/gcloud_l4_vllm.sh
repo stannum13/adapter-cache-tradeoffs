@@ -9,6 +9,8 @@ GPU_TYPE="${GPU_TYPE:-nvidia-l4}"
 GPU_COUNT="${GPU_COUNT:-1}"
 PROVISIONING_MODEL="${PROVISIONING_MODEL:-STANDARD}"
 BOOT_DISK_SIZE="${BOOT_DISK_SIZE:-150GB}"
+IMAGE_FAMILY="${IMAGE_FAMILY:-ubuntu-2204-lts}"
+IMAGE_PROJECT="${IMAGE_PROJECT:-ubuntu-os-cloud}"
 SSH_KEY_FILE="${SSH_KEY_FILE:-.tmp-gcloud/adapter_cache_vllm_key}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B-Instruct}"
 LORA_BASE_MODEL="${LORA_BASE_MODEL:-Qwen/Qwen2.5-1.5B-Instruct}"
@@ -51,6 +53,8 @@ Common overrides:
   GPU_TYPE=${GPU_TYPE}
   GPU_COUNT=${GPU_COUNT}
   PROVISIONING_MODEL=${PROVISIONING_MODEL}
+  IMAGE_FAMILY=${IMAGE_FAMILY}
+  IMAGE_PROJECT=${IMAGE_PROJECT}
   BASE_MODEL=${BASE_MODEL}
   LORA_BASE_MODEL=${LORA_BASE_MODEL}
   LORA_REPO=${LORA_REPO}
@@ -93,8 +97,8 @@ create_vm() {
     --maintenance-policy=TERMINATE \
     --restart-on-failure \
     --provisioning-model="${PROVISIONING_MODEL}" \
-    --image-family=ubuntu-2204-lts \
-    --image-project=ubuntu-os-cloud \
+    --image-family="${IMAGE_FAMILY}" \
+    --image-project="${IMAGE_PROJECT}" \
     --boot-disk-size="${BOOT_DISK_SIZE}" \
     --boot-disk-type=pd-balanced \
     --scopes=https://www.googleapis.com/auth/cloud-platform
