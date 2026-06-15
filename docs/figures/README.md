@@ -1,9 +1,10 @@
 # Figures
 
-These PNGs are committed snapshots generated from local benchmark artifacts with:
+These committed snapshots are generated from local benchmark artifacts with:
 
 ```bash
 make report
+make whitepaper-figure
 ```
 
 Raw run artifacts remain ignored under `artifacts/runs/`. Regenerate figures
@@ -12,6 +13,8 @@ GitHub.
 
 Included snapshots:
 
+- `whitepaper_specialization_cache_tradeoff.png`
+- `whitepaper_specialization_cache_tradeoff.pdf`
 - `quality_vs_p95_ttft.png`
 - `cache_hit_rate_by_policy_model.png`
 - `quality_adjusted_goodput_by_router.png`

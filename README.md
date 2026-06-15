@@ -31,6 +31,8 @@ p95 TTFT fell from `2426.9ms` to `975.4ms`.
 Read the full run snapshot in [docs/real_eval_results.md](docs/real_eval_results.md).
 Selected plots are committed in [docs/figures](docs/figures/).
 
+![Specialization is a quality/cache/SLO tradeoff](docs/figures/whitepaper_specialization_cache_tradeoff.png)
+
 ## Research Question
 
 When is model/adapter specialization worth its KV-cache footprint?
@@ -83,6 +85,11 @@ Each run writes:
 | `manifest.json` | Run metadata, git metadata, and artifact list. |
 
 Generated raw artifacts are ignored by git under `artifacts/runs/`.
+Regenerate the main whitepaper figure with:
+
+```bash
+make whitepaper-figure
+```
 
 ## Mock vs Real Backends
 
