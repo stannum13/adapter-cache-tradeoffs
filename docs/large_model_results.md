@@ -1,9 +1,10 @@
-# Large-model pilot results
+# Large-model vLLM results
 
 Date: 2026-06-15
 
-This is a real vLLM serving pilot for a larger base model. It is base-only: no
-large-model specialist or multitask adapters were trained for this run.
+This page records real vLLM serving runs for a larger base model. These are
+base-only systems runs: no large-model specialist or multitask adapters were
+trained for this run.
 
 Serving stack:
 
@@ -21,6 +22,45 @@ Run command:
 ```bash
 make vllm-large-model-pilot
 ```
+
+Confidence sweep command:
+
+```bash
+make vllm-large-model-confidence-reset
+```
+
+## Five-seed isolated confidence sweep
+
+The stronger result uses five seeds and restarts vLLM before every condition so
+prefix-cache state cannot leak across overlap levels. Each condition serves 40
+streamed requests at concurrency 4, for 400 total requests.
+
+![Qwen2.5-7B overlap confidence sweep](figures/large_model_overlap_confidence.png)
+
+| overlap | runs | requests | p50 TTFT mean ms | p95 TTFT mean ms | p95 TTFT std ms | p99 TTFT mean ms | p95 E2E mean ms | SLO attainment mean | req/s mean | quality mean | QAG mean | cached ratio mean | server prefix hit mean | memory tokens mean |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.50 | 5 | 200 | 1515.5 | 2429.7 | 103.0 | 2544.1 | 4454.6 | 0.465 | 1.081 | 0.067 | 0.034 | 0.408 | 0.264 | 4346 |
+| 0.95 | 5 | 200 | 924.4 | 1725.2 | 37.6 | 1762.2 | 3693.3 | 0.900 | 1.363 | 0.073 | 0.090 | 0.778 | 0.838 | 1466 |
+
+High-overlap prompts improved p95 TTFT by `704.5 ms` on average, a `29.0%`
+reduction. SLO attainment rose from `46.5%` to `90.0%`, request throughput rose
+by `26.0%`, and quality-adjusted goodput rose by `163.8%`.
+
+Interpretation:
+
+- This validates the large-base serving side of the thesis: for a 7B causal
+  transformer on one L4, shared-prefix locality can move a workload from
+  partially SLO-violating to mostly SLO-compliant.
+- The server prefix-cache hit rate tracks the benchmark-side cache model:
+  `26.4%` at 50% overlap versus `83.8%` at 95% overlap.
+- The low-overlap condition also has a larger simulated memory-token footprint
+  because fewer shared blocks are reused in the activated-late-specialization
+  cache model.
+- This still does not prove the specialist-adapter quality side for 7B. The next
+  large-model claim requires trained 7B adapters and held-out evaluation through
+  the same vLLM harness.
+
+## Two-condition pilot
 
 The corrected pilot used two controlled-overlap conditions at concurrency 4:
 
