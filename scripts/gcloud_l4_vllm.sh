@@ -137,7 +137,6 @@ serve_base() {
     sudo docker run -d --gpus all --name vllm-qwen --ipc=host \
       -p ${REMOTE_PORT}:8000 \
       -v ~/.cache/huggingface:/root/.cache/huggingface \
-      -v ${ADAPTERS_DIR}:${ADAPTERS_DIR}:ro \
       ${VLLM_IMAGE} \
       --model ${BASE_MODEL} \
       --host 0.0.0.0 \
@@ -157,6 +156,7 @@ serve_lora() {
     sudo docker run -d --gpus all --name vllm-qwen --ipc=host \
       -p ${REMOTE_PORT}:8000 \
       -v ~/.cache/huggingface:/root/.cache/huggingface \
+      -v ${ADAPTERS_DIR}:${ADAPTERS_DIR}:ro \
       ${VLLM_IMAGE} \
       --model ${LORA_BASE_MODEL} \
       --host 0.0.0.0 \
