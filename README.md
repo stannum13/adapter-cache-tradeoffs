@@ -120,6 +120,7 @@ outputs:
 ```bash
 make vllm-source-eval
 make vllm-source-eval-lora-qwen
+make vllm-heldout-xlarge-lora-trained-qwen7b
 uv run python -m adapter_cache_bench.bench.run_concurrent \
   --config configs/benchmark/heldout_xlarge_sft_eval_vllm_lora_trained_qwen15b_concurrent.yaml
 ```
@@ -182,7 +183,7 @@ requirements.
 | Document | Contents |
 | --- | --- |
 | [docs/real_eval_results.md](docs/real_eval_results.md) | Real vLLM run results and interpretation. |
-| [docs/large_model_results.md](docs/large_model_results.md) | Real 7B vLLM cache/SLO pilot result. |
+| [docs/large_model_results.md](docs/large_model_results.md) | Real 7B vLLM cache/SLO and trained-adapter results. |
 | [docs/vllm.md](docs/vllm.md) | vLLM/OpenAI-compatible serving flow. |
 | [docs/external_eval.md](docs/external_eval.md) | How to plug in stronger external evals. |
 | [docs/research_plan.md](docs/research_plan.md) | Next research steps and acceptance criteria. |

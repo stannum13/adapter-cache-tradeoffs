@@ -2,9 +2,11 @@
 
 Date: 2026-06-15
 
-This page records real vLLM serving runs for a larger base model. These are
-base-only systems runs: no large-model specialist or multitask adapters were
-trained for this run.
+This page records real vLLM serving runs for a larger base model. It now covers
+both sides of the thesis:
+
+- prefix-cache locality for a 7B base causal transformer;
+- trained specialist and multitask LoRA adapters served through vLLM.
 
 Serving stack:
 
@@ -28,6 +30,42 @@ Confidence sweep command:
 ```bash
 make vllm-large-model-confidence-reset
 ```
+
+## Trained 7B adapter eval
+
+The quality-side run trained real Qwen2.5-7B LoRA adapters on the generated
+public-domain-style SFT split and served them through vLLM as OpenAI-compatible
+model names:
+
+- specialists: `qa-lora`, `json-lora`, `summary-lora`, `code-lora`;
+- multitask: `multitask-lora`;
+- training: 4-bit LoRA, rank 8, alpha 16, max length 768;
+- specialist steps: 40 each;
+- multitask steps: 80;
+- hardware: GCP `g2-standard-8` with one NVIDIA L4 in `asia-south1-b`;
+- eval: `artifacts/sft/public_domain_xlarge/eval_requests.jsonl`;
+- requests: 100 streamed held-out requests per condition.
+
+![Qwen2.5-7B trained adapter quality](figures/large_model_adapter_quality.png)
+
+| condition | requests | p50 TTFT ms | p95 TTFT ms | p95 E2E ms | SLO attainment | req/s | mean quality | QAG | adapter distribution |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| base | 100 | 121.0 | 123.8 | 3688.1 | 1.000 | 0.394 | 0.210 | 0.083 | specialists ids, base model |
+| specialist LoRAs | 100 | 136.7 | 141.9 | 4067.5 | 1.000 | 0.641 | 0.740 | 0.474 | `summary=21`, `json=27`, `qa=31`, `code=21` |
+| multitask LoRA | 100 | 137.4 | 142.2 | 4087.5 | 1.000 | 0.580 | 0.644 | 0.373 | `multitask=100` |
+
+Interpretation:
+
+- The trained specialist adapters improved held-out quality by `3.53x` over the
+  base model (`0.740` vs `0.210`) while staying far under the `1500 ms` TTFT SLO.
+- The specialist adapters also beat the multitask adapter on quality (`0.740`
+  vs `0.644`) and quality-adjusted goodput (`0.474` vs `0.373`).
+- In this held-out fixture, the adapter quality gain is large enough that the
+  small TTFT cost relative to the base (`+18.1 ms` p95) is clearly worth it.
+- This does not remove the cache-footprint concern. It says that under this
+  high-reuse, low-concurrency held-out setting, specialization is on the
+  favorable side of the frontier. The overlap confidence sweep below shows when
+  cache locality becomes the deciding systems variable.
 
 ## Five-seed isolated confidence sweep
 
@@ -56,9 +94,9 @@ Interpretation:
 - The low-overlap condition also has a larger simulated memory-token footprint
   because fewer shared blocks are reused in the activated-late-specialization
   cache model.
-- This still does not prove the specialist-adapter quality side for 7B. The next
-  large-model claim requires trained 7B adapters and held-out evaluation through
-  the same vLLM harness.
+- Combined with the trained-adapter eval above, this gives both halves of the
+  first large-model claim: specialization can buy quality, and cache locality
+  decides whether that quality comes with acceptable serving behavior.
 
 ## Two-condition pilot
 
@@ -86,6 +124,6 @@ Notes:
   an overlap ablation because `jsonl_eval` does not consume
   `shared_prefix_fraction`. The controlled-overlap rows above are the relevant
   large-model cache/SLO evidence.
-- The next stronger result requires trained 7B specialist and multitask adapters
-  served through vLLM, then the same held-out evaluation through
-  `configs/benchmark/model_family_vllm_template.yaml`.
+- The next stronger result is a repeated-seed and concurrent-load run for the
+  trained 7B adapters, plus publication of the exact adapter checkpoints or a
+  deterministic retraining script.

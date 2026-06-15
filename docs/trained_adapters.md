@@ -8,6 +8,13 @@ The clean comparison uses one base model for both conditions:
 - Specialist LoRAs: `qa-lora`, `json-lora`, `summary-lora`, `code-lora`
 - Eval: `data/eval/source_eval.jsonl`
 
+The larger-model comparison uses:
+
+- Base: `Qwen/Qwen2.5-7B-Instruct`
+- Specialist LoRAs: `qa-lora`, `json-lora`, `summary-lora`, `code-lora`
+- Multitask LoRA: `multitask-lora`
+- Eval: `artifacts/sft/public_domain_xlarge/eval_requests.jsonl`
+
 Build training data from the larger public-domain fixture:
 
 ```bash
@@ -35,11 +42,39 @@ for task in qa json summary code; do
 done
 ```
 
+For the 7B run on a 24 GB L4, use 4-bit LoRA training:
+
+```bash
+BASE_MODEL=Qwen/Qwen2.5-7B-Instruct \
+SFT_DIR=artifacts/sft/public_domain_xlarge \
+OUTPUT_DIR=/home/shiva/adapters \
+OUTPUT_PREFIX=qwen7b \
+LOAD_IN_4BIT=1 \
+MAX_STEPS=40 \
+MULTITASK_MAX_STEPS=80 \
+MAX_LENGTH=768 \
+./scripts/train_qwen15b_task_adapters.sh
+```
+
 Serve the trained adapters with vLLM:
 
 ```bash
 PROJECT=<project-id> \
 LORA_MODULES="qa-lora=/home/shiva/adapters/qwen15b-qa json-lora=/home/shiva/adapters/qwen15b-json summary-lora=/home/shiva/adapters/qwen15b-summary code-lora=/home/shiva/adapters/qwen15b-code" \
+./scripts/gcloud_l4_vllm.sh serve-lora
+```
+
+For the trained 7B adapters:
+
+```bash
+PROJECT=<project-id> \
+ZONE=<zone> \
+INSTANCE=<instance> \
+LORA_BASE_MODEL=Qwen/Qwen2.5-7B-Instruct \
+MAX_MODEL_LEN=4096 \
+GPU_MEMORY_UTILIZATION=0.90 \
+MAX_LORAS=5 \
+LORA_MODULES="qa-lora=/home/shiva/adapters/qwen7b-qa json-lora=/home/shiva/adapters/qwen7b-json summary-lora=/home/shiva/adapters/qwen7b-summary code-lora=/home/shiva/adapters/qwen7b-code multitask-lora=/home/shiva/adapters/qwen7b-multitask" \
 ./scripts/gcloud_l4_vllm.sh serve-lora
 ```
 
@@ -56,6 +91,14 @@ make vllm-heldout-trained-repeated-qwen15b
 make vllm-heldout-xlarge-qwen15b-concurrent
 make vllm-heldout-xlarge-lora-trained-qwen15b-concurrent
 make vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent
+```
+
+Run the 7B held-out comparison:
+
+```bash
+make vllm-heldout-xlarge-qwen7b
+make vllm-heldout-xlarge-lora-trained-qwen7b
+make vllm-heldout-xlarge-lora-multitask-qwen7b
 ```
 
 The result supports the full hypothesis only if the trained specialist adapters
