@@ -29,6 +29,8 @@ make vllm-heldout-trained-repeated-qwen15b
 make vllm-heldout-xlarge-qwen15b-concurrent
 make vllm-heldout-xlarge-lora-trained-qwen15b-concurrent
 make vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent
+make vllm-overnight-frontier
+make vllm-overnight-frontier-streaming
 ```
 
 ## What ran
@@ -37,6 +39,8 @@ make vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent
 - 1,020 real model-server requests.
 - 39 saved `backend_metrics_after.prom` snapshots.
 - 3 additional concurrent-load vLLM runs at `max_concurrency: 8`.
+- 15-run non-streaming frontier sweep with 1,500 real model-server requests.
+- 15-run streaming frontier sweep with 1,500 real model-server requests.
 - 18-run router/cache matrix:
   - routers: `semantic`, `multitask`, `cache_aware`
   - caches: `standard_lora`, `activated_lora`, `copy_on_write`
@@ -119,6 +123,47 @@ Interpretation:
 - The generated report now includes concurrency plots for p95 TTFT, QAG, SLO
   attainment, and request throughput.
 
+## Streaming TTFT frontier
+
+The streaming frontier reruns the same `base`, `specialists`, and `multitask`
+strategy sweep with `backend.stream: true`, so `ttft_ms` is measured at the
+first non-empty streamed content chunk rather than at whole-response completion:
+
+```bash
+make vllm-overnight-frontier-streaming
+```
+
+| strategy | concurrency | quality | p95 TTFT ms | p95 E2E ms | SLO attainment | request/s | QAG |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| base | 1 | 0.153 | 1493.8 | 2102.7 | 0.860 | 0.606 | 0.080 |
+| base | 2 | 0.151 | 1240.5 | 1857.9 | 0.890 | 1.334 | 0.180 |
+| base | 4 | 0.155 | 1101.2 | 1890.2 | 0.910 | 2.851 | 0.403 |
+| base | 8 | 0.150 | 1029.9 | 1844.1 | 0.900 | 5.706 | 0.771 |
+| base | 16 | 0.149 | 1252.4 | 1970.9 | 0.780 | 9.708 | 1.130 |
+| specialists | 1 | 0.841 | 1368.0 | 1644.1 | 0.660 | 0.764 | 0.424 |
+| specialists | 2 | 0.844 | 1191.0 | 1465.4 | 0.730 | 1.644 | 1.012 |
+| specialists | 4 | 0.846 | 1331.4 | 1771.0 | 0.800 | 3.550 | 2.402 |
+| specialists | 8 | 0.847 | 1197.3 | 1350.2 | 0.840 | 7.388 | 5.254 |
+| specialists | 16 | 0.843 | 1181.2 | 1455.4 | 0.770 | 13.070 | 8.483 |
+| multitask | 1 | 0.707 | 1465.3 | 1950.6 | 0.630 | 0.730 | 0.325 |
+| multitask | 2 | 0.712 | 1235.7 | 1534.0 | 0.720 | 1.613 | 0.826 |
+| multitask | 4 | 0.706 | 1066.6 | 1331.1 | 0.930 | 3.777 | 2.481 |
+| multitask | 8 | 0.706 | 962.1 | 1282.7 | 0.970 | 8.060 | 5.517 |
+| multitask | 16 | 0.710 | 1238.5 | 1590.8 | 0.720 | 12.141 | 6.209 |
+
+Interpretation:
+
+- Streaming confirms the quality hierarchy: specialists are far better than the
+  base model and still higher-quality than the multitask adapter.
+- The strict 1s p95 TTFT objective changes the frontier. In this run,
+  multitask at concurrency 8 is the only tested point below 1s p95 TTFT.
+- Quality-adjusted goodput is not monotonic by strategy: specialists win at
+  concurrency 1, 2, and 16; multitask wins at concurrency 4 and 8.
+- This supports the evolved hypothesis: specialization is worth it when quality
+  dominates the objective or the system can tolerate roughly 1.2s p95 TTFT, but
+  a multitask adapter can be the better SLO frontier point under a hard 1s p95
+  TTFT target.
+
 ## Router/cache matrix means
 
 | router | cache | runs | quality | p95 TTFT ms | QAG | QAG / memory token | memory tokens |
@@ -149,7 +194,9 @@ Interpretation:
   this is an engineering validation path, not a paper-grade dataset.
 - Cache models are still simulators layered around real vLLM requests; the
   activated-LoRA and copy-on-write paths are not vLLM kernel implementations.
+- Streaming responses do not always include final usage metadata, so streaming
+  token counts fall back to the benchmark's whitespace tokenizer.
 - The real server provides prefix-cache metrics, but adapter-specific cache
   namespaces are approximated by the benchmark cache model.
-- Stronger claims need a larger source-backed held-out dataset, more models,
-  and concurrent-load experiments.
+- Stronger claims need a larger source-backed held-out dataset, more models, and
+  real server-side adapter-aware cache counters.
