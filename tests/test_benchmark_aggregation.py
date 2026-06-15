@@ -281,7 +281,11 @@ def test_load_summaries_flattens_backend_metrics_and_sweep_dimensions(tmp_path):
                 "mean_quality": 0.8,
                 "p95_ttft_ms": 100.0,
                 "memory_token_footprint": 10,
-                "backend_metrics": {"vllm:prefix_cache_hits_total": 7.0},
+                "backend_metrics": {
+                    "vllm:prefix_cache_queries_total": 10.0,
+                    "vllm:prefix_cache_hits_total": 7.0,
+                    "vllm:prompt_tokens_cached_total": 99.0,
+                },
             }
         ),
         encoding="utf-8",
@@ -302,6 +306,10 @@ def test_load_summaries_flattens_backend_metrics_and_sweep_dimensions(tmp_path):
     df = load_summaries(tmp_path)
 
     assert df.iloc[0]["backend_metric:vllm:prefix_cache_hits_total"] == 7.0
+    assert df.iloc[0]["server_prefix_cache_queries"] == 10.0
+    assert df.iloc[0]["server_prefix_cache_hits"] == 7.0
+    assert df.iloc[0]["server_prefix_cache_hit_rate"] == 0.7
+    assert df.iloc[0]["server_prompt_tokens_cached"] == 99.0
     assert df.iloc[0]["sweep_strategy"] == "specialists"
     assert df.iloc[0]["sweep_overlap_fraction"] == 0.75
     assert df.iloc[0]["sweep_adapter_count"] == 4

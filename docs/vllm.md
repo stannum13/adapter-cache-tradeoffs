@@ -161,3 +161,15 @@ The backend records wall-clock request latency from the client. For production
 serving studies, enable streaming TTFT and also scrape server-side Prometheus
 metrics with `MetricsClient`; join them with `requests.jsonl` by run timestamp
 or request metadata.
+
+When `/metrics` snapshots are available, `summary.json` includes raw
+`backend_metrics` deltas. The analysis loader also exposes:
+
+- `server_prefix_cache_queries`
+- `server_prefix_cache_hits`
+- `server_prefix_cache_hit_rate`
+- `server_prompt_tokens_cached`
+
+Vanilla vLLM prefix-cache metrics are server-level counters. Adapter-aware
+per-namespace cache counters still require serving-layer instrumentation or
+per-condition server resets plus benchmark-side cache-model accounting.

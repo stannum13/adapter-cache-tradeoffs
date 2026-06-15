@@ -12,6 +12,20 @@ STRATEGY_BY_CACHE_MODEL = {
     "copy_on_write": "copy-on-write-delta",
 }
 
+SERVER_CACHE_METRICS = {
+    "server_prefix_cache_queries": "backend_metric:vllm:prefix_cache_queries_total",
+    "server_prefix_cache_hits": "backend_metric:vllm:prefix_cache_hits_total",
+    "server_prompt_tokens_cached": "backend_metric:vllm:prompt_tokens_cached_total",
+}
+
+
+def add_server_cache_columns(row: dict) -> None:
+    for public_name, metric_name in SERVER_CACHE_METRICS.items():
+        row.setdefault(public_name, row.get(metric_name, 0.0))
+    queries = float(row.get("server_prefix_cache_queries") or 0.0)
+    hits = float(row.get("server_prefix_cache_hits") or 0.0)
+    row.setdefault("server_prefix_cache_hit_rate", hits / queries if queries > 0 else 0.0)
+
 
 def load_summaries(runs_dir: str | Path) -> pd.DataFrame:
     rows = []
@@ -24,6 +38,7 @@ def load_summaries(runs_dir: str | Path) -> pd.DataFrame:
             row.setdefault("quality_adjusted_goodput_per_memory_token", 0.0)
             for metric_name, metric_value in row.get("backend_metrics", {}).items():
                 row[f"backend_metric:{metric_name}"] = metric_value
+            add_server_cache_columns(row)
             manifest_path = path.parent / "manifest.json"
             if manifest_path.exists():
                 with manifest_path.open("r", encoding="utf-8") as manifest_handle:
