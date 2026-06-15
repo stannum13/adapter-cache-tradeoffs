@@ -1,48 +1,67 @@
 # Adapter Cache Tradeoffs
 
 Specialist adapters improve quality, but every routing decision is also a cache
-decision. This repo is a reproducible cache/routing benchmark harness for
-testing when semantic routing, sticky routing, cache-aware routing, multitask
-adapters, and activated-style adapters help or hurt under shared-prefix
-workloads.
+decision.
 
-It does not claim model-quality results from the mock backend. The mock path is
-for systems sanity: prefix reuse, cache fragmentation, memory pressure, routing
-policy behavior, and latency SLO accounting. Real quality evidence should come
-from file-backed eval sets run through a served causal transformer, such as the
-optional vLLM path.
+This repository benchmarks when adapter/model specialization is worth its
+KV-cache footprint under shared-prefix serving workloads. It compares semantic
+routing, cache-aware routing, sticky routing, multitask adapters, standard
+LoRA-style cache fragmentation, and activated-LoRA-style late specialization.
 
-Current real-eval headline: a 112-run streamed vLLM sweep with 7,520 real
-model-server requests found that specialists won the repeated-seed held-out
-frontier at concurrency 8: `0.848` quality, `878.9ms` p95 TTFT, and `7.300`
-quality-adjusted goodput versus multitask at `0.703`, `874.1ms`, and `6.023`.
-The controlled-overlap sweep showed why cache locality is the hinge: specialist
-QAG rose from `0.031` at 0% shared prefix to `1.377` at 95% shared prefix.
+## Current Result
 
-## Core question
+The latest real run is a streamed vLLM sweep:
+
+| Result | Value |
+| --- | ---: |
+| Real streamed vLLM requests | 7,520 |
+| Exhaustive sweep runs | 112 |
+| Specialist quality at c8 | 0.848 |
+| Specialist p95 TTFT at c8 | 878.9 ms |
+| Specialist QAG at c8 | 7.300 |
+| Multitask quality at c8 | 0.703 |
+| Multitask p95 TTFT at c8 | 874.1 ms |
+| Multitask QAG at c8 | 6.023 |
+
+Specialists won the repeated-seed held-out frontier at concurrency 8. The
+controlled-overlap sweep shows why cache locality is the hinge: specialist QAG
+rose from `0.031` at 0% shared prefix to `1.377` at 95% shared prefix, while
+p95 TTFT fell from `2426.9ms` to `975.4ms`.
+
+Read the full run snapshot in [docs/real_eval_results.md](docs/real_eval_results.md).
+Selected plots are committed in [docs/figures](docs/figures/).
+
+## Research Question
 
 When is model/adapter specialization worth its KV-cache footprint?
 
-The thesis is simple: specialist adapters can improve task quality, but standard
-LoRA-style serving often namespaces prefix cache entries by adapter identity. In
-shared-prefix workloads, the same long document can be cached once per adapter
-instead of once per trust group. A serving system should jointly optimize
-quality, cache locality, latency SLOs, memory footprint, and tenant isolation.
+The thesis:
 
-## Why naive semantic routing can hurt
+- Specialist adapters can improve task quality.
+- Standard LoRA-style serving can fragment prefix-cache reuse because adapter
+  identity is often part of the cache namespace.
+- A serving system should jointly optimize quality, cache locality, latency
+  SLOs, memory footprint, and tenant isolation.
+
+## Why Semantic Routing Is Not Enough
 
 Semantic routing sends QA to a QA adapter, JSON extraction to a JSON adapter,
-and code/documentation tasks to a code adapter. That is locally sensible, but if
-the prefix cache key includes the adapter, a workload that repeatedly uses the
-same document may fragment into multiple adapter-specific copies.
+and code/documentation tasks to a code adapter. That is locally sensible.
 
-The benchmark makes that tradeoff measurable:
+The problem is that repeated shared prefixes can be cached once per adapter
+instead of once per trust group. In document-heavy workloads, a naive specialist
+router can turn one reusable prefix into several adapter-specific cache copies.
 
-- `standard_lora`: adapter identity is part of the prefix cache key.
-- `base_shared`: optimistic base-model sharing baseline.
-- `activated_lora`: tokens before an invocation marker can be shared.
-- `copy_on_write`: shared base prefix plus adapter-specific deltas in the
-  simulator.
+This benchmark makes that tradeoff measurable.
+
+## Cache Models
+
+| Cache model | What it represents |
+| --- | --- |
+| `standard_lora` | Adapter identity is part of the prefix-cache key. |
+| `base_shared` | Optimistic shared-base cache baseline. |
+| `activated_lora` | Tokens before the adapter invocation marker can be shared. |
+| `copy_on_write` | Shared base prefix plus adapter-specific deltas in the simulator. |
 
 ## Quickstart
 
@@ -52,29 +71,22 @@ make check
 make small
 ```
 
-The default path runs on CPU and does not require internet after dependencies
-are installed.
+The default path runs on CPU and does not require a GPU or model server.
 
-Each benchmark run writes:
+Each run writes:
 
-- `artifacts/runs/{run_id}/requests.jsonl`
-- `artifacts/runs/{run_id}/summary.json`
-- `artifacts/runs/{run_id}/config_resolved.yaml`
-- `artifacts/runs/{run_id}/manifest.json`
+| Artifact | Purpose |
+| --- | --- |
+| `requests.jsonl` | Per-request prompt, routing, response, quality, and latency log. |
+| `summary.json` | Aggregate quality, cache, latency, SLO, and goodput metrics. |
+| `config_resolved.yaml` | Fully resolved config for reproducibility. |
+| `manifest.json` | Run metadata, git metadata, and artifact list. |
 
-Generated reports, figures, and CSV tables are ignored by git. Recreate them
-locally with:
+Generated raw artifacts are ignored by git under `artifacts/runs/`.
 
-```bash
-make report
-make compare
-make pareto
-make slo
-```
+## Mock vs Real Backends
 
-## What is real vs simulated
-
-Use the mock backend when you want deterministic cache and routing experiments:
+Use the mock backend for deterministic systems experiments:
 
 ```bash
 make small
@@ -85,7 +97,7 @@ uv run python -m adapter_cache_bench.bench.run_matrix \
   --config configs/benchmark/repeated.yaml
 ```
 
-Use JSONL eval configs when you want task records with ground truth:
+Use JSONL eval configs when you need task records with ground truth:
 
 ```bash
 make validate-eval-large
@@ -95,59 +107,36 @@ uv run python -m adapter_cache_bench.bench.run_workload \
   --config configs/benchmark/public_domain_eval_large.yaml
 ```
 
-Use a real backend when you want model outputs. The local Hugging Face backend
-loads a causal LM directly, while the vLLM/OpenAI-compatible backend sends
-`/chat/completions` requests and scores responses with the same task metrics
-used by the benchmark:
+Use vLLM or another OpenAI-compatible local server when you need real model
+outputs:
 
 ```bash
-make transformers-source-eval
 make vllm-source-eval
-make vllm-source-eval-l4-qwen
 make vllm-source-eval-lora-qwen
-uv run python -m adapter_cache_bench.bench.run_workload \
-  --config configs/benchmark/vllm_example.yaml
 uv run python -m adapter_cache_bench.bench.run_concurrent \
   --config configs/benchmark/heldout_xlarge_sft_eval_vllm_lora_trained_qwen15b_concurrent.yaml
 ```
 
-See [docs/vllm.md](docs/vllm.md) for the optional serving flow.
-See [docs/model_backends.md](docs/model_backends.md) for backend options.
-See [docs/gcloud_vllm.md](docs/gcloud_vllm.md) for a GPU/vLLM runbook.
-See [docs/external_eval.md](docs/external_eval.md) for replacing the included
-fixtures with stronger external eval data and multi-model comparisons.
+The vLLM path expects served adapter model names such as `qa-lora`,
+`json-lora`, `summary-lora`, `code-lora`, and `multitask-lora`.
 
-The LoRA vLLM path expects the server to expose adapter model names such as
-`qa-lora`, `json-lora`, `summary-lora`, and `code-lora`. The included Qwen LoRA
-overlay is a serving smoke path; replace it with task-trained adapters before
-claiming specialist quality gains.
+## Reproduce The Main Sweep
 
-See [docs/eval_datasets.md](docs/eval_datasets.md) for the JSONL schema.
-See [docs/real_eval_results.md](docs/real_eval_results.md) for a real vLLM
-snapshot with trained Qwen LoRA adapters.
-See [docs/release_checklist.md](docs/release_checklist.md) before publishing.
-
-Result details:
-
-- 112 streamed vLLM exhaustive runs, 7,520 real model-server requests.
-- Five-seed held-out confidence check: specialists at concurrency 8 averaged
-  `0.848` quality, `878.9ms` p95 TTFT, and `7.300` QAG; multitask averaged
-  `0.703` quality, `874.1ms` p95 TTFT, and `6.023` QAG.
-- Controlled overlap sweep: specialist QAG rose from `0.031` at 0% shared
-  prefix to `1.377` at 95% shared prefix, while p95 TTFT fell from `2426.9ms`
-  to `975.4ms`.
-- Prompt-layout ablation: document-first prompts preserved about `190-199`
-  cached prompt tokens; instruction-first prompts preserved only about `6-7`.
-
-Selected result plots are committed under [docs/figures](docs/figures/).
-
-To reproduce the exhaustive real-server suite after starting vLLM:
+Start vLLM with the trained adapters, then run:
 
 ```bash
 make vllm-exhaustive-all
 ```
 
-For a stronger external eval or multi-model pass:
+For cleaner per-condition server cache metrics, configure the reset hook
+described in [docs/vllm.md](docs/vllm.md). It restarts the server, waits for
+health, scrapes `/metrics`, runs the benchmark, and records metric deltas.
+
+## Stronger Eval And Multi-Model Work
+
+The included JSONL fixtures are engineering fixtures, not paper-grade external
+evals. The next research pass should replace them with independently curated
+data and repeat the same sweeps across model families.
 
 ```bash
 make validate-external-eval
@@ -155,46 +144,61 @@ make vllm-external-eval
 make vllm-model-family
 ```
 
+See [docs/external_eval.md](docs/external_eval.md) for schema and provenance
+requirements.
+
 ## Workloads
 
-- `shared_doc_qa`: many questions over the same long document.
-- `mixed_tasks_same_doc`: QA, JSON extraction, summarization, and code/doc tasks
-  over the same document.
-- `agent_session`: multi-turn sessions with growing history and repeated tool
-  traces.
-- `low_overlap_control`: random prompts with little shared prefix.
-- `prompt_layout_ablation`: compares task-before-document against
-  document-before-task layouts to test late-specialization locality.
-- `jsonl_eval`: file-backed records for replacing synthetic prompts with real
-  evaluation sets.
+| Workload | Purpose |
+| --- | --- |
+| `shared_doc_qa` | Many questions over the same long document. |
+| `mixed_tasks_same_doc` | QA, JSON, summarization, and code/doc tasks over one document. |
+| `agent_session` | Multi-turn sessions with growing history and repeated tool traces. |
+| `low_overlap_control` | Random prompts with little shared prefix. |
+| `prompt_layout_ablation` | Instruction-before-document vs document-before-instruction. |
+| `controlled_overlap` | Explicitly sweeps shared-prefix overlap from low to high. |
+| `jsonl_eval` | File-backed records for real or source-backed evaluation. |
 
-## Router policies
+## Router Policies
 
-- `random`: baseline traffic spread.
-- `semantic`: route by task type to the expected specialist.
-- `multitask`: route every task to a shared multitask adapter.
-- `sticky_session`: keep a session on the same adapter when compatible.
-- `cache_aware`: combine quality prior, estimated cached tokens, queue penalty,
-  switch penalty, isolation penalty, and cold-adapter penalty.
-- `oracle`: simulator upper bound using known ground truth and backend quality.
+| Router | Behavior |
+| --- | --- |
+| `random` | Baseline random traffic spread. |
+| `semantic` | Route by task type to the expected specialist. |
+| `multitask` | Route every task to a shared multitask adapter. |
+| `sticky_session` | Keep a session on the same adapter when compatible. |
+| `cache_aware` | Combine quality prior, cached-token estimate, queue, session, isolation, and cold penalties. |
+| `oracle` | Simulator upper bound using known ground truth and backend quality. |
 
-## Repo structure
+## Important Docs
 
-- `configs/`: benchmark, router, cache, and workload YAMLs.
-- `data/eval/`: small public-domain style JSONL fixtures.
-- `src/adapter_cache_bench/cache/`: whitespace tokenizer and block
-  prefix-cache simulators.
-- `src/adapter_cache_bench/routing/`: router policies.
-- `src/adapter_cache_bench/backends/`: mock, local Hugging Face, and
-  OpenAI-compatible/vLLM clients.
-- `src/adapter_cache_bench/bench/`: workload, matrix, metric, and
-  comparison runners.
-- `src/adapter_cache_bench/analysis/`: report, plot, SLO, and Pareto
-  helpers.
-- `src/adapter_cache_bench/physical_ai_analogue/`: lightweight
-  scene-cache analogy for VLA/world-model serving.
+| Document | Contents |
+| --- | --- |
+| [docs/real_eval_results.md](docs/real_eval_results.md) | Real vLLM run results and interpretation. |
+| [docs/vllm.md](docs/vllm.md) | vLLM/OpenAI-compatible serving flow. |
+| [docs/external_eval.md](docs/external_eval.md) | How to plug in stronger external evals. |
+| [docs/research_plan.md](docs/research_plan.md) | Next research steps and acceptance criteria. |
+| [docs/eval_datasets.md](docs/eval_datasets.md) | JSONL eval schema. |
+| [docs/model_backends.md](docs/model_backends.md) | Backend options. |
+| [docs/gcloud_vllm.md](docs/gcloud_vllm.md) | GCP L4 runbook. |
+| [docs/release_checklist.md](docs/release_checklist.md) | Public release checklist. |
 
-## Local verification
+## Repo Structure
+
+```text
+configs/                         benchmark, router, cache, and workload YAMLs
+data/eval/                       small public-domain-style JSONL fixtures
+docs/                            runbooks, results, and public figures
+src/adapter_cache_bench/cache/   whitespace tokenizer and prefix-cache simulators
+src/adapter_cache_bench/routing/ router policies
+src/adapter_cache_bench/backends/mock, local Transformers, and vLLM clients
+src/adapter_cache_bench/bench/   workload, matrix, sweep, and metrics runners
+src/adapter_cache_bench/analysis/reporting, plots, SLO, and Pareto helpers
+```
+
+The Python import path remains `adapter_cache_bench`.
+
+## Verification
 
 ```bash
 uv run pytest tests -q
@@ -202,25 +206,22 @@ uv run ruff check .
 uv run ruff format . --check
 ```
 
-The GitHub Actions workflow runs the same CPU-only checks. GPU or serving tests
-must stay optional and are skipped unless explicitly enabled.
+GPU and model-server tests are optional and skipped unless explicitly enabled.
 
-## Current limitations
+## Limitations
 
-- Whitespace tokenization approximates prefix blocks; it is not a tokenizer
-  match for any serving engine.
-- Mock quality uses deterministic priors and noise; it is useful for regression
-  testing, not model evaluation.
+- Whitespace tokenization approximates prefix blocks; it does not match a real
+  serving tokenizer.
+- Mock quality is deterministic systems scaffolding, not model evaluation.
 - Cache memory accounting is token-based, not byte-accurate KV allocation.
-- The activated-LoRA and copy-on-write paths are simulators, not vLLM kernel
+- `activated_lora` and `copy_on_write` are simulators, not vLLM kernel
   implementations.
-- The included vLLM LoRA config proves real adapter serving mechanics, but its
-  public smoke adapter is not trained for this benchmark's QA/JSON/summary/code
-  tasks.
-- The included JSONL eval fixtures are intentionally small and public-domain
-  style. Replace them before making research claims.
+- vLLM prefix-cache metrics are server-level counters. Adapter-aware per-cache
+  namespace counters still require serving-layer instrumentation.
+- The included eval fixtures are intentionally small and public-domain style.
+  Replace them before making broader research claims.
 
-## Physical AI analogue
+## Physical AI Analogue
 
 The same cache-specialization problem appears in VLA serving. Text prefix tokens
 map to repeated visual/proprioceptive scene tokens; KV cache maps to a
