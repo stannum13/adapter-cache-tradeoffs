@@ -67,3 +67,5 @@ When `adapter_model_names` is not set, the backend keeps adapter metadata in
 adapter convention.
 
 For a GPU VM setup, see [gcloud_vllm.md](gcloud_vllm.md).
+For 7B/14B/70B-class experiments, see
+[large_model_benchmarking.md](large_model_benchmarking.md).

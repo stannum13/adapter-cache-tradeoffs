@@ -5,6 +5,8 @@ PROJECT="${PROJECT:-$(gcloud config get-value project 2>/dev/null || true)}"
 ZONE="${ZONE:-us-central1-a}"
 INSTANCE="${INSTANCE:-adapter-cache-vllm-l4}"
 MACHINE_TYPE="${MACHINE_TYPE:-g2-standard-8}"
+GPU_TYPE="${GPU_TYPE:-nvidia-l4}"
+GPU_COUNT="${GPU_COUNT:-1}"
 BOOT_DISK_SIZE="${BOOT_DISK_SIZE:-150GB}"
 SSH_KEY_FILE="${SSH_KEY_FILE:-.tmp-gcloud/adapter_cache_vllm_key}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B-Instruct}"
@@ -12,6 +14,10 @@ LORA_BASE_MODEL="${LORA_BASE_MODEL:-Qwen/Qwen2.5-1.5B-Instruct}"
 LORA_REPO="${LORA_REPO:-uditjain/lori-qwen2.5-1.5b-medical}"
 LORA_MODULES="${LORA_MODULES:-qa-lora=${LORA_REPO} json-lora=${LORA_REPO} summary-lora=${LORA_REPO} code-lora=${LORA_REPO}}"
 VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai:latest}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"
+GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.85}"
+TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-${GPU_COUNT}}"
+VLLM_EXTRA_ARGS="${VLLM_EXTRA_ARGS:-}"
 LOCAL_PORT="${LOCAL_PORT:-8000}"
 REMOTE_PORT="${REMOTE_PORT:-8000}"
 
@@ -37,10 +43,16 @@ Required environment:
 Common overrides:
   ZONE=${ZONE}
   INSTANCE=${INSTANCE}
+  MACHINE_TYPE=${MACHINE_TYPE}
+  GPU_TYPE=${GPU_TYPE}
+  GPU_COUNT=${GPU_COUNT}
   BASE_MODEL=${BASE_MODEL}
   LORA_BASE_MODEL=${LORA_BASE_MODEL}
   LORA_REPO=${LORA_REPO}
   LORA_MODULES=${LORA_MODULES}
+  MAX_MODEL_LEN=${MAX_MODEL_LEN}
+  TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE}
+  VLLM_EXTRA_ARGS=${VLLM_EXTRA_ARGS}
 EOF
 }
 
@@ -69,7 +81,7 @@ create_vm() {
     --project="${PROJECT}" \
     --zone="${ZONE}" \
     --machine-type="${MACHINE_TYPE}" \
-    --accelerator=type=nvidia-l4,count=1 \
+    --accelerator=type="${GPU_TYPE}",count="${GPU_COUNT}" \
     --maintenance-policy=TERMINATE \
     --restart-on-failure \
     --provisioning-model=STANDARD \
@@ -120,11 +132,13 @@ serve_base() {
       -p ${REMOTE_PORT}:8000 \
       -v ~/.cache/huggingface:/root/.cache/huggingface \
       ${VLLM_IMAGE} \
-      --model ${LORA_BASE_MODEL} \
+      --model ${BASE_MODEL} \
       --host 0.0.0.0 \
       --port 8000 \
-      --max-model-len 4096 \
-      --gpu-memory-utilization 0.85
+      --max-model-len ${MAX_MODEL_LEN} \
+      --gpu-memory-utilization ${GPU_MEMORY_UTILIZATION} \
+      --tensor-parallel-size ${TENSOR_PARALLEL_SIZE} \
+      ${VLLM_EXTRA_ARGS}
   "
 }
 
@@ -140,12 +154,14 @@ serve_lora() {
       --model ${LORA_BASE_MODEL} \
       --host 0.0.0.0 \
       --port 8000 \
-      --max-model-len 4096 \
-      --gpu-memory-utilization 0.85 \
+      --max-model-len ${MAX_MODEL_LEN} \
+      --gpu-memory-utilization ${GPU_MEMORY_UTILIZATION} \
+      --tensor-parallel-size ${TENSOR_PARALLEL_SIZE} \
       --enable-lora \
       --max-loras 4 \
       --max-lora-rank 64 \
-      --lora-modules ${LORA_MODULES}
+      --lora-modules ${LORA_MODULES} \
+      ${VLLM_EXTRA_ARGS}
   "
 }
 

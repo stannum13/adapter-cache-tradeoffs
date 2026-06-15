@@ -188,6 +188,7 @@ requirements.
 | [docs/eval_datasets.md](docs/eval_datasets.md) | JSONL eval schema. |
 | [docs/model_backends.md](docs/model_backends.md) | Backend options. |
 | [docs/gcloud_vllm.md](docs/gcloud_vllm.md) | GCP L4 runbook. |
+| [docs/large_model_benchmarking.md](docs/large_model_benchmarking.md) | 7B/14B/70B-class benchmark plan. |
 | [docs/release_checklist.md](docs/release_checklist.md) | Public release checklist. |
 
 ## Repo Structure

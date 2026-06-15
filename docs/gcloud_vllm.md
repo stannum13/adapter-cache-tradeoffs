@@ -34,6 +34,11 @@ PROJECT=<project-id> ZONE=us-central1-a ./scripts/gcloud_l4_vllm.sh setup
 GPU availability varies by region. If this fails, choose another zone or GPU
 type that has quota in your project.
 
+For larger models, override the GPU and tensor-parallel settings instead of
+using the default single-L4 shape. See
+[large_model_benchmarking.md](large_model_benchmarking.md) for the staged
+7B/14B/70B run path.
+
 ## 3. Start vLLM on the VM
 
 Base-model server:
