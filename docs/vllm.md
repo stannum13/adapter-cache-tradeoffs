@@ -143,6 +143,15 @@ The reset command is intentionally environment-specific. Use it when you need
 isolated vLLM prefix-cache counters per run; leave it unset for faster frontier
 sweeps.
 
+The repo includes `configs/benchmark/local_vllm_reset.yaml` as a local overlay
+for this path:
+
+```bash
+uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
+  --config configs/benchmark/exhaustive_overlap_vllm_streaming.yaml \
+           configs/benchmark/local_vllm_reset.yaml
+```
+
 Configure `backend.base_url`, `backend.model`, and adapter metadata for your
 server. Use the mock backend for unit tests, CI, and CPU-only development. vLLM
 responses are scored with the benchmark's task metrics (`qa`, `json`,

@@ -1,0 +1,14 @@
+# Optional overlay for isolated per-condition vLLM cache metrics.
+#
+# Use with a vLLM benchmark config when the local machine can restart the
+# server between runs:
+#
+# uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
+#   --config configs/benchmark/exhaustive_overlap_vllm_streaming.yaml \
+#            configs/benchmark/local_vllm_reset.yaml
+backend:
+  server_reset_command: ./scripts/restart_local_vllm_lora.sh
+  server_reset_timeout_s: 300
+  server_warmup_url: http://localhost:8000/health
+  server_warmup_timeout_s: 300
+  server_warmup_interval_s: 2
