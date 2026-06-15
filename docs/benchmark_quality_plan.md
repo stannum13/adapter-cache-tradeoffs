@@ -149,5 +149,7 @@ Claims to avoid until stronger evidence exists:
 2. Add confidence intervals over repeated serving runs.
 3. Add an independently curated external eval fixture.
 4. Run real vLLM conditions with server reset per condition.
-5. Add a paper-style capacity frontier table generated from structured data.
+5. Maintain the paper-style capacity frontier table in
+   [data/results/capacity_frontier.yaml](../data/results/capacity_frontier.yaml)
+   and regenerate it with `make capacity-frontier`.
 6. Keep failed runs in the documentation when they explain the frontier.

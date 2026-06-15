@@ -165,6 +165,10 @@ The serving-capacity probe used the trained Qwen2.5-7B adapters on one
 `g2-standard-8` L4, `max_model_len=4096`, `gpu_memory_utilization=0.85`, and
 vLLM `0.23.0`.
 
+The structured capacity records live in
+[data/results/capacity_frontier.yaml](../data/results/capacity_frontier.yaml)
+and can be exported with `make capacity-frontier`.
+
 | registered LoRAs | contents | result |
 | ---: | --- | --- |
 | 5 | one specialist seed plus multitask | starts successfully |
