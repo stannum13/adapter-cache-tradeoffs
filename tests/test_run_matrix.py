@@ -1,4 +1,8 @@
 from adapter_cache_bench.bench.run_concurrency_sweep import expand_concurrency_sweep
+from adapter_cache_bench.bench.run_exhaustive_sweep import (
+    expand_exhaustive_sweep,
+    record_sweep_dimensions,
+)
 from adapter_cache_bench.bench.run_matrix import expand_matrix
 from adapter_cache_bench.config import BenchmarkConfig, load_config
 
@@ -50,3 +54,47 @@ def test_expand_concurrency_sweep_applies_strategy_and_concurrency():
     assert specialists.backend.adapter_model_names["qa"] == "qa-lora"
     base = [child for child in expanded if "base" in child.run_name][0]
     assert base.backend.adapter_model_names == {}
+
+
+def test_expand_exhaustive_sweep_applies_dimensions():
+    config = BenchmarkConfig(
+        run_name="exhaustive",
+        matrix={
+            "strategies": ["specialists"],
+            "concurrencies": [8],
+            "workloads": ["controlled_overlap"],
+            "caches": ["activated_lora"],
+            "overlap_fractions": [0.25, 0.75],
+            "adapter_counts": [2],
+            "tenants": [1, 4],
+            "isolation_scopes": ["tenant"],
+            "seeds": [17],
+        },
+    )
+
+    expanded = expand_exhaustive_sweep(config)
+
+    assert len(expanded) == 4
+    child, dimensions = expanded[0]
+    assert child.backend.max_concurrency == 8
+    assert child.workload.name == "controlled_overlap"
+    assert child.workload.shared_prefix_fraction in {0.25, 0.75}
+    assert child.workload.tenants in {1, 4}
+    assert child.adapters.adapter_ids == ["qa", "json"]
+    assert child.backend.adapter_model_names == {"qa": "qa-lora", "json": "json-lora"}
+    assert dimensions["adapter_count"] == 2
+    assert dimensions["isolation_scope"] == "tenant"
+
+
+def test_record_sweep_dimensions_updates_manifest(tmp_path):
+    import json
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "manifest.json").write_text(json.dumps({"run_id": "run"}), encoding="utf-8")
+
+    record_sweep_dimensions(run_dir, {"strategy": "specialists", "concurrency": 8})
+
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["sweep_dimensions"]["strategy"] == "specialists"
+    assert manifest["sweep_dimensions"]["concurrency"] == 8

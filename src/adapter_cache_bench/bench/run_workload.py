@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from adapter_cache_bench.backends.base import make_backend
-from adapter_cache_bench.backends.metrics_client import MetricsClient
+from adapter_cache_bench.backends.metrics_client import MetricsClient, prometheus_delta
 from adapter_cache_bench.cache.cache_models import make_cache_model
 from adapter_cache_bench.config import BenchmarkConfig, dump_config, load_config
 from adapter_cache_bench.routing.base import make_router
@@ -72,6 +72,17 @@ def scrape_backend_metrics(config: BenchmarkConfig, run_dir: Path, label: str) -
     return metrics_path.name
 
 
+def backend_metrics_delta(run_dir: Path) -> dict[str, float]:
+    before_path = run_dir / "backend_metrics_before.prom"
+    after_path = run_dir / "backend_metrics_after.prom"
+    if not before_path.exists() or not after_path.exists():
+        return {}
+    return prometheus_delta(
+        before_path.read_text(encoding="utf-8"),
+        after_path.read_text(encoding="utf-8"),
+    )
+
+
 def run(
     config: BenchmarkConfig,
     run_id: str | None = None,
@@ -110,7 +121,13 @@ def run(
 
     from adapter_cache_bench.bench.metrics import summarize
 
-    summary = summarize(run_id, config, responses, cache_model)
+    summary = summarize(
+        run_id,
+        config,
+        responses,
+        cache_model,
+        backend_metrics=backend_metrics_delta(run_dir),
+    )
     with (run_dir / "summary.json").open("w", encoding="utf-8") as handle:
         json.dump(summary.model_dump(mode="json"), handle, indent=2)
     dump_config(config, run_dir / "config_resolved.yaml")

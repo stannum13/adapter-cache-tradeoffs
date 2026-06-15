@@ -26,6 +26,8 @@ def generate_workload(
         return list(_agent_session(config, cache_config))
     if config.name == "low_overlap_control":
         return list(_low_overlap_control(config, cache_config))
+    if config.name == "controlled_overlap":
+        return list(_controlled_overlap(config, cache_config))
     if config.name == "prompt_layout_ablation":
         return list(_prompt_layout_ablation(config, cache_config))
     if config.name == "jsonl_eval":
@@ -141,6 +143,36 @@ def _low_overlap_control(
             **_base_fields(config, i, task, i),
             prompt=prompt,
             prompt_layout="instruction_before_document",
+        )
+
+
+def _controlled_overlap(
+    config: WorkloadConfig, cache_config: CacheConfig | None
+) -> Iterable[RequestRecord]:
+    rng = random.Random(config.seed)
+    tasks = ["qa", "json", "summary", "code"]
+    shared_count = round(config.document_tokens * max(0.0, min(1.0, config.shared_prefix_fraction)))
+    unique_count = max(0, config.document_tokens - shared_count)
+    shared_prefix = " ".join(f"shared_{token}" for token in range(shared_count))
+    for i in range(config.request_count):
+        task = tasks[i % len(tasks)]
+        unique_suffix = " ".join(
+            f"unique_{i}_{rng.randrange(1_000_000)}" for _ in range(unique_count)
+        )
+        document = f"{shared_prefix} {unique_suffix}".strip()
+        prompt = prompt_for(
+            task,
+            document,
+            f"Controlled overlap request {i}",
+            "document_before_instruction",
+            expected_adapter_for_task(task),
+            True,
+            cache_config,
+        )
+        yield RequestRecord(
+            **_base_fields(config, i, task, i),
+            prompt=prompt,
+            prompt_layout="document_before_instruction",
         )
 
 

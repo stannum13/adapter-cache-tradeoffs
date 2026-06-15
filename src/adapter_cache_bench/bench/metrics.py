@@ -21,6 +21,7 @@ def summarize(
     responses: list[BackendResponse],
     cache_model: CacheModel,
     duration_s: float | None = None,
+    backend_metrics: dict[str, float] | None = None,
 ) -> BenchmarkSummary:
     ttft = [response.metrics.ttft_ms for response in responses]
     e2e = [response.metrics.e2e_ms for response in responses]
@@ -67,4 +68,5 @@ def summarize(
         eviction_count=cache_model.eviction_count(),
         evicted_tokens=cache_model.evicted_tokens(),
         adapter_distribution=dict(adapter_distribution),
+        backend_metrics=backend_metrics or {},
     )

@@ -95,3 +95,4 @@ class BenchmarkSummary(BaseModel):
     eviction_count: int = 0
     evicted_tokens: int = 0
     adapter_distribution: dict[str, int] = Field(default_factory=dict)
+    backend_metrics: dict[str, float] = Field(default_factory=dict)

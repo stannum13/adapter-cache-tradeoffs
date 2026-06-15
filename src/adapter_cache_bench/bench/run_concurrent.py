@@ -10,6 +10,7 @@ from adapter_cache_bench.backends.base import make_backend
 from adapter_cache_bench.backends.vllm_backend import VLLMBackend
 from adapter_cache_bench.bench.metrics import summarize
 from adapter_cache_bench.bench.run_workload import (
+    backend_metrics_delta,
     build_manifest,
     scrape_backend_metrics,
 )
@@ -87,7 +88,14 @@ async def _run_async(
     if after_metrics:
         artifact_files.append(after_metrics)
 
-    summary = summarize(run_id, config, responses, cache_model, duration_s=wall_duration_s)
+    summary = summarize(
+        run_id,
+        config,
+        responses,
+        cache_model,
+        duration_s=wall_duration_s,
+        backend_metrics=backend_metrics_delta(run_dir),
+    )
     with (run_dir / "summary.json").open("w", encoding="utf-8") as handle:
         json.dump(summary.model_dump(mode="json"), handle, indent=2)
     dump_config(config, run_dir / "config_resolved.yaml")

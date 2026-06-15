@@ -59,6 +59,7 @@ class WorkloadConfig(BaseModel):
     max_tokens: int = 64
     seed: int = 11
     document_tokens: int = 180
+    shared_prefix_fraction: float = 1.0
 
 
 class BackendConfig(BaseModel):

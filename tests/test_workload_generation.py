@@ -8,6 +8,7 @@ def test_all_workloads_generate_requested_records():
         "mixed_tasks_same_doc",
         "agent_session",
         "low_overlap_control",
+        "controlled_overlap",
         "prompt_layout_ablation",
     ]
     for name in names:
@@ -22,6 +23,29 @@ def test_prompt_layout_ablation_has_both_layouts():
         "instruction_before_document",
         "document_before_instruction",
     }
+
+
+def test_controlled_overlap_changes_shared_prefix_reuse():
+    low = generate_workload(
+        WorkloadConfig(
+            name="controlled_overlap",
+            request_count=4,
+            document_tokens=20,
+            shared_prefix_fraction=0.0,
+        )
+    )
+    high = generate_workload(
+        WorkloadConfig(
+            name="controlled_overlap",
+            request_count=4,
+            document_tokens=20,
+            shared_prefix_fraction=0.75,
+        )
+    )
+
+    assert "shared_0 shared_1" not in low[0].prompt
+    assert "shared_0 shared_1" in high[0].prompt
+    assert high[0].prompt.split()[:10] == high[1].prompt.split()[:10]
 
 
 def test_jsonl_eval_workload_loads_public_domain_fixture():

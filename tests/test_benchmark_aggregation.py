@@ -83,6 +83,53 @@ def test_benchmark_run_scrapes_backend_metrics_when_enabled(tmp_path, monkeypatc
     assert "backend_metrics_before.prom" in manifest["artifact_files"]
     assert "backend_metrics_after.prom" in manifest["artifact_files"]
     assert (run_dir / "backend_metrics_before.prom").read_text(encoding="utf-8").startswith("vllm")
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["backend_metrics"]["vllm:num_requests_running"] == 0.0
+
+
+def test_backend_metrics_delta_is_written_to_summary(tmp_path, monkeypatch):
+    from adapter_cache_bench.bench import run_workload
+
+    class FakeMetricsClient:
+        calls = 0
+
+        def __init__(self, metrics_url):
+            self.metrics_url = metrics_url
+
+        def scrape(self):
+            FakeMetricsClient.calls += 1
+            if FakeMetricsClient.calls == 1:
+                return (
+                    "# HELP vllm:prefix_cache_queries_total test\n"
+                    'vllm:prefix_cache_queries_total{model="m"} 10\n'
+                    'vllm:prefix_cache_hits_total{model="m"} 4\n'
+                )
+            return (
+                'vllm:prefix_cache_queries_total{model="m"} 22\n'
+                'vllm:prefix_cache_hits_total{model="m"} 13\n'
+            )
+
+    monkeypatch.setattr(run_workload, "MetricsClient", FakeMetricsClient)
+    config = BenchmarkConfig(
+        run_name="test",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="mixed_tasks_same_doc", request_count=2, document_tokens=24),
+        cache=CacheConfig(model="activated_lora", block_size=4),
+        router=RouterConfig(policy="cache_aware"),
+        backend=BackendConfig(kind="mock", scrape_metrics=True, metrics_url="http://unit/metrics"),
+    )
+
+    run_dir = run(
+        config,
+        run_id="unit-metrics-delta",
+        report_path=tmp_path / "report.md",
+        tables_dir=tmp_path / "tables",
+        generate_report_artifacts=False,
+    )
+
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["backend_metrics"]["vllm:prefix_cache_queries_total"] == 12.0
+    assert summary["backend_metrics"]["vllm:prefix_cache_hits_total"] == 9.0
 
 
 def test_benchmark_run_can_skip_report_artifacts(tmp_path):
@@ -206,6 +253,46 @@ def test_load_summaries_reads_concurrency_metadata_from_manifest(tmp_path):
     assert df.iloc[0]["max_concurrency"] == 8
     assert df.iloc[0]["request_spacing_ms"] == 5.0
     assert df.iloc[0]["wall_duration_s"] == 12.5
+
+
+def test_load_summaries_flattens_backend_metrics_and_sweep_dimensions(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run",
+                "router_policy": "cache_aware",
+                "cache_model": "activated_lora",
+                "workload": "controlled_overlap",
+                "quality_adjusted_goodput": 1.0,
+                "mean_quality": 0.8,
+                "p95_ttft_ms": 100.0,
+                "memory_token_footprint": 10,
+                "backend_metrics": {"vllm:prefix_cache_hits_total": 7.0},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "sweep_dimensions": {
+                    "strategy": "specialists",
+                    "overlap_fraction": 0.75,
+                    "adapter_count": 4,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    df = load_summaries(tmp_path)
+
+    assert df.iloc[0]["backend_metric:vllm:prefix_cache_hits_total"] == 7.0
+    assert df.iloc[0]["sweep_strategy"] == "specialists"
+    assert df.iloc[0]["sweep_overlap_fraction"] == 0.75
+    assert df.iloc[0]["sweep_adapter_count"] == 4
 
 
 def test_analysis_tables_rank_workloads_and_export_csv(tmp_path):
