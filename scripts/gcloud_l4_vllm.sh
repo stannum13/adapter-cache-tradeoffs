@@ -13,6 +13,7 @@ BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B-Instruct}"
 LORA_BASE_MODEL="${LORA_BASE_MODEL:-Qwen/Qwen2.5-1.5B-Instruct}"
 LORA_REPO="${LORA_REPO:-uditjain/lori-qwen2.5-1.5b-medical}"
 LORA_MODULES="${LORA_MODULES:-qa-lora=${LORA_REPO} json-lora=${LORA_REPO} summary-lora=${LORA_REPO} code-lora=${LORA_REPO}}"
+ADAPTERS_DIR="${ADAPTERS_DIR:-/home/${USER}/adapters}"
 VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai:latest}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"
 GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.85}"
@@ -52,6 +53,7 @@ Common overrides:
   LORA_BASE_MODEL=${LORA_BASE_MODEL}
   LORA_REPO=${LORA_REPO}
   LORA_MODULES=${LORA_MODULES}
+  ADAPTERS_DIR=${ADAPTERS_DIR}
   MAX_MODEL_LEN=${MAX_MODEL_LEN}
   TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE}
   MAX_LORAS=${MAX_LORAS}
@@ -135,6 +137,7 @@ serve_base() {
     sudo docker run -d --gpus all --name vllm-qwen --ipc=host \
       -p ${REMOTE_PORT}:8000 \
       -v ~/.cache/huggingface:/root/.cache/huggingface \
+      -v ${ADAPTERS_DIR}:${ADAPTERS_DIR}:ro \
       ${VLLM_IMAGE} \
       --model ${BASE_MODEL} \
       --host 0.0.0.0 \
