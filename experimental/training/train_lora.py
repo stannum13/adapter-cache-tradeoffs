@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,7 @@ def train_lora(
     max_length: int = 1024,
     gradient_accumulation_steps: int = 4,
     load_in_4bit: bool = False,
+    seed: int = 17,
 ) -> Path:
     try:
         import torch
@@ -46,6 +48,10 @@ def train_lora(
         ) from exc
 
     rows = _load_rows(train_file, adapter_id)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
     tokenizer = AutoTokenizer.from_pretrained(base_model)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -131,7 +137,9 @@ def train_lora(
     )
     model = get_peft_model(model, peft_config)
     model.train()
-    loader = DataLoader(SFTDataset(), batch_size=1, shuffle=True)
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    loader = DataLoader(SFTDataset(), batch_size=1, shuffle=True, generator=generator)
     optimizer = torch.optim.AdamW(
         [parameter for parameter in model.parameters() if parameter.requires_grad],
         lr=learning_rate,
@@ -164,6 +172,7 @@ def train_lora(
         "lora_rank": lora_rank,
         "lora_alpha": lora_alpha,
         "load_in_4bit": load_in_4bit,
+        "seed": seed,
     }
     (output / "training_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     return output
@@ -182,6 +191,7 @@ def main() -> None:
     parser.add_argument("--max-length", type=int, default=1024)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=4)
     parser.add_argument("--load-in-4bit", action="store_true")
+    parser.add_argument("--seed", type=int, default=17)
     args = parser.parse_args()
     print(
         train_lora(
@@ -196,6 +206,7 @@ def main() -> None:
             max_length=args.max_length,
             gradient_accumulation_steps=args.gradient_accumulation_steps,
             load_in_4bit=args.load_in_4bit,
+            seed=args.seed,
         )
     )
 

@@ -13,6 +13,7 @@ MAX_LENGTH="${MAX_LENGTH:-768}"
 GRADIENT_ACCUMULATION_STEPS="${GRADIENT_ACCUMULATION_STEPS:-4}"
 LOAD_IN_4BIT="${LOAD_IN_4BIT:-0}"
 TRAIN_MULTITASK="${TRAIN_MULTITASK:-1}"
+TRAIN_SEED="${TRAIN_SEED:-17}"
 
 extra_args=()
 if [[ "${LOAD_IN_4BIT}" == "1" ]]; then
@@ -36,6 +37,7 @@ for task in qa json summary code; do
     --lora-alpha "${LORA_ALPHA}" \
     --max-length "${MAX_LENGTH}" \
     --gradient-accumulation-steps "${GRADIENT_ACCUMULATION_STEPS}" \
+    --seed "${TRAIN_SEED}" \
     "${extra_args[@]}"
 done
 
@@ -50,5 +52,6 @@ if [[ "${TRAIN_MULTITASK}" == "1" ]]; then
     --lora-alpha "${LORA_ALPHA}" \
     --max-length "${MAX_LENGTH}" \
     --gradient-accumulation-steps "${GRADIENT_ACCUMULATION_STEPS}" \
+    --seed "${TRAIN_SEED}" \
     "${extra_args[@]}"
 fi
