@@ -102,6 +102,23 @@ The runner still writes `requests.jsonl`, `summary.json`,
 `config_resolved.yaml`, and `manifest.json`. Its throughput and goodput metrics
 use wall-clock run duration rather than the sum of per-request latencies.
 
+For TTFT-sensitive studies, enable OpenAI-compatible streaming:
+
+```yaml
+backend:
+  stream: true
+```
+
+With streaming enabled, `ttft_ms` is measured at the first non-empty content
+chunk and `e2e_ms` is measured when the stream completes. Without streaming,
+`ttft_ms` is a conservative whole-response latency proxy because a plain
+OpenAI-compatible response does not expose first-token timing. The full
+concurrency frontier can be run with:
+
+```bash
+make vllm-overnight-frontier-streaming
+```
+
 Configure `backend.base_url`, `backend.model`, and adapter metadata for your
 server. Use the mock backend for unit tests, CI, and CPU-only development. vLLM
 responses are scored with the benchmark's task metrics (`qa`, `json`,
@@ -117,6 +134,6 @@ make transformers-source-eval
 ## Metrics
 
 The backend records wall-clock request latency from the client. For production
-serving studies, also scrape server-side Prometheus metrics with
-`MetricsClient` and join them with `requests.jsonl` by run timestamp or request
-metadata.
+serving studies, enable streaming TTFT and also scrape server-side Prometheus
+metrics with `MetricsClient`; join them with `requests.jsonl` by run timestamp
+or request metadata.

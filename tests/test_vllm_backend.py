@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 import httpx
 
@@ -20,6 +21,21 @@ def _request() -> RequestRecord:
         ground_truth="answer text",
         max_tokens=12,
     )
+
+
+class _SyncSSEStream(httpx.SyncByteStream):
+    def __iter__(self):
+        yield b'data: {"choices":[{"delta":{"role":"assistant"}}]}\n\n'
+        yield b'data: {"choices":[{"delta":{"content":"answer"}}]}\n\n'
+        yield b'data: {"choices":[{"delta":{"content":" text"}}]}\n\n'
+        yield b"data: [DONE]\n\n"
+
+
+class _AsyncSSEStream(httpx.AsyncByteStream):
+    async def __aiter__(self):
+        yield b'data: {"choices":[{"delta":{"content":"answer"}}]}\n\n'
+        yield b'data: {"choices":[{"delta":{"content":" text"}}]}\n\n'
+        yield b"data: [DONE]\n\n"
 
 
 def test_vllm_payload_uses_openai_compatible_shape():
@@ -82,6 +98,31 @@ def test_vllm_payload_can_use_completion_endpoint_for_base_models():
     assert payload["model"] == "facebook/opt-125m"
     assert payload["prompt"] == _request().prompt
     assert "messages" not in payload
+    assert "endpoint" not in payload
+
+
+def test_vllm_payload_sets_stream_when_configured():
+    backend = VLLMBackend(BackendConfig(model="served-causal-transformer", stream=True))
+    decision = RoutingDecision(request_id="r1", adapter_id="qa", policy_name="semantic")
+
+    payload = backend.completion_payload(_request(), decision)
+
+    assert payload["stream"] is True
+    assert payload["extra_body"]["adapter"] == "qa"
+
+
+def test_vllm_payload_does_not_copy_stream_from_extra_body():
+    backend = VLLMBackend(
+        BackendConfig(
+            model="served-causal-transformer",
+            extra_body={"stream": True, "endpoint": "completions"},
+        )
+    )
+    decision = RoutingDecision(request_id="r1", adapter_id="qa", policy_name="semantic")
+
+    payload = backend.completion_payload(_request(), decision)
+
+    assert "stream" not in payload
     assert "endpoint" not in payload
 
 
@@ -191,4 +232,66 @@ def test_vllm_backend_async_generate_without_network():
     response = asyncio.run(run_case())
     assert response.text == "answer text"
     assert response.metrics.prompt_tokens == 6
+    assert response.quality.score == 1.0
+
+
+def test_vllm_backend_parses_streaming_chat_response_without_network():
+    captured_payload = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/chat/completions")
+        captured_payload.update(json.loads(request.content.decode("utf-8")))
+        return httpx.Response(200, stream=_SyncSSEStream())
+
+    client = httpx.Client(
+        base_url="http://testserver/v1",
+        transport=httpx.MockTransport(handler),
+    )
+    backend = VLLMBackend(
+        BackendConfig(base_url="http://testserver/v1", stream=True),
+        client=client,
+    )
+    cache = StandardLoRACache(CacheConfig(block_size=2))
+    decision = RoutingDecision(request_id="r1", adapter_id="qa", policy_name="semantic")
+
+    response = backend.generate(_request(), decision, cache)
+
+    assert captured_payload["stream"] is True
+    assert response.text == "answer text"
+    assert response.metrics.prompt_tokens == 5
+    assert response.metrics.output_tokens == 2
+    assert 0 <= response.metrics.ttft_ms <= response.metrics.e2e_ms
+    assert response.metrics.tpot_ms >= 0
+    assert response.quality.score == 1.0
+    assert cache.estimate_cached_prefix_tokens("qa", _request().prompt, "t1", "g1") == 5
+
+
+def test_vllm_backend_async_parses_streaming_chat_response_without_network():
+    captured_payload = {}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/chat/completions")
+        captured_payload.update(json.loads(request.content.decode("utf-8")))
+        return httpx.Response(200, stream=_AsyncSSEStream())
+
+    async def run_case():
+        async with httpx.AsyncClient(
+            base_url="http://testserver/v1",
+            transport=httpx.MockTransport(handler),
+        ) as client:
+            backend = VLLMBackend(
+                BackendConfig(base_url="http://testserver/v1", stream=True),
+                async_client=client,
+            )
+            cache = StandardLoRACache(CacheConfig(block_size=2))
+            decision = RoutingDecision(request_id="r1", adapter_id="qa", policy_name="semantic")
+
+            return await backend.async_generate(_request(), decision, cache)
+
+    response = asyncio.run(run_case())
+    assert captured_payload["stream"] is True
+    assert response.text == "answer text"
+    assert response.metrics.prompt_tokens == 5
+    assert response.metrics.output_tokens == 2
+    assert 0 <= response.metrics.ttft_ms <= response.metrics.e2e_ms
     assert response.quality.score == 1.0
