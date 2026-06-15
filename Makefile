@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report whitepaper-figure adapter-metrics research-readiness compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval validate-external-eval source-eval transformers-source-eval train-qwen7b-adapters train-qwen7b-adapters-seed23 vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-l4-qwen7b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-source-eval-lora-trained-qwen7b vllm-source-eval-lora-multitask-qwen7b vllm-source-eval-lora-trained-qwen7b-seed23 vllm-source-eval-lora-multitask-qwen7b-seed23 vllm-external-eval vllm-model-family vllm-large-model-pilot vllm-large-model-confidence vllm-large-model-confidence-reset vllm-large-model vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b-concurrent vllm-heldout-xlarge-lora-trained-qwen15b-concurrent vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent vllm-heldout-xlarge-qwen7b vllm-heldout-xlarge-lora-trained-qwen7b vllm-heldout-xlarge-lora-multitask-qwen7b vllm-heldout-xlarge-qwen7b-concurrent vllm-heldout-xlarge-lora-trained-qwen7b-concurrent vllm-heldout-xlarge-lora-multitask-qwen7b-concurrent vllm-overnight-frontier vllm-overnight-frontier-streaming vllm-exhaustive-layout vllm-exhaustive-overlap vllm-exhaustive-adapter-count vllm-exhaustive-tenant-isolation vllm-exhaustive-confidence vllm-exhaustive-all vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
+.PHONY: sync test lint format check small matrix report whitepaper-figure adapter-metrics research-readiness compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval validate-source-eval-expanded validate-external-eval source-eval source-eval-expanded transformers-source-eval train-qwen7b-adapters train-qwen7b-adapters-seed23 vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-l4-qwen7b vllm-source-eval-expanded-qwen7b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-source-eval-lora-trained-qwen7b vllm-source-eval-lora-multitask-qwen7b vllm-source-eval-expanded-lora-trained-qwen7b vllm-source-eval-expanded-lora-multitask-qwen7b vllm-source-eval-lora-trained-qwen7b-seed23 vllm-source-eval-lora-multitask-qwen7b-seed23 vllm-external-eval vllm-model-family vllm-large-model-pilot vllm-large-model-confidence vllm-large-model-confidence-reset vllm-large-model vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b-concurrent vllm-heldout-xlarge-lora-trained-qwen15b-concurrent vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent vllm-heldout-xlarge-qwen7b vllm-heldout-xlarge-lora-trained-qwen7b vllm-heldout-xlarge-lora-multitask-qwen7b vllm-heldout-xlarge-qwen7b-concurrent vllm-heldout-xlarge-lora-trained-qwen7b-concurrent vllm-heldout-xlarge-lora-multitask-qwen7b-concurrent vllm-overnight-frontier vllm-overnight-frontier-streaming vllm-exhaustive-layout vllm-exhaustive-overlap vllm-exhaustive-adapter-count vllm-exhaustive-tenant-isolation vllm-exhaustive-confidence vllm-exhaustive-all vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
 
 sync:
 	uv sync --extra dev
@@ -54,11 +54,17 @@ validate-eval-xlarge:
 validate-source-eval:
 	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/source_eval.yaml
 
+validate-source-eval-expanded:
+	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/source_eval_expanded.yaml --min-records 200 --require-tasks qa,json,summary,code --require-layouts document_before_instruction,instruction_before_document --balanced-tasks --min-shared-prefix-groups 15 --require-tenant-fields --require-source-fields
+
 validate-external-eval:
 	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/external_eval_vllm_template.yaml --min-records 500 --require-tasks qa,json,summary,code --require-layouts document_before_instruction,instruction_before_document --balanced-tasks --min-shared-prefix-groups 4 --require-tenant-fields
 
 source-eval:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval.yaml
+
+source-eval-expanded:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_expanded.yaml
 
 transformers-source-eval:
 	uv run --extra real python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_transformers.yaml
@@ -84,6 +90,9 @@ vllm-source-eval-l4-qwen15b:
 vllm-source-eval-l4-qwen7b:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_qwen7b.yaml
 
+vllm-source-eval-expanded-qwen7b:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_expanded_vllm_qwen7b.yaml
+
 vllm-source-eval-lora-qwen:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_lora_qwen.yaml
 
@@ -95,6 +104,12 @@ vllm-source-eval-lora-trained-qwen7b:
 
 vllm-source-eval-lora-multitask-qwen7b:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_lora_multitask_qwen7b.yaml
+
+vllm-source-eval-expanded-lora-trained-qwen7b:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_expanded_vllm_lora_trained_qwen7b.yaml
+
+vllm-source-eval-expanded-lora-multitask-qwen7b:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_expanded_vllm_lora_multitask_qwen7b.yaml
 
 vllm-source-eval-lora-trained-qwen7b-seed23:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_lora_trained_qwen7b_seed23.yaml

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from collections import Counter
 from pathlib import Path
 
@@ -23,8 +24,15 @@ def validate_workload_config(
     balanced_tasks: bool = False,
     min_shared_prefix_groups: int = 1,
     require_tenant_fields: bool = False,
+    require_source_fields: bool = False,
 ) -> dict[str, object]:
     config = load_config(config_path)
+    raw_rows = []
+    dataset_path = config.workload.dataset_path
+    if dataset_path:
+        path = Path(dataset_path)
+        if path.suffix in {".jsonl", ".json"} and path.exists():
+            raw_rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
     records = generate_workload(config.workload, config.cache)
     if not records:
         raise ValueError("Workload produced no records")
@@ -44,6 +52,18 @@ def validate_workload_config(
         ]
         if missing_tenant:
             raise ValueError(f"Records missing tenant/trust-group fields: {missing_tenant}")
+    if require_source_fields:
+        if len(raw_rows) < len(records):
+            raise ValueError("Source-field validation requires a JSONL dataset path")
+        missing_source_fields = [
+            str(row.get("request_id", index))
+            for index, row in enumerate(raw_rows[: len(records)])
+            if not row.get("source_title")
+            or not row.get("source_url")
+            or row.get("source_license") != "public-domain"
+        ]
+        if missing_source_fields:
+            raise ValueError(f"Records missing source provenance: {missing_source_fields}")
 
     task_counts = Counter(record.task_type for record in records)
     layout_counts = Counter(record.prompt_layout for record in records)
@@ -94,6 +114,7 @@ def main() -> None:
     parser.add_argument("--balanced-tasks", action="store_true")
     parser.add_argument("--min-shared-prefix-groups", type=int, default=1)
     parser.add_argument("--require-tenant-fields", action="store_true")
+    parser.add_argument("--require-source-fields", action="store_true")
     args = parser.parse_args()
     result = validate_workload_config(
         args.config,
@@ -103,6 +124,7 @@ def main() -> None:
         balanced_tasks=args.balanced_tasks,
         min_shared_prefix_groups=args.min_shared_prefix_groups,
         require_tenant_fields=args.require_tenant_fields,
+        require_source_fields=args.require_source_fields,
     )
     print(result)
 

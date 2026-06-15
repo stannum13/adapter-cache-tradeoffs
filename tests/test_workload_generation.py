@@ -86,3 +86,21 @@ def test_jsonl_eval_workload_loads_xlarge_public_domain_fixture():
 
     assert len(records) == 500
     assert len({record.shared_prefix_id for record in records}) >= 25
+
+
+def test_jsonl_eval_workload_loads_expanded_source_fixture():
+    records = generate_workload(
+        WorkloadConfig(
+            name="jsonl_eval",
+            dataset_path="data/eval/source_eval_expanded.jsonl",
+            request_count=240,
+        )
+    )
+
+    assert len(records) == 240
+    assert {record.task_type for record in records} == {"qa", "json", "summary", "code"}
+    assert {record.prompt_layout for record in records} == {
+        "document_before_instruction",
+        "instruction_before_document",
+    }
+    assert len({record.shared_prefix_id for record in records}) == 15

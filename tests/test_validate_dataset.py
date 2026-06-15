@@ -49,6 +49,24 @@ def test_validate_source_eval_config():
     }
 
 
+def test_validate_expanded_source_eval_config_requires_provenance():
+    result = validate_workload_config(
+        "configs/benchmark/source_eval_expanded.yaml",
+        min_records=200,
+        required_tasks={"qa", "json", "summary", "code"},
+        required_layouts={"document_before_instruction", "instruction_before_document"},
+        balanced_tasks=True,
+        min_shared_prefix_groups=15,
+        require_tenant_fields=True,
+        require_source_fields=True,
+    )
+
+    assert result["request_count"] == 240
+    assert result["task_counts"] == {"code": 60, "json": 60, "qa": 60, "summary": 60}
+    assert result["repeated_shared_prefix_groups"] == 15
+    assert result["tenant_count"] == 3
+
+
 def test_validate_workload_rejects_missing_ground_truth(tmp_path):
     dataset = tmp_path / "bad.jsonl"
     dataset.write_text(
@@ -104,3 +122,28 @@ workload:
             config,
             required_layouts={"document_before_instruction", "instruction_before_document"},
         )
+
+
+def test_validate_workload_rejects_missing_source_fields(tmp_path):
+    dataset = tmp_path / "missing_source.jsonl"
+    dataset.write_text(
+        (
+            '{"request_id":"r1","document_id":"d1","task_type":"qa","document":"doc",'
+            '"question":"q","ground_truth":"a","expected_adapter":"qa",'
+            '"prompt_layout":"document_before_instruction"}\n'
+        ),
+        encoding="utf-8",
+    )
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        f"""
+workload:
+  name: jsonl_eval
+  dataset_path: {dataset}
+  request_count: 1
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="missing source provenance"):
+        validate_workload_config(config, require_source_fields=True)
