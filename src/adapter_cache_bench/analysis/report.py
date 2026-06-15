@@ -132,7 +132,7 @@ def generate_report(
     df = load_summaries(runs_dir)
     request_df = load_request_rows(runs_dir)
     figures = generate_plots(df, request_df=request_df)
-    table_paths = write_analysis_tables(df, request_df, tables_dir)
+    table_paths = write_analysis_tables(df, request_df, tables_dir, runs_dir=runs_dir)
     leaders = workload_leaders(df)
     cache_means = cache_model_means(df)
     routers = router_means(df)

@@ -4,7 +4,10 @@ The included JSONL fixtures are public-domain-style engineering fixtures. They
 are enough to validate the benchmark harness, but stronger claims need a larger
 independently curated eval set.
 
-Use `configs/benchmark/external_eval_vllm_template.yaml` as the starting point:
+Use `configs/benchmark/external_eval_vllm_template.yaml` as the starting point.
+The default points at the generated 500-row public-domain-style fixture so the
+systems path is runnable, but public claims should replace
+`workload.dataset_path` with an independently curated JSONL dataset:
 
 ```bash
 make validate-external-eval
@@ -21,6 +24,10 @@ To replace the fixture:
 5. Record provenance and license for every source.
 6. Point `workload.dataset_path` at the new file and run validation before
    serving.
+
+`make validate-external-eval` is intentionally stricter than the smoke tests. It
+requires at least 500 rows, all four task types, both prompt layouts, balanced
+task counts, repeated shared-prefix groups, and tenant/trust-group fields.
 
 For multi-model comparisons, use
 `configs/benchmark/model_family_vllm_template.yaml`. Each model family needs

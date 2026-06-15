@@ -188,7 +188,9 @@ def write_analysis_tables(
     df: pd.DataFrame,
     request_df: pd.DataFrame,
     output_dir: str | Path = "reports/tables",
+    runs_dir: str | Path = "artifacts/runs",
 ) -> dict[str, Path]:
+    from adapter_cache_bench.analysis.adapter_cache_metrics import build_adapter_cache_metrics
     from adapter_cache_bench.analysis.pareto import workload_pareto_frontiers
     from adapter_cache_bench.analysis.slo import slo_sweep
 
@@ -203,6 +205,7 @@ def write_analysis_tables(
         "layout_ablation": layout_ablation_means(request_df),
         "pareto_frontier": workload_pareto_frontiers(df),
         "slo_sweep": slo_sweep(request_df),
+        "adapter_cache_metrics": build_adapter_cache_metrics(runs_dir),
     }
     paths = {}
     for name, table in tables.items():

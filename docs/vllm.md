@@ -173,3 +173,16 @@ When `/metrics` snapshots are available, `summary.json` includes raw
 Vanilla vLLM prefix-cache metrics are server-level counters. Adapter-aware
 per-namespace cache counters still require serving-layer instrumentation or
 per-condition server resets plus benchmark-side cache-model accounting.
+
+Generate the side-by-side adapter/cache evidence table with:
+
+```bash
+make adapter-metrics
+```
+
+This writes `reports/tables/adapter_cache_metrics.csv`. The table aggregates
+request-level benchmark cache accounting by adapter and joins server-level vLLM
+prefix-cache deltas by run. The `server_cache_metric_scope` column is
+`per_condition_reset` when the run manifest includes `server_reset.log`,
+`server_process_window` when metrics were scraped without a reset, and
+`unavailable` when no server metrics are present.

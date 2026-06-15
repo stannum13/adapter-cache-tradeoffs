@@ -1,5 +1,6 @@
 import json
 
+from adapter_cache_bench.analysis.adapter_cache_metrics import build_adapter_cache_metrics
 from adapter_cache_bench.bench.aggregate import (
     cache_model_means,
     load_request_rows,
@@ -359,6 +360,110 @@ def test_analysis_tables_rank_workloads_and_export_csv(tmp_path):
     assert cache_means.iloc[0]["cache_model"] == "activated_lora"
     assert routers.iloc[0]["router_policy"] == "cache_aware"
     assert paths["workload_leaders"].exists()
+    assert paths["adapter_cache_metrics"].exists()
+
+
+def test_adapter_cache_metrics_join_request_and_server_evidence(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run",
+                "request_count": 2,
+                "backend_kind": "vllm",
+                "backend_model": "unit-model",
+                "router_policy": "semantic",
+                "cache_model": "activated_lora",
+                "workload": "jsonl_eval",
+                "mean_ttft_ms": 10,
+                "p50_ttft_ms": 10,
+                "p95_ttft_ms": 10,
+                "p99_ttft_ms": 10,
+                "mean_e2e_ms": 20,
+                "p50_e2e_ms": 20,
+                "p95_e2e_ms": 20,
+                "p99_e2e_ms": 20,
+                "mean_itl_ms": 1,
+                "mean_tpot_ms": 2,
+                "request_throughput": 1,
+                "token_throughput": 10,
+                "goodput_under_slo": 1,
+                "slo_attainment_rate": 1,
+                "mean_quality": 0.9,
+                "quality_adjusted_goodput": 0.9,
+                "quality_adjusted_goodput_per_memory_token": 0.09,
+                "cache_hit_rate": 0.5,
+                "cached_prompt_token_ratio": 0.5,
+                "fragmentation_index": 1.0,
+                "memory_token_footprint": 10,
+                "backend_metrics": {
+                    "vllm:prefix_cache_queries_total": 20.0,
+                    "vllm:prefix_cache_hits_total": 15.0,
+                    "vllm:prompt_tokens_cached_total": 100.0,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "manifest.json").write_text(
+        json.dumps({"run_id": "run", "artifact_files": ["server_reset.log"]}),
+        encoding="utf-8",
+    )
+    (run_dir / "requests.jsonl").write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "request": {
+                            "request_id": "r1",
+                            "prompt_layout": "document_before_instruction",
+                            "task_type": "qa",
+                        },
+                        "routing": {"adapter_id": "qa"},
+                        "response": {
+                            "metrics": {
+                                "ttft_ms": 10,
+                                "e2e_ms": 20,
+                                "cached_prompt_tokens": 8,
+                                "prompt_tokens": 16,
+                            },
+                            "quality": {"score": 0.9},
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "request": {
+                            "request_id": "r2",
+                            "prompt_layout": "document_before_instruction",
+                            "task_type": "json",
+                        },
+                        "routing": {"adapter_id": "json"},
+                        "response": {
+                            "metrics": {
+                                "ttft_ms": 12,
+                                "e2e_ms": 24,
+                                "cached_prompt_tokens": 4,
+                                "prompt_tokens": 16,
+                            },
+                            "quality": {"score": 0.8},
+                        },
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    table = build_adapter_cache_metrics(tmp_path)
+
+    assert set(table["adapter_id"]) == {"qa", "json"}
+    qa = table[table["adapter_id"].eq("qa")].iloc[0]
+    assert qa["benchmark_cached_prompt_ratio"] == 0.5
+    assert qa["server_prefix_cache_hit_rate"] == 0.75
+    assert qa["server_cache_metric_scope"] == "per_condition_reset"
 
 
 def test_repeated_seed_summary_reports_mean_and_std():
