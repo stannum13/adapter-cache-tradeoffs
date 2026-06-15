@@ -31,6 +31,7 @@ def train_lora(
     lora_alpha: int = 16,
     max_length: int = 1024,
     gradient_accumulation_steps: int = 4,
+    load_in_4bit: bool = False,
 ) -> Path:
     try:
         import torch
@@ -70,12 +71,43 @@ def train_lora(
             }
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.bfloat16 if device == "cuda" else torch.float32
-    model = AutoModelForCausalLM.from_pretrained(
-        base_model,
-        torch_dtype=dtype,
+    dtype = (
+        torch.bfloat16
+        if device == "cuda" and torch.cuda.is_bf16_supported()
+        else torch.float16
+        if device == "cuda"
+        else torch.float32
     )
-    model.to(device)
+    if load_in_4bit:
+        try:
+            from peft import prepare_model_for_kbit_training
+            from transformers import BitsAndBytesConfig
+        except ImportError as exc:  # pragma: no cover - optional GPU training path
+            raise RuntimeError(
+                "4-bit LoRA training requires bitsandbytes support. Install it on a CUDA "
+                "Linux host with `python3 -m pip install bitsandbytes` and rerun with "
+                "`--load-in-4bit`."
+            ) from exc
+        quantization = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=dtype,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+        )
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model,
+            quantization_config=quantization,
+            device_map="auto",
+            low_cpu_mem_usage=True,
+        )
+        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            base_model,
+            torch_dtype=dtype,
+            low_cpu_mem_usage=True,
+        )
+        model.to(device)
     model.config.use_cache = False
     if hasattr(model, "gradient_checkpointing_enable"):
         model.gradient_checkpointing_enable()
@@ -131,6 +163,7 @@ def train_lora(
         "learning_rate": learning_rate,
         "lora_rank": lora_rank,
         "lora_alpha": lora_alpha,
+        "load_in_4bit": load_in_4bit,
     }
     (output / "training_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     return output
@@ -148,6 +181,7 @@ def main() -> None:
     parser.add_argument("--lora-alpha", type=int, default=16)
     parser.add_argument("--max-length", type=int, default=1024)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=4)
+    parser.add_argument("--load-in-4bit", action="store_true")
     args = parser.parse_args()
     print(
         train_lora(
@@ -161,6 +195,7 @@ def main() -> None:
             lora_alpha=args.lora_alpha,
             max_length=args.max_length,
             gradient_accumulation_steps=args.gradient_accumulation_steps,
+            load_in_4bit=args.load_in_4bit,
         )
     )
 

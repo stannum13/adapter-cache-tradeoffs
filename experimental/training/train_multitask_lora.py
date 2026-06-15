@@ -16,6 +16,7 @@ def main() -> None:
     parser.add_argument("--lora-alpha", type=int, default=16)
     parser.add_argument("--max-length", type=int, default=1024)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=4)
+    parser.add_argument("--load-in-4bit", action="store_true")
     args = parser.parse_args()
     print(
         train_lora(
@@ -29,6 +30,7 @@ def main() -> None:
             lora_alpha=args.lora_alpha,
             max_length=args.max_length,
             gradient_accumulation_steps=args.gradient_accumulation_steps,
+            load_in_4bit=args.load_in_4bit,
         )
     )
 

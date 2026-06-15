@@ -1,0 +1,14 @@
+# Optional overlay for isolated 7B vLLM LoRA metrics on a GCP VM.
+#
+# Expected remote adapter paths:
+#   /home/shiva/adapters/qwen7b-qa
+#   /home/shiva/adapters/qwen7b-json
+#   /home/shiva/adapters/qwen7b-summary
+#   /home/shiva/adapters/qwen7b-code
+#   /home/shiva/adapters/qwen7b-multitask
+backend:
+  server_reset_command: PROJECT=${PROJECT:?Set PROJECT} ZONE=${ZONE:-us-central1-b} INSTANCE=${INSTANCE:-adapter-cache-vllm-l4-b} LORA_BASE_MODEL=Qwen/Qwen2.5-7B-Instruct MAX_MODEL_LEN=4096 GPU_MEMORY_UTILIZATION=0.90 MAX_LORAS=5 LORA_MODULES="qa-lora=/home/shiva/adapters/qwen7b-qa json-lora=/home/shiva/adapters/qwen7b-json summary-lora=/home/shiva/adapters/qwen7b-summary code-lora=/home/shiva/adapters/qwen7b-code multitask-lora=/home/shiva/adapters/qwen7b-multitask" ./scripts/gcloud_l4_vllm.sh serve-lora
+  server_reset_timeout_s: 420
+  server_warmup_url: http://localhost:8000/health
+  server_warmup_timeout_s: 420
+  server_warmup_interval_s: 5

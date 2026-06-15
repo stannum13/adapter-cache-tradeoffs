@@ -17,6 +17,8 @@ VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai:latest}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"
 GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.85}"
 TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-${GPU_COUNT}}"
+MAX_LORAS="${MAX_LORAS:-5}"
+MAX_LORA_RANK="${MAX_LORA_RANK:-64}"
 VLLM_EXTRA_ARGS="${VLLM_EXTRA_ARGS:-}"
 LOCAL_PORT="${LOCAL_PORT:-8000}"
 REMOTE_PORT="${REMOTE_PORT:-8000}"
@@ -52,6 +54,8 @@ Common overrides:
   LORA_MODULES=${LORA_MODULES}
   MAX_MODEL_LEN=${MAX_MODEL_LEN}
   TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE}
+  MAX_LORAS=${MAX_LORAS}
+  MAX_LORA_RANK=${MAX_LORA_RANK}
   VLLM_EXTRA_ARGS=${VLLM_EXTRA_ARGS}
 EOF
 }
@@ -158,8 +162,8 @@ serve_lora() {
       --gpu-memory-utilization ${GPU_MEMORY_UTILIZATION} \
       --tensor-parallel-size ${TENSOR_PARALLEL_SIZE} \
       --enable-lora \
-      --max-loras 4 \
-      --max-lora-rank 64 \
+      --max-loras ${MAX_LORAS} \
+      --max-lora-rank ${MAX_LORA_RANK} \
       --lora-modules ${LORA_MODULES} \
       ${VLLM_EXTRA_ARGS}
   "
