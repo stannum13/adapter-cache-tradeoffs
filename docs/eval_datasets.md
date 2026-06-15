@@ -58,6 +58,9 @@ Included datasets:
 
 - `data/eval/source_eval.jsonl`: 24 source-backed public-domain records across
   QA, JSON extraction, summarization, and code-style parser checks.
+- `data/eval/source_eval_expanded.jsonl`: 240 source-backed public-domain
+  records from 15 snippets, balanced across four tasks, two prompt layouts, and
+  repeated shared-prefix groups. Validate with `make validate-source-eval-expanded`.
 - `data/eval/public_domain_eval.jsonl`: five-record smoke fixture.
 - `data/eval/public_domain_eval_large.jsonl`: generated 100-record cache/routing
   fixture, useful for repeated systems experiments but not a research claim.

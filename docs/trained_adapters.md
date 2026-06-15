@@ -56,7 +56,7 @@ MAX_LENGTH=768 \
 ./scripts/train_qwen15b_task_adapters.sh
 ```
 
-Train an alternate 7B seed for repeated-adapter checks:
+Train alternate 7B seeds for repeated-adapter checks:
 
 ```bash
 BASE_MODEL=Qwen/Qwen2.5-7B-Instruct \
@@ -64,6 +64,19 @@ SFT_DIR=artifacts/sft/public_domain_xlarge \
 OUTPUT_DIR=/home/shiva/adapters \
 OUTPUT_PREFIX=qwen7b-seed23 \
 TRAIN_SEED=23 \
+LOAD_IN_4BIT=1 \
+MAX_STEPS=40 \
+MULTITASK_MAX_STEPS=80 \
+MAX_LENGTH=768 \
+./scripts/train_qwen15b_task_adapters.sh
+```
+
+```bash
+BASE_MODEL=Qwen/Qwen2.5-7B-Instruct \
+SFT_DIR=artifacts/sft/public_domain_xlarge \
+OUTPUT_DIR=/home/shiva/adapters \
+OUTPUT_PREFIX=qwen7b-seed31 \
+TRAIN_SEED=31 \
 LOAD_IN_4BIT=1 \
 MAX_STEPS=40 \
 MULTITASK_MAX_STEPS=80 \
@@ -119,7 +132,17 @@ make vllm-source-eval-lora-trained-qwen7b
 make vllm-source-eval-lora-multitask-qwen7b
 make vllm-source-eval-lora-trained-qwen7b-seed23
 make vllm-source-eval-lora-multitask-qwen7b-seed23
+make vllm-source-eval-lora-trained-qwen7b-seed31
+make vllm-source-eval-lora-multitask-qwen7b-seed31
+make vllm-source-eval-expanded-qwen7b
+make vllm-source-eval-expanded-lora-trained-qwen7b
+make vllm-source-eval-expanded-lora-multitask-qwen7b
 ```
+
+On one L4 at `max_model_len=4096`, serve one five-adapter seed group at a time.
+The measured vLLM capacity probe started successfully with five LoRAs, but
+failed with eight and ten registered LoRAs because there was not enough KV-cache
+memory left for one max-length request.
 
 The result supports the full hypothesis only if the trained specialist adapters
 improve quality enough to offset their cache and latency footprint relative to

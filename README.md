@@ -34,9 +34,10 @@ Selected plots are committed in [docs/figures](docs/figures/).
 The latest 7B evidence is in
 [docs/large_model_results.md](docs/large_model_results.md): trained
 Qwen2.5-7B specialist LoRAs beat the base model and multitask LoRA on generated
-held-out eval, moderate concurrent vLLM load, and a small source-backed
-public-domain eval with two adapter training seeds. The source-backed run is
-intentionally reported as a sanity check, not a full external benchmark.
+held-out eval, moderate concurrent vLLM load, a 240-row source-backed
+public-domain eval, and a three-seed adapter check. The same run found a hard
+serving limit on one L4: five 7B LoRAs fit at 4096 context, while eight and ten
+registered LoRAs failed because vLLM could not reserve enough KV cache.
 
 ![Specialization is a quality/cache/SLO tradeoff](docs/figures/whitepaper_specialization_cache_tradeoff.png)
 
@@ -116,7 +117,9 @@ Use JSONL eval configs when you need task records with ground truth:
 ```bash
 make validate-eval-large
 make validate-source-eval
+make validate-source-eval-expanded
 make source-eval
+make source-eval-expanded
 uv run python -m adapter_cache_bench.bench.run_workload \
   --config configs/benchmark/public_domain_eval_large.yaml
 ```
@@ -128,6 +131,7 @@ outputs:
 make vllm-source-eval
 make vllm-source-eval-lora-qwen
 make vllm-heldout-xlarge-lora-trained-qwen7b
+make vllm-source-eval-expanded-lora-trained-qwen7b
 uv run python -m adapter_cache_bench.bench.run_concurrent \
   --config configs/benchmark/heldout_xlarge_sft_eval_vllm_lora_trained_qwen15b_concurrent.yaml
 ```
@@ -191,6 +195,7 @@ requirements.
 | --- | --- |
 | [docs/real_eval_results.md](docs/real_eval_results.md) | Real vLLM run results and interpretation. |
 | [docs/large_model_results.md](docs/large_model_results.md) | Real 7B vLLM cache/SLO and trained-adapter results. |
+| [docs/trained_adapters.md](docs/trained_adapters.md) | Reproducible LoRA training and evaluation commands. |
 | [docs/vllm.md](docs/vllm.md) | vLLM/OpenAI-compatible serving flow. |
 | [docs/external_eval.md](docs/external_eval.md) | How to plug in stronger external evals. |
 | [docs/research_plan.md](docs/research_plan.md) | Next research steps and acceptance criteria. |
@@ -204,7 +209,7 @@ requirements.
 
 ```text
 configs/                         benchmark, router, cache, and workload YAMLs
-data/eval/                       small public-domain-style JSONL fixtures
+data/eval/                       public-domain/source-backed JSONL fixtures
 docs/                            runbooks, results, and public figures
 src/adapter_cache_bench/cache/   whitespace tokenizer and prefix-cache simulators
 src/adapter_cache_bench/routing/ router policies
