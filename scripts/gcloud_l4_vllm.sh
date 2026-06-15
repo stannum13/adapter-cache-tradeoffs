@@ -7,6 +7,7 @@ INSTANCE="${INSTANCE:-adapter-cache-vllm-l4}"
 MACHINE_TYPE="${MACHINE_TYPE:-g2-standard-8}"
 GPU_TYPE="${GPU_TYPE:-nvidia-l4}"
 GPU_COUNT="${GPU_COUNT:-1}"
+PROVISIONING_MODEL="${PROVISIONING_MODEL:-STANDARD}"
 BOOT_DISK_SIZE="${BOOT_DISK_SIZE:-150GB}"
 SSH_KEY_FILE="${SSH_KEY_FILE:-.tmp-gcloud/adapter_cache_vllm_key}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B-Instruct}"
@@ -49,6 +50,7 @@ Common overrides:
   MACHINE_TYPE=${MACHINE_TYPE}
   GPU_TYPE=${GPU_TYPE}
   GPU_COUNT=${GPU_COUNT}
+  PROVISIONING_MODEL=${PROVISIONING_MODEL}
   BASE_MODEL=${BASE_MODEL}
   LORA_BASE_MODEL=${LORA_BASE_MODEL}
   LORA_REPO=${LORA_REPO}
@@ -90,7 +92,7 @@ create_vm() {
     --accelerator=type="${GPU_TYPE}",count="${GPU_COUNT}" \
     --maintenance-policy=TERMINATE \
     --restart-on-failure \
-    --provisioning-model=STANDARD \
+    --provisioning-model="${PROVISIONING_MODEL}" \
     --image-family=ubuntu-2204-lts \
     --image-project=ubuntu-os-cloud \
     --boot-disk-size="${BOOT_DISK_SIZE}" \
