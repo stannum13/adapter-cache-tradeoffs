@@ -96,6 +96,49 @@ Interpretation:
   evidence gap is repeated trained-adapter seeds and a non-generated external
   eval set.
 
+## Source-backed eval with repeated adapter seeds
+
+The next check moves off the generated held-out fixture and onto the
+source-backed `data/eval/source_eval.jsonl` bundle. This is a small 24-request
+public-domain eval, so it is not a full external benchmark, but it is useful as
+a first non-generated sanity check. It also adds a second Qwen2.5-7B training
+seed (`TRAIN_SEED=23`) for the specialist and multitask LoRA recipes.
+
+The seed-23 adapters were trained with the same short 4-bit LoRA protocol as
+the first seed:
+
+- specialists: 40 steps each;
+- multitask: 80 steps;
+- rank 8, alpha 16, max length 768;
+- GCP `g2-standard-8` with one NVIDIA L4.
+
+![Source-backed Qwen2.5-7B adapter seeds](figures/source_backed_qwen7b_adapter_seeds.png)
+
+| condition | requests | p50 TTFT ms | p95 TTFT ms | p99 TTFT ms | p95 E2E ms | SLO attainment | req/s | mean quality | QAG |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| base | 24 | 120.7 | 284.8 | 1286.4 | 3681.1 | 1.000 | 0.452 | 0.247 | 0.112 |
+| specialist LoRAs, seed 17 | 24 | 137.0 | 282.1 | 1033.6 | 4067.5 | 1.000 | 0.512 | 0.568 | 0.291 |
+| multitask LoRA, seed 17 | 24 | 136.4 | 145.2 | 177.1 | 4084.3 | 1.000 | 0.521 | 0.534 | 0.278 |
+| specialist LoRAs, seed 23 | 24 | 137.2 | 266.5 | 1099.9 | 4081.8 | 1.000 | 0.530 | 0.579 | 0.307 |
+| multitask LoRA, seed 23 | 24 | 135.5 | 140.3 | 176.3 | 4085.6 | 1.000 | 0.536 | 0.537 | 0.288 |
+
+Interpretation:
+
+- The source-backed eval confirms the direction of the generated held-out
+  result, but at a smaller effect size: specialists improve quality from
+  `0.247` to `0.568-0.579`, about `2.3x` over base.
+- Specialists beat multitask on both training seeds, but the margin is modest:
+  `0.568` vs `0.534` for seed 17 and `0.579` vs `0.537` for seed 23.
+- Quality-adjusted goodput also favors specialists on both seeds:
+  `0.291` and `0.307` versus multitask `0.278` and `0.288`.
+- TTFT is not the bottleneck in this small source-backed run. All conditions are
+  below the `1500 ms` TTFT SLO, and multitask has the lowest p95 TTFT.
+- Serving all ten 7B LoRA modules at once on a single L4 failed because vLLM
+  could not reserve KV-cache blocks at `max_model_len=4096`. The seed groups
+  were therefore served separately, five LoRAs at a time. That failure is
+  itself aligned with the repo thesis: adapter multiplicity consumes serving
+  headroom even before workload traffic arrives.
+
 ## Five-seed isolated confidence sweep
 
 The stronger result uses five seeds and restarts vLLM before every condition so
@@ -154,6 +197,7 @@ Notes:
   `shared_prefix_fraction`. The controlled-overlap rows above are the relevant
   large-model cache/SLO evidence.
 - The concurrent trained-adapter run above addresses the serving-load part of
-  the next-step evidence. Remaining gaps are repeated trained-adapter seeds,
-  external/non-generated eval data, and publication of the exact adapter
+  the next-step evidence. The source-backed run adds the first repeated
+  trained-adapter seed and non-generated eval check. Remaining gaps are a larger
+  external eval set, more training seeds, and publication of the exact adapter
   checkpoints or a deterministic retraining script.
