@@ -1,12 +1,14 @@
-run_name: large-model-pilot-vllm-streaming
+run_name: large-model-overlap-pilot-vllm-streaming
 output_dir: artifacts/runs
 workload:
-  name: jsonl_eval
-  dataset_path: data/eval/public_domain_eval_xlarge.jsonl
-  request_count: 80
-  sessions: 12
+  name: controlled_overlap
+  request_count: 40
+  shared_document_count: 1
+  sessions: 8
   tenants: 4
-  max_tokens: 48
+  max_tokens: 32
+  document_tokens: 180
+  shared_prefix_fraction: 0.5
 cache:
   model: activated_lora
   block_size: 8
@@ -28,8 +30,8 @@ backend:
   extra_body: {}
 matrix:
   strategies: [base]
-  concurrencies: [1, 4]
-  workloads: [jsonl_eval]
+  concurrencies: [4]
+  workloads: [controlled_overlap]
   caches: [activated_lora]
   adapter_counts: [4]
   tenants: [4]
