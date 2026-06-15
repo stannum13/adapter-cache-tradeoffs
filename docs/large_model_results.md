@@ -67,6 +67,35 @@ Interpretation:
   favorable side of the frontier. The overlap confidence sweep below shows when
   cache locality becomes the deciding systems variable.
 
+## Concurrent trained 7B adapter eval
+
+The follow-up run used the same trained Qwen2.5-7B base, specialist LoRAs, and
+multitask LoRA with `backend.max_concurrency=4`. This checks whether the
+quality-side result survives real concurrent serving pressure rather than only a
+single-request-at-a-time path.
+
+![Qwen2.5-7B trained adapter concurrent eval](figures/large_model_adapter_concurrent.png)
+
+| condition | requests | p50 TTFT ms | p95 TTFT ms | p99 TTFT ms | p95 E2E ms | SLO attainment | req/s | mean quality | QAG | cached ratio |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| base | 100 | 258.5 | 351.7 | 837.5 | 3970.5 | 1.000 | 1.426 | 0.210 | 0.299 | 0.307 |
+| specialist LoRAs | 100 | 290.7 | 603.3 | 809.3 | 4638.9 | 1.000 | 2.097 | 0.741 | 1.554 | 0.309 |
+| multitask LoRA | 100 | 312.4 | 356.4 | 366.6 | 4340.8 | 1.000 | 2.038 | 0.644 | 1.312 | 0.307 |
+
+Interpretation:
+
+- Specialist LoRAs retained the best quality under concurrent load: `0.741`
+  versus `0.644` for multitask and `0.210` for the base model.
+- Specialist LoRAs also had the best quality-adjusted goodput: `1.554`, which
+  is `5.19x` the base model and `18.4%` above multitask.
+- The serving cost is visible but still within this run's SLO envelope:
+  specialist p95 TTFT was `603.3 ms`, versus `351.7 ms` for base and
+  `356.4 ms` for multitask, all below the `1500 ms` TTFT SLO.
+- This moves the claim from "specialization can win in a quiet eval" to
+  "specialization can still win under moderate concurrent vLLM load." The next
+  evidence gap is repeated trained-adapter seeds and a non-generated external
+  eval set.
+
 ## Five-seed isolated confidence sweep
 
 The stronger result uses five seeds and restarts vLLM before every condition so
@@ -124,6 +153,7 @@ Notes:
   an overlap ablation because `jsonl_eval` does not consume
   `shared_prefix_fraction`. The controlled-overlap rows above are the relevant
   large-model cache/SLO evidence.
-- The next stronger result is a repeated-seed and concurrent-load run for the
-  trained 7B adapters, plus publication of the exact adapter checkpoints or a
-  deterministic retraining script.
+- The concurrent trained-adapter run above addresses the serving-load part of
+  the next-step evidence. Remaining gaps are repeated trained-adapter seeds,
+  external/non-generated eval data, and publication of the exact adapter
+  checkpoints or a deterministic retraining script.
