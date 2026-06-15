@@ -72,9 +72,9 @@ def build_adapter_cache_metrics(runs_dir: str | Path = "artifacts/runs") -> pd.D
         )
         .reset_index(drop=True)
     )
-    grouped["benchmark_cached_prompt_ratio"] = (
-        grouped["cached_prompt_tokens"] / grouped["prompt_tokens"].clip(lower=1)
-    )
+    grouped["benchmark_cached_prompt_ratio"] = grouped["cached_prompt_tokens"] / grouped[
+        "prompt_tokens"
+    ].clip(lower=1)
 
     summaries = load_summaries(runs_dir)
     server_columns = [
@@ -100,9 +100,7 @@ def build_adapter_cache_metrics(runs_dir: str | Path = "artifacts/runs") -> pd.D
 
     scopes = _server_metric_scope(runs_dir)
     grouped["server_cache_metric_scope"] = grouped["run_id"].map(scopes).fillna("unavailable")
-    return grouped[ADAPTER_CACHE_COLUMNS].sort_values(
-        ["run_id", "adapter_id"], kind="stable"
-    )
+    return grouped[ADAPTER_CACHE_COLUMNS].sort_values(["run_id", "adapter_id"], kind="stable")
 
 
 def write_adapter_cache_metrics(

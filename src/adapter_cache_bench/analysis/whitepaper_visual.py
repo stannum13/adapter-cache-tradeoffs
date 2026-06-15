@@ -106,13 +106,23 @@ def draw_cache_mechanism(ax) -> None:
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     _panel(ax)
-    ax.text(0.03, 0.965, "A", fontsize=10, weight="bold", color="white", ha="center", va="center",
-            bbox={"boxstyle": "circle,pad=0.22", "facecolor": COLORS["deep"], "edgecolor": "none"})
+    ax.text(
+        0.03,
+        0.965,
+        "A",
+        fontsize=10,
+        weight="bold",
+        color="white",
+        ha="center",
+        va="center",
+        bbox={"boxstyle": "circle,pad=0.22", "facecolor": COLORS["deep"], "edgecolor": "none"},
+    )
     ax.text(0.075, 0.972, "Cache namespace determines reuse", fontsize=13, weight="bold")
     ax.text(
         0.075,
         0.92,
-        "Same shared document, different task adapters. The serving choice changes both quality and prefix locality.",
+        "Same shared document, different task adapters. The serving choice changes both "
+        "quality and prefix locality.",
         fontsize=8.5,
         color=COLORS["muted"],
         va="top",
@@ -142,7 +152,13 @@ def draw_cache_mechanism(ax) -> None:
     ax.plot([0.585, 0.585], [0.18, 0.82], color="#e6ebf0", linewidth=1.0)
 
     ax.text(0.64, 0.80, "activated-style namespace", fontsize=9, weight="bold", color=COLORS["ink"])
-    ax.text(0.64, 0.765, "base prefix before invocation marker", fontsize=7.5, color=COLORS["muted"])
+    ax.text(
+        0.64,
+        0.765,
+        "base prefix before invocation marker",
+        fontsize=7.5,
+        color=COLORS["muted"],
+    )
     ax.text(0.64, 0.68, "shared document prefix", fontsize=7.5, color=COLORS["muted"])
     for j in range(8):
         _block(
@@ -372,7 +388,8 @@ def generate_whitepaper_visual(
     fig.text(
         0.02,
         0.975,
-        "Adapter routing improves task quality, but every adapter decision also changes prefix-cache reuse.",
+        "Adapter routing improves task quality, but every adapter decision also changes "
+        "prefix-cache reuse.",
         fontsize=10,
         color=COLORS["muted"],
         ha="left",
@@ -380,7 +397,8 @@ def generate_whitepaper_visual(
     fig.text(
         0.02,
         -0.01,
-        "Adapter Cache Tradeoffs | streamed vLLM sweeps on Qwen2.5-1.5B-Instruct; QAG = quality-adjusted goodput",
+        "Adapter Cache Tradeoffs | streamed vLLM sweeps on Qwen2.5-1.5B-Instruct; "
+        "QAG = quality-adjusted goodput",
         fontsize=8,
         color=COLORS["muted"],
     )
