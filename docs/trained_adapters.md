@@ -56,6 +56,21 @@ MAX_LENGTH=768 \
 ./scripts/train_qwen15b_task_adapters.sh
 ```
 
+Train an alternate 7B seed for repeated-adapter checks:
+
+```bash
+BASE_MODEL=Qwen/Qwen2.5-7B-Instruct \
+SFT_DIR=artifacts/sft/public_domain_xlarge \
+OUTPUT_DIR=/home/shiva/adapters \
+OUTPUT_PREFIX=qwen7b-seed23 \
+TRAIN_SEED=23 \
+LOAD_IN_4BIT=1 \
+MAX_STEPS=40 \
+MULTITASK_MAX_STEPS=80 \
+MAX_LENGTH=768 \
+./scripts/train_qwen15b_task_adapters.sh
+```
+
 Serve the trained adapters with vLLM:
 
 ```bash
@@ -99,6 +114,11 @@ Run the 7B held-out comparison:
 make vllm-heldout-xlarge-qwen7b
 make vllm-heldout-xlarge-lora-trained-qwen7b
 make vllm-heldout-xlarge-lora-multitask-qwen7b
+make vllm-source-eval-l4-qwen7b
+make vllm-source-eval-lora-trained-qwen7b
+make vllm-source-eval-lora-multitask-qwen7b
+make vllm-source-eval-lora-trained-qwen7b-seed23
+make vllm-source-eval-lora-multitask-qwen7b-seed23
 ```
 
 The result supports the full hypothesis only if the trained specialist adapters

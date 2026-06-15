@@ -31,6 +31,13 @@ p95 TTFT fell from `2426.9ms` to `975.4ms`.
 Read the full run snapshot in [docs/real_eval_results.md](docs/real_eval_results.md).
 Selected plots are committed in [docs/figures](docs/figures/).
 
+The latest 7B evidence is in
+[docs/large_model_results.md](docs/large_model_results.md): trained
+Qwen2.5-7B specialist LoRAs beat the base model and multitask LoRA on generated
+held-out eval, moderate concurrent vLLM load, and a small source-backed
+public-domain eval with two adapter training seeds. The source-backed run is
+intentionally reported as a sanity check, not a full external benchmark.
+
 ![Specialization is a quality/cache/SLO tradeoff](docs/figures/whitepaper_specialization_cache_tradeoff.png)
 
 ## Research Question
