@@ -2,12 +2,13 @@ run_name: external-eval-vllm
 output_dir: artifacts/runs
 workload:
   name: jsonl_eval
-  # Replace this with a larger independently curated JSONL file following
-  # docs/eval_datasets.md. The default keeps the template runnable.
-  dataset_path: data/eval/source_eval.jsonl
-  request_count: 24
-  sessions: 8
-  tenants: 2
+  # Replace this with an independently curated JSONL file following
+  # docs/eval_datasets.md. The generated 500-row default keeps the
+  # systems path runnable and exercises the same repeated-prefix shape.
+  dataset_path: data/eval/public_domain_eval_xlarge.jsonl
+  request_count: 500
+  sessions: 20
+  tenants: 4
   max_tokens: 64
 cache:
   model: activated_lora

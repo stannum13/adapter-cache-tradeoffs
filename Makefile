@@ -49,7 +49,7 @@ validate-source-eval:
 	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/source_eval.yaml
 
 validate-external-eval:
-	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/external_eval_vllm_template.yaml
+	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/external_eval_vllm_template.yaml --min-records 500 --require-tasks qa,json,summary,code --require-layouts document_before_instruction,instruction_before_document --balanced-tasks --min-shared-prefix-groups 4 --require-tenant-fields
 
 source-eval:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval.yaml
