@@ -12,9 +12,16 @@ policy behavior, and latency SLO accounting. Real quality evidence should come
 from file-backed eval sets run through a served causal transformer, such as the
 optional vLLM path.
 
+Current real-eval headline: a 112-run streamed vLLM sweep with 7,520 real
+model-server requests found that specialists won the repeated-seed held-out
+frontier at concurrency 8: `0.848` quality, `878.9ms` p95 TTFT, and `7.300`
+quality-adjusted goodput versus multitask at `0.703`, `874.1ms`, and `6.023`.
+The controlled-overlap sweep showed why cache locality is the hinge: specialist
+QAG rose from `0.031` at 0% shared prefix to `1.377` at 95% shared prefix.
+
 ## Core question
 
-When is model/adaptor specialization worth its KV-cache footprint?
+When is model/adapter specialization worth its KV-cache footprint?
 
 The thesis is simple: specialist adapters can improve task quality, but standard
 LoRA-style serving often namespaces prefix cache entries by adapter identity. In
@@ -120,7 +127,7 @@ See [docs/real_eval_results.md](docs/real_eval_results.md) for a real vLLM
 snapshot with trained Qwen LoRA adapters.
 See [docs/release_checklist.md](docs/release_checklist.md) before publishing.
 
-Current real-eval headline:
+Result details:
 
 - 112 streamed vLLM exhaustive runs, 7,520 real model-server requests.
 - Five-seed held-out confidence check: specialists at concurrency 8 averaged
