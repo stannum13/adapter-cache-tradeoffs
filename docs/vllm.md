@@ -119,6 +119,13 @@ concurrency frontier can be run with:
 make vllm-overnight-frontier-streaming
 ```
 
+The broader exhaustion suite covers prompt layout, controlled overlap, adapter
+count, tenant isolation, and repeated-seed confidence checks:
+
+```bash
+make vllm-exhaustive-all
+```
+
 Configure `backend.base_url`, `backend.model`, and adapter metadata for your
 server. Use the mock backend for unit tests, CI, and CPU-only development. vLLM
 responses are scored with the benchmark's task metrics (`qa`, `json`,

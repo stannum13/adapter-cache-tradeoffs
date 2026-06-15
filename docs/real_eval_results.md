@@ -31,6 +31,7 @@ make vllm-heldout-xlarge-lora-trained-qwen15b-concurrent
 make vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent
 make vllm-overnight-frontier
 make vllm-overnight-frontier-streaming
+make vllm-exhaustive-all
 ```
 
 ## What ran
@@ -41,6 +42,9 @@ make vllm-overnight-frontier-streaming
 - 3 additional concurrent-load vLLM runs at `max_concurrency: 8`.
 - 15-run non-streaming frontier sweep with 1,500 real model-server requests.
 - 15-run streaming frontier sweep with 1,500 real model-server requests.
+- 112-run streamed exhaustive sweep with 7,520 real model-server requests:
+  prompt layout, overlap, adapter count, tenant isolation, and repeated-seed
+  confidence checks.
 - 18-run router/cache matrix:
   - routers: `semantic`, `multitask`, `cache_aware`
   - caches: `standard_lora`, `activated_lora`, `copy_on_write`
@@ -164,6 +168,122 @@ Interpretation:
   a multitask adapter can be the better SLO frontier point under a hard 1s p95
   TTFT target.
 
+## Exhaustive streamed sweeps
+
+The exhaustive suite ran five focused streamed vLLM sweeps:
+
+```bash
+make vllm-exhaustive-layout
+make vllm-exhaustive-overlap
+make vllm-exhaustive-adapter-count
+make vllm-exhaustive-tenant-isolation
+make vllm-exhaustive-confidence
+```
+
+These generated 112 runs and 7,520 real server requests. The controlled-overlap,
+layout, adapter-count, and tenant-isolation suites use synthetic prompts to
+stress cache shape; their absolute quality scores should not be compared to the
+held-out JSONL quality frontier.
+
+### Prompt layout
+
+Mean request-level results at concurrency 8:
+
+| strategy | cache | layout | TTFT ms | p95 TTFT ms | cached tokens | quality |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| specialists | activated_lora | document_before_instruction | 727.9 | 1150.7 | 190.9 | 0.056 |
+| specialists | activated_lora | instruction_before_document | 726.3 | 1114.3 | 6.9 | 0.000 |
+| specialists | standard_lora | document_before_instruction | 759.0 | 1425.0 | 192.9 | 0.052 |
+| specialists | standard_lora | instruction_before_document | 759.9 | 1447.1 | 6.9 | 0.000 |
+| multitask | activated_lora | document_before_instruction | 740.3 | 1286.5 | 199.2 | 0.333 |
+| multitask | activated_lora | instruction_before_document | 743.8 | 1164.4 | 6.5 | 0.000 |
+
+Document-first prompts preserved roughly 190-199 cached prompt tokens in the
+benchmark cache model, while instruction-first prompts preserved only about 6-7.
+This is the cleanest evidence for the prompt-layout part of the thesis: put the
+shared document before the adapter invocation when late specialization is meant
+to preserve locality.
+
+### Controlled overlap
+
+Mean run-level results at concurrency 8 with `activated_lora`:
+
+| strategy | overlap | p95 TTFT ms | SLO attainment | QAG | cache hit | memory tokens |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| specialists | 0.00 | 2426.9 | 0.056 | 0.031 | 0.000 | 14839 |
+| specialists | 0.25 | 2138.2 | 0.128 | 0.095 | 0.867 | 11703 |
+| specialists | 0.50 | 1809.3 | 0.167 | 0.148 | 0.933 | 8119 |
+| specialists | 0.75 | 1351.8 | 0.750 | 0.941 | 0.954 | 4983 |
+| specialists | 0.95 | 975.4 | 0.956 | 1.377 | 0.963 | 2295 |
+| multitask | 0.00 | 2313.9 | 0.067 | 0.044 | 0.000 | 14839 |
+| multitask | 0.25 | 2005.9 | 0.189 | 0.135 | 0.867 | 11703 |
+| multitask | 0.50 | 2000.3 | 0.417 | 0.380 | 0.933 | 8119 |
+| multitask | 0.75 | 1970.0 | 0.661 | 0.785 | 0.954 | 4983 |
+| multitask | 0.95 | 1149.6 | 0.944 | 1.099 | 0.963 | 2295 |
+
+The controlled curve is the most direct answer to "when is specialization worth
+it?": in this setup, high-overlap workloads change the economics sharply. At
+95% shared prefix, specialists cross the 1s p95 TTFT line and beat multitask on
+QAG; at low overlap, neither strategy has useful SLO behavior.
+
+Server-side vLLM prefix-cache metrics follow the same monotone trend. Mean
+server prefix hit rate rose from about 0.7% at 0% overlap to about 86-87% at
+95% overlap. The vLLM cache was not reset between individual runs, so these
+server metrics are trend evidence; the benchmark cache-model columns are the
+isolated per-run cache accounting.
+
+### Adapter count
+
+Mean run-level results at concurrency 8 and 75% overlap:
+
+| cache | adapters | p95 TTFT ms | SLO attainment | QAG | memory tokens |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| activated_lora | 1 | 1019.2 | 0.972 | 0.387 | 4983 |
+| activated_lora | 2 | 1072.9 | 0.950 | 0.929 | 4983 |
+| activated_lora | 4 | 913.1 | 1.000 | 1.647 | 4983 |
+| standard_lora | 1 | 1487.3 | 0.878 | 0.288 | 5399 |
+| standard_lora | 2 | 1313.7 | 0.889 | 0.803 | 6103 |
+| standard_lora | 4 | 1465.4 | 0.789 | 1.076 | 6103 |
+
+The simulator shows the expected cache footprint split: activated-style late
+specialization holds memory flat as adapter count grows, while standard LoRA
+uses more memory and has worse p95 TTFT in this controlled setting.
+
+### Tenant isolation
+
+Mean run-level results at concurrency 8, 75% overlap, and `activated_lora`:
+
+| strategy | tenants | isolation | p95 TTFT ms | SLO attainment | QAG | cached ratio | memory |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| specialists | 1 | trust_group | 1030.4 | 0.933 | 1.505 | 0.681 | 4423 |
+| specialists | 4 | trust_group | 1352.1 | 0.850 | 1.294 | 0.646 | 4983 |
+| specialists | 8 | trust_group | 1369.4 | 0.867 | 1.314 | 0.600 | 5751 |
+| multitask | 1 | trust_group | 1376.9 | 0.767 | 0.991 | 0.681 | 4423 |
+| multitask | 4 | trust_group | 1062.3 | 0.933 | 1.405 | 0.646 | 4983 |
+| multitask | 8 | trust_group | 1229.9 | 0.908 | 1.330 | 0.600 | 5751 |
+
+Increasing tenant/trust partitioning reduces cached prompt ratio and increases
+the simulated memory footprint. The latency effect is noisy under concurrent
+serving, but the cache-accounting direction is consistent with the isolation
+claim.
+
+### Confidence check
+
+Five-seed repeated streamed runs on the held-out JSONL eval:
+
+| strategy | concurrency | quality mean | quality std | p95 TTFT mean | p95 TTFT std | SLO mean | QAG mean | QAG std |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| specialists | 8 | 0.848 | 0.001 | 878.9 | 24.6 | 1.000 | 7.300 | 0.081 |
+| specialists | 16 | 0.845 | 0.002 | 988.5 | 132.3 | 0.956 | 12.618 | 0.982 |
+| multitask | 8 | 0.703 | 0.004 | 874.1 | 11.3 | 1.000 | 6.023 | 0.054 |
+| multitask | 16 | 0.702 | 0.002 | 1093.5 | 425.5 | 0.952 | 10.407 | 1.494 |
+
+This revises the earlier single-seed frontier: after repeated streamed runs,
+specialists and multitask both satisfy the 1s p95 TTFT target at concurrency 8,
+but specialists have much higher quality and higher QAG. At concurrency 16,
+specialists still average under 1s p95 TTFT and lead QAG, though variance is
+higher.
+
 ## Router/cache matrix means
 
 | router | cache | runs | quality | p95 TTFT ms | QAG | QAG / memory token | memory tokens |
@@ -198,5 +318,8 @@ Interpretation:
   token counts fall back to the benchmark's whitespace tokenizer.
 - The real server provides prefix-cache metrics, but adapter-specific cache
   namespaces are approximated by the benchmark cache model.
+- vLLM prefix-cache state was not reset between individual runs in the
+  exhaustive suite; server prefix metrics should be read as trend evidence, not
+  isolated A/B cache measurements.
 - Stronger claims need a larger source-backed held-out dataset, more models, and
   real server-side adapter-aware cache counters.

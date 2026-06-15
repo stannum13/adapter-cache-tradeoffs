@@ -118,6 +118,24 @@ See [docs/real_eval_results.md](docs/real_eval_results.md) for a real vLLM
 snapshot with trained Qwen LoRA adapters.
 See [docs/release_checklist.md](docs/release_checklist.md) before publishing.
 
+Current real-eval headline:
+
+- 112 streamed vLLM exhaustive runs, 7,520 real model-server requests.
+- Five-seed held-out confidence check: specialists at concurrency 8 averaged
+  `0.848` quality, `878.9ms` p95 TTFT, and `7.300` QAG; multitask averaged
+  `0.703` quality, `874.1ms` p95 TTFT, and `6.023` QAG.
+- Controlled overlap sweep: specialist QAG rose from `0.031` at 0% shared
+  prefix to `1.377` at 95% shared prefix, while p95 TTFT fell from `2426.9ms`
+  to `975.4ms`.
+- Prompt-layout ablation: document-first prompts preserved about `190-199`
+  cached prompt tokens; instruction-first prompts preserved only about `6-7`.
+
+To reproduce the exhaustive real-server suite after starting vLLM:
+
+```bash
+make vllm-exhaustive-all
+```
+
 ## Workloads
 
 - `shared_doc_qa`: many questions over the same long document.
