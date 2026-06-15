@@ -132,6 +132,8 @@ Current real-eval headline:
 - Prompt-layout ablation: document-first prompts preserved about `190-199`
   cached prompt tokens; instruction-first prompts preserved only about `6-7`.
 
+Selected result plots are committed under [docs/figures](docs/figures/).
+
 To reproduce the exhaustive real-server suite after starting vLLM:
 
 ```bash
