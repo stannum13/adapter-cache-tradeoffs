@@ -41,7 +41,7 @@ done
 
 if [[ "${TRAIN_MULTITASK}" == "1" ]]; then
   echo "TRAINING-multitask"
-  python3 experimental/training/train_multitask_lora.py \
+  python3 -m experimental.training.train_multitask_lora \
     --base-model "${BASE_MODEL}" \
     --train-file "${SFT_DIR}/train.jsonl" \
     --output-dir "${OUTPUT_DIR}/${OUTPUT_PREFIX}-multitask" \
