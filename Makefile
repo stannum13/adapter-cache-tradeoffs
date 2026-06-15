@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix report whitepaper-figure adapter-metrics research-readiness compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval validate-source-eval-expanded validate-external-eval source-eval source-eval-expanded transformers-source-eval train-qwen7b-adapters train-qwen7b-adapters-seed23 vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-l4-qwen7b vllm-source-eval-expanded-qwen7b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-source-eval-lora-trained-qwen7b vllm-source-eval-lora-multitask-qwen7b vllm-source-eval-expanded-lora-trained-qwen7b vllm-source-eval-expanded-lora-multitask-qwen7b vllm-source-eval-lora-trained-qwen7b-seed23 vllm-source-eval-lora-multitask-qwen7b-seed23 vllm-external-eval vllm-model-family vllm-large-model-pilot vllm-large-model-confidence vllm-large-model-confidence-reset vllm-large-model vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b-concurrent vllm-heldout-xlarge-lora-trained-qwen15b-concurrent vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent vllm-heldout-xlarge-qwen7b vllm-heldout-xlarge-lora-trained-qwen7b vllm-heldout-xlarge-lora-multitask-qwen7b vllm-heldout-xlarge-qwen7b-concurrent vllm-heldout-xlarge-lora-trained-qwen7b-concurrent vllm-heldout-xlarge-lora-multitask-qwen7b-concurrent vllm-overnight-frontier vllm-overnight-frontier-streaming vllm-exhaustive-layout vllm-exhaustive-overlap vllm-exhaustive-adapter-count vllm-exhaustive-tenant-isolation vllm-exhaustive-confidence vllm-exhaustive-all vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
+.PHONY: sync test lint format check small matrix report whitepaper-figure adapter-metrics research-readiness compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval validate-source-eval-expanded validate-external-eval source-eval source-eval-expanded transformers-source-eval train-qwen7b-adapters train-qwen7b-adapters-seed23 train-qwen7b-adapters-seed31 vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-l4-qwen7b vllm-source-eval-expanded-qwen7b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-source-eval-lora-trained-qwen7b vllm-source-eval-lora-multitask-qwen7b vllm-source-eval-expanded-lora-trained-qwen7b vllm-source-eval-expanded-lora-multitask-qwen7b vllm-source-eval-lora-trained-qwen7b-seed23 vllm-source-eval-lora-multitask-qwen7b-seed23 vllm-source-eval-lora-trained-qwen7b-seed31 vllm-source-eval-lora-multitask-qwen7b-seed31 vllm-external-eval vllm-model-family vllm-large-model-pilot vllm-large-model-confidence vllm-large-model-confidence-reset vllm-large-model vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b-concurrent vllm-heldout-xlarge-lora-trained-qwen15b-concurrent vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent vllm-heldout-xlarge-qwen7b vllm-heldout-xlarge-lora-trained-qwen7b vllm-heldout-xlarge-lora-multitask-qwen7b vllm-heldout-xlarge-qwen7b-concurrent vllm-heldout-xlarge-lora-trained-qwen7b-concurrent vllm-heldout-xlarge-lora-multitask-qwen7b-concurrent vllm-overnight-frontier vllm-overnight-frontier-streaming vllm-exhaustive-layout vllm-exhaustive-overlap vllm-exhaustive-adapter-count vllm-exhaustive-tenant-isolation vllm-exhaustive-confidence vllm-exhaustive-all vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
 
 sync:
 	uv sync --extra dev
@@ -75,6 +75,9 @@ train-qwen7b-adapters:
 train-qwen7b-adapters-seed23:
 	BASE_MODEL=Qwen/Qwen2.5-7B-Instruct SFT_DIR=artifacts/sft/public_domain_xlarge OUTPUT_PREFIX=qwen7b-seed23 TRAIN_SEED=23 LOAD_IN_4BIT=1 MAX_STEPS=40 MULTITASK_MAX_STEPS=80 MAX_LENGTH=768 ./scripts/train_qwen15b_task_adapters.sh
 
+train-qwen7b-adapters-seed31:
+	BASE_MODEL=Qwen/Qwen2.5-7B-Instruct SFT_DIR=artifacts/sft/public_domain_xlarge OUTPUT_PREFIX=qwen7b-seed31 TRAIN_SEED=31 LOAD_IN_4BIT=1 MAX_STEPS=40 MULTITASK_MAX_STEPS=80 MAX_LENGTH=768 ./scripts/train_qwen15b_task_adapters.sh
+
 vllm-example:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/vllm_example.yaml
 
@@ -116,6 +119,12 @@ vllm-source-eval-lora-trained-qwen7b-seed23:
 
 vllm-source-eval-lora-multitask-qwen7b-seed23:
 	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_lora_multitask_qwen7b_seed23.yaml
+
+vllm-source-eval-lora-trained-qwen7b-seed31:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_lora_trained_qwen7b_seed31.yaml
+
+vllm-source-eval-lora-multitask-qwen7b-seed31:
+	uv run python -m adapter_cache_bench.bench.run_workload --config configs/benchmark/source_eval_vllm.yaml configs/benchmark/source_eval_vllm_lora_multitask_qwen7b_seed31.yaml
 
 vllm-external-eval:
 	uv run python -m adapter_cache_bench.bench.run_concurrent --config configs/benchmark/external_eval_vllm_template.yaml
