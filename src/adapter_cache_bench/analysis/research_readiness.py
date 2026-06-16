@@ -124,6 +124,7 @@ def check_research_readiness(
         Path("docs/figures/cache_hit_rate_by_policy_model.png"),
     ]
     report_paths = [
+        Path("docs/claim_ladder.md"),
         Path("docs/real_eval_results.md"),
         Path("docs/benchmark_quality_plan.md"),
         Path("docs/research_plan.md"),
@@ -136,8 +137,8 @@ def check_research_readiness(
         items.append(
             _ok(
                 "public_result_refresh",
-                "README, benchmark-quality plan, real-eval notes, research plan, "
-                "and public figures are present",
+                "README, claim ladder, benchmark-quality plan, real-eval notes, "
+                "research plan, and public figures are present",
             )
         )
 

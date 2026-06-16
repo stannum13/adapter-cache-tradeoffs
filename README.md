@@ -8,9 +8,26 @@ KV-cache footprint under shared-prefix serving workloads. It compares semantic
 routing, cache-aware routing, sticky routing, multitask adapters, standard
 LoRA-style cache fragmentation, and activated-LoRA-style late specialization.
 
-## Current Result
+## Current Evidence
 
-The latest real run is a streamed vLLM sweep:
+This is a benchmark harness with early real-serving evidence, not a finished
+external benchmark. The current claim boundary is maintained in
+[docs/claim_ladder.md](docs/claim_ladder.md).
+
+The strongest real cache-locality result is a reset-isolated vLLM sweep on
+Qwen2.5-7B with one L4:
+
+| Result | Value |
+| --- | ---: |
+| Requests | 400 |
+| Reset-isolated runs | 10 |
+| Medium-overlap server prefix hit rate | 26.4% |
+| High-overlap server prefix hit rate | 83.8% |
+| p95 TTFT reduction from 50% to 95% overlap | 666.0 ms |
+| SLO attainment lift | 10.0 pp |
+| Quality-adjusted goodput lift | 62.3% |
+
+The main 1.5B streamed vLLM sweep provides the broader strategy frontier:
 
 | Result | Value |
 | --- | ---: |
@@ -33,13 +50,18 @@ Selected plots are committed in [docs/figures](docs/figures/).
 
 The latest 7B evidence is in
 [docs/large_model_results.md](docs/large_model_results.md): trained
-Qwen2.5-7B specialist LoRAs beat the base model and multitask LoRA on generated
-held-out eval, moderate concurrent vLLM load, a 240-row source-backed
-public-domain eval, and a three-seed adapter check. The same run found a hard
-serving limit on one L4: five 7B LoRAs fit at 4096 context, while eight and ten
-registered LoRAs failed because vLLM could not reserve enough KV cache. A
-follow-up preemptible H100 run served Qwen2.5-7B with ten LoRAs at 4096 context
-and reported about `53.34 GiB` available KV-cache memory.
+Qwen2.5-7B specialist LoRAs beat the base model and slightly beat a multitask
+LoRA on generated held-out eval, moderate concurrent vLLM load, a 240-row
+source-backed public-domain eval, and a three-seed adapter check. The same
+work found a hard serving limit on one L4: five 7B LoRAs fit at 4096 context,
+while eight and ten registered LoRAs failed because vLLM could not reserve
+enough KV cache. A follow-up preemptible H100 run served Qwen2.5-7B with ten
+LoRAs at 4096 context and reported about `53.34 GiB` available KV-cache memory.
+
+Best current wording:
+
+> Specialization can buy quality, but only the joint quality/cache/SLO frontier
+> tells you whether that quality is cheap enough to serve.
 
 ![Specialization is a quality/cache/SLO tradeoff](docs/figures/whitepaper_specialization_cache_tradeoff.png)
 
@@ -202,7 +224,9 @@ requirements.
 | Document | Contents |
 | --- | --- |
 | [docs/real_eval_results.md](docs/real_eval_results.md) | Real vLLM run results and interpretation. |
+| [docs/release_report.md](docs/release_report.md) | Current generated public report snapshot. |
 | [docs/large_model_results.md](docs/large_model_results.md) | Real 7B vLLM cache/SLO and trained-adapter results. |
+| [docs/claim_ladder.md](docs/claim_ladder.md) | Current claims, measured effect sizes, and non-claims. |
 | [docs/benchmark_quality_plan.md](docs/benchmark_quality_plan.md) | Frozen `benchmark_v0` definition and benchmark-quality gaps. |
 | [docs/trained_adapters.md](docs/trained_adapters.md) | Reproducible LoRA training and evaluation commands. |
 | [docs/vllm.md](docs/vllm.md) | vLLM/OpenAI-compatible serving flow. |

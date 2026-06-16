@@ -242,16 +242,19 @@ The stronger result uses five seeds and restarts vLLM before every condition so
 prefix-cache state cannot leak across overlap levels. Each condition serves 40
 streamed requests at concurrency 4, for 400 total requests.
 
+The table below is the June 16, 2026 rerun on `adapter-cache-vllm-l4-run` in
+`asia-south1-b`.
+
 ![Qwen2.5-7B overlap confidence sweep](figures/large_model_overlap_confidence.png)
 
 | overlap | runs | requests | p50 TTFT mean ms | p95 TTFT mean ms | p95 TTFT std ms | p99 TTFT mean ms | p95 E2E mean ms | SLO attainment mean | req/s mean | quality mean | QAG mean | cached ratio mean | server prefix hit mean | memory tokens mean |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 0.50 | 5 | 200 | 1515.5 | 2429.7 | 103.0 | 2544.1 | 4454.6 | 0.465 | 1.081 | 0.067 | 0.034 | 0.408 | 0.264 | 4346 |
-| 0.95 | 5 | 200 | 924.4 | 1725.2 | 37.6 | 1762.2 | 3693.3 | 0.900 | 1.363 | 0.073 | 0.090 | 0.778 | 0.838 | 1466 |
+| 0.50 | 5 | 200 | 923.5 | 1603.7 | 63.2 | 1774.3 | 3775.6 | 0.900 | 1.310 | 0.068 | 0.080 | 0.408 | 0.264 | 4346 |
+| 0.95 | 5 | 200 | 355.7 | 937.7 | 5.9 | 967.7 | 2741.9 | 1.000 | 1.751 | 0.074 | 0.130 | 0.778 | 0.838 | 1466 |
 
-High-overlap prompts improved p95 TTFT by `704.5 ms` on average, a `29.0%`
-reduction. SLO attainment rose from `46.5%` to `90.0%`, request throughput rose
-by `26.0%`, and quality-adjusted goodput rose by `163.8%`.
+High-overlap prompts improved p95 TTFT by `666.0 ms` on average, a `41.5%`
+reduction. SLO attainment rose from `90.0%` to `100.0%`, request throughput rose
+by `33.6%`, and quality-adjusted goodput rose by `62.3%`.
 
 Interpretation:
 

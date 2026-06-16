@@ -18,6 +18,63 @@ from adapter_cache_bench.bench.aggregate import (
 )
 
 
+def _large_model_overlap_claim(df) -> list[str]:
+    if df.empty or "run_id" not in df:
+        return ["No reset-isolated 7B overlap sweep is present in the artifact set."]
+    sub = df[df["run_id"].str.contains("large-model-overlap-confidence-vllm-streaming", na=False)]
+    required = {
+        "sweep_overlap_fraction",
+        "run_id",
+        "request_count",
+        "p95_ttft_ms",
+        "slo_attainment_rate",
+        "quality_adjusted_goodput",
+        "server_prefix_cache_hit_rate",
+    }
+    if sub.empty or not required <= set(sub.columns):
+        return ["No reset-isolated 7B overlap sweep is present in the artifact set."]
+    sub = sub.sort_values("run_id").drop_duplicates(
+        ["sweep_overlap_fraction", "sweep_seed"],
+        keep="last",
+    )
+    grouped = (
+        sub.groupby("sweep_overlap_fraction", as_index=False)
+        .agg(
+            runs=("run_id", "count"),
+            requests=("request_count", "sum"),
+            p95_ttft_ms=("p95_ttft_ms", "mean"),
+            slo_attainment_rate=("slo_attainment_rate", "mean"),
+            quality_adjusted_goodput=("quality_adjusted_goodput", "mean"),
+            server_prefix_cache_hit_rate=("server_prefix_cache_hit_rate", "mean"),
+        )
+        .sort_values("sweep_overlap_fraction")
+    )
+    if len(grouped) < 2:
+        return ["The 7B overlap sweep is present but has fewer than two overlap levels."]
+    low = grouped.iloc[0]
+    high = grouped.iloc[-1]
+    p95_delta = low["p95_ttft_ms"] - high["p95_ttft_ms"]
+    p95_pct = p95_delta / low["p95_ttft_ms"] * 100
+    hit_delta = (high["server_prefix_cache_hit_rate"] - low["server_prefix_cache_hit_rate"]) * 100
+    slo_delta = (high["slo_attainment_rate"] - low["slo_attainment_rate"]) * 100
+    qag_delta = (
+        (high["quality_adjusted_goodput"] - low["quality_adjusted_goodput"])
+        / low["quality_adjusted_goodput"]
+        * 100
+    )
+    return [
+        (
+            f"- Reset-isolated 7B cache locality: {int(grouped['requests'].sum())} "
+            f"requests across {int(grouped['runs'].sum())} runs. Moving from "
+            f"{low['sweep_overlap_fraction']:.0%} to {high['sweep_overlap_fraction']:.0%} "
+            f"shared-prefix overlap raised server prefix-cache hit rate by "
+            f"{hit_delta:.1f} percentage points, reduced mean p95 TTFT by "
+            f"{p95_delta:.1f} ms ({p95_pct:.1f}%), lifted SLO attainment by "
+            f"{slo_delta:.1f} percentage points, and raised QAG by {qag_delta:.1f}%."
+        )
+    ]
+
+
 def _markdown_table(rows: list[dict[str, object]], columns: list[str]) -> list[str]:
     if not rows:
         return ["No rows available."]
@@ -142,6 +199,9 @@ def generate_report(
     slo = slo_sweep(request_df)
     report = Path(report_path)
     report.parent.mkdir(parents=True, exist_ok=True)
+    claim_ladder_link = (
+        "claim_ladder.md" if report.parent.name == "docs" else "../docs/claim_ladder.md"
+    )
     if df.empty:
         results = "No benchmark runs were found yet."
     else:
@@ -249,6 +309,7 @@ def generate_report(
     )
     interpretation = _interpretation_lines(cache_means, layouts, repeated, df)
     evidence = _evidence_lines(df)
+    overlap_claim = _large_model_overlap_claim(df)
     lines = [
         "# When is specialization worth its cache footprint?",
         "",
@@ -279,6 +340,14 @@ def generate_report(
         "### Evidence classes",
         "",
         *evidence,
+        "",
+        "### Claim ladder",
+        "",
+        "The maintained public claim boundary lives in",
+        f"[docs/claim_ladder.md]({claim_ladder_link}). Current supported claims",
+        "must cite model/server, request count, run count, and metric scope.",
+        "",
+        *overlap_claim,
         "",
         "## Workloads",
         "",

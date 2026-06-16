@@ -13,6 +13,7 @@ data, scoring, and run protocol below are frozen and repeated.
 | Real serving | vLLM runs exist for L4 and H100 paths. | Restart or isolate the server per condition, record startup logs, and repeat each condition. |
 | Cache evidence | Simulator metrics and vLLM server-level counters exist. | Report simulator cache accounting and server counters side by side, with metric scope clearly labeled. |
 | Capacity evidence | One L4 fails 8/10 LoRAs at 4096 context; one H100 80GB serves 10 LoRAs. | Record a GPU/model/context/adapter-count capacity table with exact failure messages and startup logs. |
+| Claim discipline | [claim_ladder.md](claim_ladder.md) separates supported claims from non-claims. | Keep each public claim tied to request count, run count, model, hardware, and metric scope. |
 | External validity | Public-domain-style and source-backed fixtures exist. | Add an independently curated public eval fixture before making broad model-quality claims. |
 
 ## Benchmark v0 definition
@@ -128,12 +129,22 @@ is useful for exercising the pipeline, not for final paper-quality claims.
 
 ## Claim discipline
 
-Acceptable current claim:
+The maintained claim boundary lives in
+[docs/claim_ladder.md](claim_ladder.md). Acceptable current claim:
 
 > Adapter specialization has a measurable cache and memory footprint. In this
 > harness and early vLLM evidence, specialist LoRAs improved source-backed task
 > quality, but adapter count and cache namespace fragmentation changed serving
 > headroom and prefix-cache reuse.
+
+More precise current claim:
+
+> On reset-isolated Qwen2.5-7B vLLM runs, raising shared-prefix overlap from
+> 50% to 95% increased server prefix-cache hit rate by 57.4 percentage points
+> and reduced mean p95 TTFT by 666.0 ms. On the included source-backed eval,
+> trained specialist LoRAs improved quality versus the base causal transformer,
+> while showing the expected cache-footprint cost relative to base/multitask
+> routing.
 
 Claims to avoid until stronger evidence exists:
 

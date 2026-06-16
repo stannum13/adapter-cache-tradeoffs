@@ -7,266 +7,379 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from adapter_cache_bench.analysis.capacity_frontier import load_capacity_frontier
 from adapter_cache_bench.bench.aggregate import load_summaries
 
 COLORS = {
-    "ink": "#18212f",
-    "muted": "#687384",
-    "grid": "#e3e8ef",
-    "panel": "#fbfcfe",
-    "prefix": "#d9e8f4",
-    "prefix_edge": "#b7ccdf",
-    "qa": "#2d77b8",
-    "json": "#2a9d8f",
-    "summary": "#8766b5",
-    "code": "#d28b35",
-    "specialists": "#2878c8",
-    "multitask": "#2a9d8f",
-    "slo": "#c2410c",
-    "good": "#eaf6ef",
+    "ink": "#142033",
+    "muted": "#5d6b7c",
+    "grid": "#d8dee8",
+    "panel": "#fbfcff",
+    "blue": "#2563a9",
+    "teal": "#1b8a7a",
+    "gold": "#b7791f",
+    "red": "#b23b3b",
+    "green": "#2f7d46",
+    "purple": "#6f58a8",
+    "prefix": "#dbeafe",
+    "prefix_edge": "#9fbfe8",
 }
 
-ADAPTERS = [
-    ("qa", COLORS["qa"]),
-    ("json", COLORS["json"]),
-    ("summary", COLORS["summary"]),
-    ("code", COLORS["code"]),
-]
 
-
-def _panel(ax) -> None:
+def _panel(ax, title: str, subtitle: str | None = None) -> None:
     ax.set_facecolor(COLORS["panel"])
     for spine in ax.spines.values():
-        spine.set_visible(True)
-        spine.set_linewidth(0.8)
         spine.set_color(COLORS["grid"])
+        spine.set_linewidth(0.9)
+    ax.set_title(title, loc="left", fontsize=11.5, weight="bold", color=COLORS["ink"], pad=12)
+    if subtitle:
+        ax.text(
+            0.0,
+            1.01,
+            subtitle,
+            transform=ax.transAxes,
+            fontsize=8.2,
+            color=COLORS["muted"],
+            ha="left",
+            va="bottom",
+        )
 
 
-def _style_axis(ax) -> None:
+def _axis_style(ax, *, ygrid: bool = True) -> None:
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_color(COLORS["grid"])
     ax.spines["bottom"].set_color(COLORS["grid"])
     ax.tick_params(colors=COLORS["muted"], labelsize=8)
-    ax.grid(axis="y", color=COLORS["grid"], linewidth=0.8)
+    if ygrid:
+        ax.grid(axis="y", color=COLORS["grid"], linewidth=0.7, alpha=0.9)
 
 
-def _rounded(
-    ax,
-    x: float,
-    y: float,
-    width: float,
-    height: float,
-    color: str,
-    *,
-    edgecolor: str = "white",
-    linewidth: float = 0.8,
-) -> None:
+def _box(ax, x: float, y: float, w: float, h: float, color: str, text: str = "") -> None:
     ax.add_patch(
         patches.FancyBboxPatch(
             (x, y),
-            width,
-            height,
+            w,
+            h,
             boxstyle="round,pad=0.004,rounding_size=0.012",
             facecolor=color,
-            edgecolor=edgecolor,
-            linewidth=linewidth,
+            edgecolor="white",
+            linewidth=0.9,
         )
     )
-
-
-def _prefix_blocks(ax, x: float, y: float, count: int, width: float, height: float) -> None:
-    for index in range(count):
-        _rounded(
-            ax,
-            x + index * width * 1.08,
-            y,
-            width,
-            height,
-            COLORS["prefix"],
-            edgecolor=COLORS["prefix_edge"],
+    if text:
+        ax.text(
+            x + w / 2,
+            y + h / 2,
+            text,
+            ha="center",
+            va="center",
+            fontsize=7.2,
+            color="white",
+            weight="bold",
         )
 
 
-def _adapter_tail(ax, x: float, y: float, label: str, color: str) -> None:
-    _rounded(ax, x, y, 0.072, 0.052, color)
-    ax.text(
-        x + 0.036,
-        y + 0.026,
-        label,
-        color="white",
-        fontsize=7.5,
-        weight="bold",
-        ha="center",
-        va="center",
-    )
+def _blocks(ax, x: float, y: float, n: int, *, w: float = 0.036, h: float = 0.040) -> None:
+    for i in range(n):
+        ax.add_patch(
+            patches.FancyBboxPatch(
+                (x + i * w * 1.08, y),
+                w,
+                h,
+                boxstyle="round,pad=0.002,rounding_size=0.006",
+                facecolor=COLORS["prefix"],
+                edgecolor=COLORS["prefix_edge"],
+                linewidth=0.7,
+            )
+        )
 
 
 def draw_mechanism(ax) -> None:
-    ax.set_axis_off()
+    _panel(ax, "A. Cache namespace mechanism")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    _panel(ax)
+    ax.set_xticks([])
+    ax.set_yticks([])
 
-    ax.text(0.05, 0.93, "1. The hidden cost", fontsize=12, weight="bold", color=COLORS["ink"])
+    ax.text(0.05, 0.83, "standard LoRA", fontsize=9, weight="bold", color=COLORS["ink"])
     ax.text(
         0.05,
-        0.885,
-        "Routing to a specialist can improve quality, but it also changes the KV-cache namespace.",
-        fontsize=8.8,
+        0.78,
+        "same prefix, repeated per adapter",
+        fontsize=7.8,
         color=COLORS["muted"],
     )
-
-    ax.text(0.05, 0.79, "standard LoRA", fontsize=9.5, weight="bold", color=COLORS["ink"])
-    ax.text(0.05, 0.755, "same prefix cached once per adapter", fontsize=8, color=COLORS["muted"])
-    for row, (adapter, color) in enumerate(ADAPTERS):
-        y = 0.67 - row * 0.075
-        ax.text(0.05, y + 0.026, adapter, fontsize=7.5, color=COLORS["muted"], va="center")
-        _prefix_blocks(ax, 0.18, y, 7, 0.034, 0.052)
-        _adapter_tail(ax, 0.48, y, adapter[:4], color)
-
+    adapters = [("qa", COLORS["blue"]), ("json", COLORS["teal"]), ("sum", COLORS["purple"])]
+    for row, (name, color) in enumerate(adapters):
+        y = 0.66 - row * 0.10
+        _blocks(ax, 0.06, y, 7)
+        _box(ax, 0.36, y - 0.002, 0.060, 0.044, color, name)
     ax.text(
-        0.31,
-        0.325,
-        "prefix footprint scales with adapter count",
-        fontsize=8.2,
-        color=COLORS["slo"],
-        weight="bold",
+        0.24,
+        0.34,
+        "prefix memory scales with adapter count",
         ha="center",
+        fontsize=8,
+        color=COLORS["red"],
     )
 
-    ax.plot([0.57, 0.57], [0.22, 0.80], color=COLORS["grid"], linewidth=1.0)
+    ax.plot([0.50, 0.50], [0.18, 0.86], color=COLORS["grid"], linewidth=1.0)
 
-    ax.text(0.63, 0.79, "late specialization", fontsize=9.5, weight="bold", color=COLORS["ink"])
-    ax.text(0.63, 0.755, "shared prefix, adapter-specific tail", fontsize=8, color=COLORS["muted"])
-    _prefix_blocks(ax, 0.63, 0.62, 8, 0.033, 0.058)
-    ax.text(0.63, 0.59, "shared document prefix", fontsize=7.5, color=COLORS["muted"])
-    for index, (adapter, color) in enumerate(ADAPTERS):
-        x = 0.63 + index * 0.078
-        _adapter_tail(ax, x, 0.45, adapter[:4], color)
+    ax.text(0.57, 0.83, "late specialization", fontsize=9, weight="bold", color=COLORS["ink"])
     ax.text(
-        0.765,
-        0.325,
-        "prefix footprint stays nearly flat",
-        fontsize=8.2,
-        color=COLORS["json"],
-        weight="bold",
-        ha="center",
+        0.57,
+        0.78,
+        "shared base prefix, task-specific tail",
+        fontsize=7.8,
+        color=COLORS["muted"],
     )
-
+    _blocks(ax, 0.57, 0.61, 8, w=0.034, h=0.050)
+    ax.text(0.68, 0.56, "document prefix", ha="center", fontsize=7.6, color=COLORS["muted"])
+    for idx, (name, color) in enumerate(adapters):
+        _box(ax, 0.58 + idx * 0.09, 0.43, 0.065, 0.048, color, name)
     ax.annotate(
         "",
-        xy=(0.74, 0.45),
-        xytext=(0.76, 0.62),
-        arrowprops={"arrowstyle": "->", "color": COLORS["muted"], "lw": 0.9},
+        xy=(0.68, 0.48),
+        xytext=(0.71, 0.61),
+        arrowprops={"arrowstyle": "->", "lw": 0.9, "color": COLORS["muted"]},
     )
-    ax.text(0.785, 0.535, "<ADAPTER:task>", fontsize=7.5, color=COLORS["muted"])
+    ax.text(0.75, 0.52, "<ADAPTER:task>", fontsize=7.5, color=COLORS["muted"])
+    ax.text(
+        0.70,
+        0.34,
+        "prefix memory stays closer to flat",
+        ha="center",
+        fontsize=8,
+        color=COLORS["green"],
+    )
 
 
-def _exhaustive(df: pd.DataFrame, name: str) -> pd.DataFrame:
+def _large_overlap_summary(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty or "run_id" not in df:
         return pd.DataFrame()
-    return df[df["run_id"].str.contains(name, na=False)].copy()
-
-
-def draw_overlap(ax, df: pd.DataFrame) -> None:
-    _panel(ax)
-    ax.set_title(
-        "2. Specialization pays when overlap is high",
-        loc="left",
-        fontsize=12,
-        weight="bold",
+    sub = df[df["run_id"].str.contains("large-model-overlap-confidence-vllm-streaming", na=False)]
+    if sub.empty:
+        return pd.DataFrame()
+    sub = sub.sort_values("run_id").drop_duplicates(
+        ["sweep_overlap_fraction", "sweep_seed"],
+        keep="last",
     )
-    overlap = _exhaustive(df, "exhaustive-overlap")
-    if overlap.empty:
-        ax.text(0.5, 0.5, "Run make vllm-exhaustive-overlap", ha="center", va="center")
-        return
-
-    grouped = (
-        overlap.groupby(["sweep_strategy", "sweep_overlap_fraction"], as_index=False)
+    return (
+        sub.groupby("sweep_overlap_fraction", as_index=False)
         .agg(
+            runs=("run_id", "count"),
+            requests=("request_count", "sum"),
+            p95_ttft_ms=("p95_ttft_ms", "mean"),
+            slo=("slo_attainment_rate", "mean"),
             qag=("quality_adjusted_goodput", "mean"),
-            p95_ttft=("p95_ttft_ms", "mean"),
+            server_hit=("server_prefix_cache_hit_rate", "mean"),
         )
         .sort_values("sweep_overlap_fraction")
     )
 
-    ax.axvspan(75, 100, color=COLORS["good"], alpha=0.85, zorder=0)
+
+def draw_cache_frontier(ax, df: pd.DataFrame) -> None:
+    _panel(
+        ax,
+        "B. Real 7B cache-locality effect",
+        "reset-isolated vLLM runs on one L4",
+    )
+    summary = _large_overlap_summary(df)
+    if summary.empty:
+        ax.text(
+            0.5,
+            0.5,
+            "Run large_model_overlap_confidence_vllm",
+            ha="center",
+            va="center",
+        )
+        return
+
+    x = summary["sweep_overlap_fraction"] * 100
+    ax.plot(
+        x,
+        summary["p95_ttft_ms"],
+        marker="o",
+        linewidth=2.6,
+        color=COLORS["blue"],
+        label="p95 TTFT",
+    )
+    ax.set_xlabel("shared-prefix overlap (%)", fontsize=8.8)
+    ax.set_ylabel("p95 TTFT (ms)", fontsize=8.8, color=COLORS["blue"])
+    ax.tick_params(axis="y", colors=COLORS["blue"])
+    ax.set_xlim(45, 100)
+    _axis_style(ax)
+
+    ax2 = ax.twinx()
+    ax2.plot(
+        x,
+        summary["server_hit"] * 100,
+        marker="s",
+        linewidth=2.3,
+        color=COLORS["teal"],
+        label="server prefix hit",
+    )
+    ax2.set_ylabel("server prefix hit rate (%)", fontsize=8.8, color=COLORS["teal"])
+    ax2.tick_params(axis="y", colors=COLORS["teal"], labelsize=8)
+    ax2.spines["top"].set_visible(False)
+    ax2.spines["right"].set_color(COLORS["grid"])
+    ax2.set_ylim(0, 100)
+
+    low = summary.iloc[0]
+    high = summary.iloc[-1]
+    delta = low["p95_ttft_ms"] - high["p95_ttft_ms"]
+    hit_delta = (high["server_hit"] - low["server_hit"]) * 100
     ax.text(
-        77,
-        1.30,
-        "high reuse",
-        fontsize=8,
-        color="#166534",
+        0.04,
+        0.08,
+        f"-{delta:.0f} ms p95 TTFT\n+{hit_delta:.1f} pp prefix hits",
+        transform=ax.transAxes,
+        fontsize=9,
+        color=COLORS["ink"],
         weight="bold",
-        ha="left",
+        bbox={
+            "boxstyle": "round,pad=0.28",
+            "facecolor": "white",
+            "edgecolor": COLORS["grid"],
+        },
     )
 
-    for strategy, group in grouped.groupby("sweep_strategy", sort=False):
-        color = COLORS.get(strategy, COLORS["ink"])
-        ax.plot(
-            group["sweep_overlap_fraction"] * 100,
-            group["qag"],
+
+def _source_frontier(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or "run_id" not in df:
+        return pd.DataFrame()
+    sub = df[df["run_id"].str.contains("source-eval-expanded-vllm", na=False)].copy()
+    if sub.empty:
+        return pd.DataFrame()
+    sub["condition"] = "base"
+    sub.loc[sub["run_id"].str.contains("lora-trained", na=False), "condition"] = "specialists"
+    sub.loc[sub["run_id"].str.contains("lora-multitask", na=False), "condition"] = "multitask"
+    # Keep the higher-throughput H100 confirmation when duplicate condition rows exist.
+    return sub.sort_values("quality_adjusted_goodput").groupby("condition", as_index=False).tail(1)
+
+
+def draw_quality_frontier(ax, df: pd.DataFrame) -> None:
+    _panel(
+        ax,
+        "C. Quality/goodput frontier",
+        "expanded source-backed Qwen2.5-7B eval",
+    )
+    sub = _source_frontier(df)
+    if sub.empty:
+        ax.text(0.5, 0.5, "Run source-eval-expanded vLLM conditions", ha="center", va="center")
+        return
+    colors = {"base": COLORS["muted"], "specialists": COLORS["blue"], "multitask": COLORS["teal"]}
+    label_offsets = {
+        "base": (7, -0.002),
+        "specialists": (7, 0.000),
+        "multitask": (7, -0.006),
+    }
+    for _, row in sub.iterrows():
+        condition = str(row["condition"])
+        dx, dy = label_offsets.get(condition, (7, 0.0))
+        ax.scatter(
+            row["p95_ttft_ms"],
+            row["mean_quality"],
+            s=max(90, float(row["quality_adjusted_goodput"]) * 520),
+            color=colors.get(condition, COLORS["gold"]),
+            alpha=0.86,
+            edgecolor="white",
+            linewidth=1.0,
+        )
+        ax.text(
+            row["p95_ttft_ms"] + dx,
+            row["mean_quality"] + dy,
+            condition,
+            fontsize=8.2,
+            color=COLORS["ink"],
+            va="center",
+        )
+    ax.set_xlabel("p95 TTFT (ms)", fontsize=8.8)
+    ax.set_ylabel("mean quality", fontsize=8.8)
+    ax.text(
+        0.03,
+        0.06,
+        "bubble area = QAG",
+        transform=ax.transAxes,
+        fontsize=8,
+        color=COLORS["muted"],
+    )
+    ax.margins(x=0.18, y=0.18)
+    _axis_style(ax)
+
+
+def draw_capacity_frontier(ax, path: str | Path = "data/results/capacity_frontier.yaml") -> None:
+    _panel(ax, "D. Adapter capacity boundary", "startup feasibility at 4096 context")
+    try:
+        df = load_capacity_frontier(path)
+    except Exception:
+        df = pd.DataFrame()
+    if df.empty:
+        ax.text(0.5, 0.5, "No capacity records", ha="center", va="center")
+        return
+
+    y_positions = []
+    for idx, row in enumerate(df.sort_values(["gpu_memory_gb", "lora_count"]).itertuples()):
+        y_positions.append(idx)
+        color = COLORS["green"] if row.status == "starts" else COLORS["red"]
+        ax.scatter(
+            row.lora_count,
+            idx,
+            s=170,
             marker="o",
-            markersize=4.8,
-            linewidth=2.4,
             color=color,
-            label=strategy,
+            edgecolor="white",
+            linewidth=1.1,
         )
+        label = "starts" if row.status == "starts" else "fails"
+        ax.text(row.lora_count + 0.18, idx, label, fontsize=8.5, va="center", color=COLORS["ink"])
+        if row.status == "starts" and pd.notna(row.available_kv_cache_gib):
+            ax.text(
+                row.lora_count + 0.18,
+                idx - 0.18,
+                f"{float(row.available_kv_cache_gib):.1f} GiB KV",
+                fontsize=7.4,
+                color=COLORS["muted"],
+                va="center",
+            )
 
-    specialists = grouped[grouped["sweep_strategy"].eq("specialists")]
-    if not specialists.empty:
-        ax2 = ax.twinx()
-        ax2.plot(
-            specialists["sweep_overlap_fraction"] * 100,
-            specialists["p95_ttft"],
-            color="#9aa4b2",
-            linestyle="--",
-            linewidth=1.7,
-        )
-        ax2.axhline(1000, color=COLORS["slo"], linestyle=":", linewidth=1.1)
-        ax2.text(
-            99,
-            1025,
-            "1s TTFT SLO",
-            fontsize=7.5,
-            color=COLORS["slo"],
-            ha="right",
-            va="bottom",
-        )
-        ax2.set_ylabel("specialist p95 TTFT (ms)", fontsize=8.5, color=COLORS["muted"])
-        ax2.tick_params(axis="y", colors=COLORS["muted"], labelsize=8)
-        ax2.spines["top"].set_visible(False)
-        ax2.spines["right"].set_color(COLORS["grid"])
-
-    ax.set_xlabel("shared-prefix overlap (%)", fontsize=9)
-    ax.set_ylabel("quality-adjusted goodput", fontsize=9)
-    ax.legend(frameon=False, fontsize=8, loc="upper left")
-    ax.set_xlim(-5, 102)
-    ax.set_ylim(-0.03, max(1.45, float(grouped["qag"].max()) * 1.08))
-    _style_axis(ax)
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels(
+        [
+            str(row.condition_id).replace("qwen7b-", "").replace("-loras", " LoRAs")
+            for row in df.sort_values(["gpu_memory_gb", "lora_count"]).itertuples()
+        ],
+        fontsize=7.6,
+    )
+    ax.set_xlabel("registered LoRAs", fontsize=8.8)
+    ax.set_xlim(4.3, 10.9)
+    ax.set_ylim(-0.7, len(y_positions) - 0.3)
+    ax.axvspan(7.5, 10.5, color="#fff1f1", alpha=0.75, zorder=0)
+    ax.text(8.05, len(y_positions) - 0.72, "L4 failure region", fontsize=7.8, color=COLORS["red"])
+    _axis_style(ax, ygrid=False)
 
 
 def draw_takeaway(fig) -> None:
     box = patches.FancyBboxPatch(
-        (0.19, 0.025),
-        0.64,
+        (0.16, 0.035),
+        0.70,
         0.050,
-        boxstyle="round,pad=0.008,rounding_size=0.012",
-        facecolor="#f7fafc",
+        boxstyle="round,pad=0.008,rounding_size=0.010",
+        facecolor="#f8fafc",
         edgecolor=COLORS["grid"],
-        linewidth=0.8,
+        linewidth=0.9,
         transform=fig.transFigure,
     )
     fig.add_artist(box)
     fig.text(
-        0.5,
-        0.050,
-        "Decision rule: specialize only when quality gain exceeds the cache-footprint "
-        "and SLO cost.",
+        0.51,
+        0.060,
+        "Decision rule: specialize when quality gain exceeds SLO loss, cache "
+        "fragmentation, and capacity cost.",
         ha="center",
         va="center",
-        fontsize=9.5,
+        fontsize=9.3,
         color=COLORS["ink"],
         weight="bold",
     )
@@ -282,28 +395,29 @@ def generate_whitepaper_visual(
             "font.family": "DejaVu Sans",
             "figure.facecolor": "white",
             "savefig.facecolor": "white",
+            "axes.titlepad": 10,
         }
     )
-    fig = plt.figure(figsize=(13.6, 6.6), constrained_layout=False)
+    fig = plt.figure(figsize=(13.4, 8.0), constrained_layout=False)
     grid = fig.add_gridspec(
-        1,
         2,
-        left=0.035,
+        2,
+        left=0.055,
         right=0.985,
-        top=0.84,
-        bottom=0.18,
-        width_ratios=[1.02, 1.0],
-        wspace=0.12,
+        top=0.840,
+        bottom=0.175,
+        hspace=0.36,
+        wspace=0.22,
     )
-    ax_mechanism = fig.add_subplot(grid[0, 0])
-    ax_overlap = fig.add_subplot(grid[0, 1])
-    draw_mechanism(ax_mechanism)
-    draw_overlap(ax_overlap, df)
+    draw_mechanism(fig.add_subplot(grid[0, 0]))
+    draw_cache_frontier(fig.add_subplot(grid[0, 1]), df)
+    draw_quality_frontier(fig.add_subplot(grid[1, 0]), df)
+    draw_capacity_frontier(fig.add_subplot(grid[1, 1]))
     draw_takeaway(fig)
 
     fig.text(
-        0.035,
-        0.935,
+        0.055,
+        0.940,
         "When is specialization worth its cache footprint?",
         fontsize=20,
         weight="bold",
@@ -311,18 +425,19 @@ def generate_whitepaper_visual(
         ha="left",
     )
     fig.text(
-        0.035,
-        0.895,
-        "Specialist adapters improve task quality; shared-prefix reuse decides whether "
-        "that quality is cheap enough to serve.",
-        fontsize=10,
+        0.055,
+        0.902,
+        "Specialist adapters buy quality; shared-prefix reuse and adapter capacity "
+        "decide whether that quality is serveable.",
+        fontsize=10.2,
         color=COLORS["muted"],
         ha="left",
     )
     fig.text(
-        0.035,
-        0.008,
-        "Adapter Cache Tradeoffs | streamed vLLM sweeps; QAG = quality-adjusted goodput",
+        0.055,
+        0.012,
+        "Adapter Cache Tradeoffs | measured vLLM runs plus simulator mechanism; "
+        "QAG = quality-adjusted goodput",
         fontsize=7.8,
         color=COLORS["muted"],
         ha="left",
