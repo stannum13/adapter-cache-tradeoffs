@@ -1,0 +1,7 @@
+workload:
+  name: jsonl_eval
+  dataset_path: data/eval/public_domain_eval_large.jsonl
+  request_count: 100
+  sessions: 10
+  tenants: 2
+  max_tokens: 64

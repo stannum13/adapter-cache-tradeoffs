@@ -1,0 +1,4 @@
+router:
+  policy: random
+  seed: 7
+

@@ -1,0 +1,43 @@
+run_name: large-model-overlap-confidence-vllm-streaming
+output_dir: artifacts/runs
+workload:
+  name: controlled_overlap
+  request_count: 40
+  shared_document_count: 1
+  sessions: 8
+  tenants: 4
+  max_tokens: 32
+  document_tokens: 180
+  shared_prefix_fraction: 0.5
+cache:
+  model: activated_lora
+  block_size: 8
+router:
+  policy: cache_aware
+backend:
+  kind: vllm
+  base_url: http://localhost:8000/v1
+  api_key: EMPTY
+  model: Qwen/Qwen2.5-7B-Instruct
+  temperature: 0.0
+  stream: true
+  ttft_slo_ms: 1500
+  e2e_slo_ms: 20000
+  scrape_metrics: true
+  metrics_url: http://localhost:8000/metrics
+  max_concurrency: 4
+  request_spacing_ms: 0
+  extra_body: {}
+matrix:
+  strategies: [base]
+  concurrencies: [4]
+  workloads: [controlled_overlap]
+  caches: [activated_lora]
+  adapter_counts: [4]
+  tenants: [4]
+  isolation_scopes: [trust_group]
+  seeds: [17, 23, 31, 43, 59]
+  overlap_fractions: [0.5, 0.95]
+  models:
+    - name: Qwen/Qwen2.5-7B-Instruct
+      alias: qwen25-7b

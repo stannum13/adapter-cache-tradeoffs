@@ -1,0 +1,16 @@
+# Optional overlay for isolated 7B vLLM server metrics on a GCP VM.
+#
+# Start the VM and tunnel first, then run with PROJECT set:
+#
+# PROJECT=<project-id> ZONE=us-central1-a ./scripts/gcloud_l4_vllm.sh start
+# PROJECT=<project-id> ZONE=us-central1-a ./scripts/gcloud_l4_vllm.sh tunnel
+# PROJECT=<project-id> ZONE=us-central1-a \
+#   uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
+#   --config configs/benchmark/large_model_overlap_confidence_vllm.yaml \
+#            configs/benchmark/gcloud_7b_reset_template.yaml
+backend:
+  server_reset_command: PROJECT=${PROJECT:?Set PROJECT} ZONE=${ZONE:-us-central1-a} BASE_MODEL=Qwen/Qwen2.5-7B-Instruct MAX_MODEL_LEN=4096 GPU_MEMORY_UTILIZATION=0.90 ./scripts/gcloud_l4_vllm.sh serve-base
+  server_reset_timeout_s: 420
+  server_warmup_url: http://localhost:8000/health
+  server_warmup_timeout_s: 420
+  server_warmup_interval_s: 5

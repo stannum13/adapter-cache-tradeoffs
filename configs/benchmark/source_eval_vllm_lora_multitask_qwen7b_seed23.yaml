@@ -1,0 +1,22 @@
+run_name: source-eval-vllm-lora-multitask-qwen7b-seed23
+adapters:
+  adapter_ids: [multitask]
+  default_adapter: multitask
+router:
+  policy: multitask
+workload:
+  request_count: 24
+backend:
+  kind: vllm
+  base_url: http://localhost:8000/v1
+  api_key: EMPTY
+  model: Qwen/Qwen2.5-7B-Instruct
+  adapter_model_names:
+    multitask: multitask-lora-seed23
+  temperature: 0.0
+  stream: true
+  ttft_slo_ms: 1500
+  e2e_slo_ms: 12000
+  scrape_metrics: true
+  metrics_url: http://localhost:8000/metrics
+  extra_body: {}

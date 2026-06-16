@@ -1,0 +1,55 @@
+run_name: model-family-vllm-streaming
+output_dir: artifacts/runs
+workload:
+  name: jsonl_eval
+  dataset_path: data/eval/source_eval.jsonl
+  request_count: 24
+  sessions: 8
+  tenants: 2
+  max_tokens: 64
+cache:
+  model: activated_lora
+  block_size: 8
+router:
+  policy: cache_aware
+backend:
+  kind: vllm
+  base_url: http://localhost:8000/v1
+  api_key: EMPTY
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  temperature: 0.0
+  stream: true
+  ttft_slo_ms: 1000
+  e2e_slo_ms: 12000
+  scrape_metrics: true
+  metrics_url: http://localhost:8000/metrics
+  max_concurrency: 8
+  request_spacing_ms: 0
+  extra_body: {}
+matrix:
+  strategies: [specialists, multitask]
+  concurrencies: [8]
+  workloads: [jsonl_eval]
+  caches: [activated_lora]
+  adapter_counts: [4]
+  tenants: [2]
+  isolation_scopes: [trust_group]
+  seeds: [17, 23, 31]
+  models:
+    - name: Qwen/Qwen2.5-1.5B-Instruct
+      alias: qwen15b
+      adapter_model_names:
+        qa: qa-lora
+        json: json-lora
+        summary: summary-lora
+        code: code-lora
+        multitask: multitask-lora
+    # Add another served model family after training compatible adapters:
+    # - name: meta-llama/Llama-3.2-3B-Instruct
+    #   alias: llama32-3b
+    #   adapter_model_names:
+    #     qa: llama32-3b-qa-lora
+    #     json: llama32-3b-json-lora
+    #     summary: llama32-3b-summary-lora
+    #     code: llama32-3b-code-lora
+    #     multitask: llama32-3b-multitask-lora
