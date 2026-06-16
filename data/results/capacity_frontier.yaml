@@ -1,0 +1,92 @@
+records:
+  - condition_id: qwen7b-l4-5-loras
+    date: "2026-06-15"
+    hardware: g2-standard-8
+    gpu_model: NVIDIA L4
+    gpu_memory_gb: 24
+    provisioning_model: STANDARD
+    zone: asia-south1-b
+    model: Qwen/Qwen2.5-7B-Instruct
+    vllm_version: "0.23.0"
+    max_model_len: 4096
+    gpu_memory_utilization: 0.85
+    lora_count: 5
+    max_lora_rank: 8
+    adapter_set: seed17 specialists plus multitask
+    status: starts
+    available_kv_cache_gib: null
+    gpu_kv_cache_tokens: null
+    max_concurrency_at_context: null
+    failure_message: null
+    run_ids: []
+    notes: One specialist seed plus multitask adapter started successfully on one L4.
+  - condition_id: qwen7b-l4-8-loras
+    date: "2026-06-15"
+    hardware: g2-standard-8
+    gpu_model: NVIDIA L4
+    gpu_memory_gb: 24
+    provisioning_model: STANDARD
+    zone: asia-south1-b
+    model: Qwen/Qwen2.5-7B-Instruct
+    vllm_version: "0.23.0"
+    max_model_len: 4096
+    gpu_memory_utilization: 0.85
+    lora_count: 8
+    max_lora_rank: 8
+    adapter_set: two specialist seeds
+    status: fails
+    available_kv_cache_gib: 0.09
+    gpu_kv_cache_tokens: null
+    max_concurrency_at_context: 0
+    failure_message: >
+      To serve at least one request with the model's max seq len (4096),
+      0.22 GiB KV cache is needed, which is larger than the available KV cache
+      memory (0.09 GiB). Based on the available memory, the estimated maximum
+      model length is 1664.
+    run_ids: []
+    notes: Broader adapter registration consumed enough headroom that vLLM could not reserve one max-length request.
+  - condition_id: qwen7b-l4-10-loras
+    date: "2026-06-15"
+    hardware: g2-standard-8
+    gpu_model: NVIDIA L4
+    gpu_memory_gb: 24
+    provisioning_model: STANDARD
+    zone: asia-south1-b
+    model: Qwen/Qwen2.5-7B-Instruct
+    vllm_version: "0.23.0"
+    max_model_len: 4096
+    gpu_memory_utilization: 0.85
+    lora_count: 10
+    max_lora_rank: 8
+    adapter_set: two specialist seeds plus two multitask adapters
+    status: fails
+    available_kv_cache_gib: 0.0
+    gpu_kv_cache_tokens: null
+    max_concurrency_at_context: 0
+    failure_message: No available memory for cache blocks.
+    run_ids: []
+    notes: Ten registered LoRAs failed before serving on one L4.
+  - condition_id: qwen7b-h100-10-loras
+    date: "2026-06-15"
+    hardware: a3-highgpu-1g
+    gpu_model: NVIDIA H100 80GB HBM3
+    gpu_memory_gb: 80
+    provisioning_model: SPOT
+    zone: us-central1-c
+    model: Qwen/Qwen2.5-7B-Instruct
+    vllm_version: "0.23.0"
+    max_model_len: 4096
+    gpu_memory_utilization: 0.90
+    lora_count: 10
+    max_lora_rank: 8
+    adapter_set: seed17/default and seed23 specialists plus multitask adapters
+    status: starts
+    available_kv_cache_gib: 53.34
+    gpu_kv_cache_tokens: 998768
+    max_concurrency_at_context: 243.84
+    failure_message: null
+    run_ids:
+      - source-eval-expanded-vllm-qwen7b-1781558787102
+      - source-eval-expanded-vllm-lora-trained-qwen7b-1781558622688
+      - source-eval-expanded-vllm-lora-multitask-qwen7b-1781558968104
+    notes: One H100 80GB served the 4096-context 10-LoRA configuration that failed on one L4.

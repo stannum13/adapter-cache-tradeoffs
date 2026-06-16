@@ -1,0 +1,4 @@
+router:
+  policy: sticky_session
+  gamma: 0.15
+

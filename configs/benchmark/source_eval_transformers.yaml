@@ -1,0 +1,24 @@
+run_name: source-eval-transformers
+output_dir: artifacts/runs
+workload:
+  name: jsonl_eval
+  dataset_path: data/eval/source_eval.jsonl
+  request_count: 6
+  sessions: 3
+  tenants: 1
+  max_tokens: 24
+router:
+  policy: cache_aware
+cache:
+  model: activated_lora
+  block_size: 8
+backend:
+  kind: transformers
+  model: HuggingFaceTB/SmolLM2-135M-Instruct
+  temperature: 0.0
+  ttft_slo_ms: 20000
+  e2e_slo_ms: 60000
+  extra_body:
+    device: cpu
+    max_input_tokens: 768
+    max_new_tokens: 24

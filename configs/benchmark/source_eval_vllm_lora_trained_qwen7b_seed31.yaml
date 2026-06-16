@@ -1,0 +1,20 @@
+run_name: source-eval-vllm-lora-trained-qwen7b-seed31
+workload:
+  request_count: 24
+backend:
+  kind: vllm
+  base_url: http://localhost:8000/v1
+  api_key: EMPTY
+  model: Qwen/Qwen2.5-7B-Instruct
+  adapter_model_names:
+    qa: qa-lora-seed31
+    json: json-lora-seed31
+    summary: summary-lora-seed31
+    code: code-lora-seed31
+  temperature: 0.0
+  stream: true
+  ttft_slo_ms: 1500
+  e2e_slo_ms: 12000
+  scrape_metrics: true
+  metrics_url: http://localhost:8000/metrics
+  extra_body: {}

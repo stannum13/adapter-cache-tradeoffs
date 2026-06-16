@@ -1,0 +1,22 @@
+run_name: source-eval-vllm
+output_dir: artifacts/runs
+workload:
+  name: jsonl_eval
+  dataset_path: data/eval/source_eval.jsonl
+  request_count: 24
+  sessions: 12
+  tenants: 1
+  max_tokens: 64
+router:
+  policy: cache_aware
+cache:
+  model: activated_lora
+  block_size: 8
+backend:
+  kind: vllm
+  base_url: http://localhost:8000/v1
+  api_key: EMPTY
+  model: meta-llama/Llama-3.1-8B-Instruct
+  temperature: 0.0
+  ttft_slo_ms: 1000
+  extra_body: {}

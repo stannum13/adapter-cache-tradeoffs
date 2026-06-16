@@ -1,0 +1,29 @@
+run_name: heldout-xlarge-sft-eval-vllm-lora-multitask-qwen15b
+adapters:
+  adapter_ids: [multitask]
+  default_adapter: multitask
+router:
+  policy: multitask
+workload:
+  name: jsonl_eval
+  dataset_path: artifacts/sft/public_domain_xlarge/eval_requests.jsonl
+  request_count: 100
+  sessions: 20
+  tenants: 4
+  max_tokens: 64
+cache:
+  model: activated_lora
+  block_size: 8
+backend:
+  kind: vllm
+  base_url: http://localhost:8000/v1
+  api_key: EMPTY
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  adapter_model_names:
+    multitask: multitask-lora
+  temperature: 0.0
+  ttft_slo_ms: 1000
+  e2e_slo_ms: 12000
+  scrape_metrics: true
+  metrics_url: http://localhost:8000/metrics
+  extra_body: {}

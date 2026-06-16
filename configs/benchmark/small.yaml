@@ -1,0 +1,26 @@
+run_name: small
+output_dir: artifacts/runs
+workload:
+  name: mixed_tasks_same_doc
+  request_count: 32
+  shared_document_count: 1
+  sessions: 6
+  tenants: 2
+  max_tokens: 48
+  seed: 11
+  document_tokens: 120
+router:
+  policy: cache_aware
+  alpha: 0.015
+  beta: 0.001
+  gamma: 0.08
+  delta: 0.25
+  epsilon: 0.04
+cache:
+  model: activated_lora
+  block_size: 8
+backend:
+  kind: mock
+  seed: 13
+  ttft_slo_ms: 180
+

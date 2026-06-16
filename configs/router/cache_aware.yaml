@@ -1,0 +1,8 @@
+router:
+  policy: cache_aware
+  alpha: 0.015
+  beta: 0.001
+  gamma: 0.08
+  delta: 0.25
+  epsilon: 0.04
+

@@ -1,0 +1,5 @@
+workload:
+  name: shared_doc_qa
+  request_count: 64
+  document_tokens: 200
+

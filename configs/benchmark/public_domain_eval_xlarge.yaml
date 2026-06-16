@@ -1,0 +1,18 @@
+run_name: public-domain-eval-xlarge
+output_dir: artifacts/runs
+workload:
+  name: jsonl_eval
+  dataset_path: data/eval/public_domain_eval_xlarge.jsonl
+  request_count: 500
+  sessions: 20
+  tenants: 4
+  max_tokens: 64
+router:
+  policy: cache_aware
+cache:
+  model: activated_lora
+  block_size: 8
+backend:
+  kind: mock
+  seed: 37
+  ttft_slo_ms: 180
