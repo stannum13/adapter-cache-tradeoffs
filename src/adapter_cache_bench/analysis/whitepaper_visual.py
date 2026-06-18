@@ -179,46 +179,100 @@ def _large_overlap_summary(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def _dense_overlap_summary(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or "run_id" not in df:
+        return pd.DataFrame()
+    sub = df[df["run_id"].str.contains("exhaustive-overlap-vllm-streaming", na=False)]
+    required = {
+        "sweep_strategy",
+        "sweep_overlap_fraction",
+        "p95_ttft_ms",
+        "server_prefix_cache_hit_rate",
+    }
+    if sub.empty or not required <= set(sub.columns):
+        return pd.DataFrame()
+    return (
+        sub.groupby(["sweep_strategy", "sweep_overlap_fraction"], as_index=False)
+        .agg(
+            runs=("run_id", "count"),
+            p95_ttft_ms=("p95_ttft_ms", "mean"),
+            server_hit=("server_prefix_cache_hit_rate", "mean"),
+            qag=("quality_adjusted_goodput", "mean"),
+        )
+        .sort_values(["sweep_strategy", "sweep_overlap_fraction"])
+    )
+
+
 def draw_cache_frontier(ax, df: pd.DataFrame) -> None:
     _panel(
         ax,
-        "B. Real 7B cache-locality effect",
-        "reset-isolated vLLM runs on one L4",
+        "B. Real overlap trend",
+        "1.5B vLLM: 5 overlap levels x 3 seeds; 7B shown as anchors",
     )
-    summary = _large_overlap_summary(df)
-    if summary.empty:
+    dense = _dense_overlap_summary(df)
+    large = _large_overlap_summary(df)
+    if dense.empty:
         ax.text(
             0.5,
             0.5,
-            "Run large_model_overlap_confidence_vllm",
+            "Run vllm-exhaustive-overlap",
             ha="center",
             va="center",
         )
         return
 
-    x = summary["sweep_overlap_fraction"] * 100
-    ax.plot(
-        x,
-        summary["p95_ttft_ms"],
-        marker="o",
-        linewidth=2.6,
-        color=COLORS["blue"],
-        label="p95 TTFT",
-    )
+    strategy_colors = {
+        "specialists": COLORS["blue"],
+        "multitask": COLORS["teal"],
+    }
+    for strategy, group in dense.groupby("sweep_strategy", sort=False):
+        if group["sweep_overlap_fraction"].nunique() < 4:
+            marker = "o"
+            linestyle = "None"
+        else:
+            marker = "o" if strategy == "specialists" else "s"
+            linestyle = "-"
+        ax.plot(
+            group["sweep_overlap_fraction"] * 100,
+            group["p95_ttft_ms"],
+            marker=marker,
+            linestyle=linestyle,
+            linewidth=2.3,
+            markersize=5.0,
+            color=strategy_colors.get(str(strategy), COLORS["muted"]),
+            label=f"{strategy} p95 TTFT",
+        )
+    if not large.empty:
+        ax.scatter(
+            large["sweep_overlap_fraction"] * 100,
+            large["p95_ttft_ms"],
+            marker="D",
+            s=54,
+            color=COLORS["gold"],
+            edgecolor="white",
+            linewidth=0.8,
+            label="7B reset anchors",
+            zorder=5,
+        )
     ax.set_xlabel("shared-prefix overlap (%)", fontsize=8.8)
-    ax.set_ylabel("p95 TTFT (ms)", fontsize=8.8, color=COLORS["blue"])
-    ax.tick_params(axis="y", colors=COLORS["blue"])
-    ax.set_xlim(45, 100)
+    ax.set_ylabel("p95 TTFT (ms)", fontsize=8.8)
+    ax.set_xlim(-3, 100)
     _axis_style(ax)
+    ax.legend(frameon=False, fontsize=7.5, loc="upper right")
 
     ax2 = ax.twinx()
+    hit_summary = (
+        dense.groupby("sweep_overlap_fraction", as_index=False)
+        .agg(server_hit=("server_hit", "mean"))
+        .sort_values("sweep_overlap_fraction")
+    )
     ax2.plot(
-        x,
-        summary["server_hit"] * 100,
-        marker="s",
-        linewidth=2.3,
-        color=COLORS["teal"],
-        label="server prefix hit",
+        hit_summary["sweep_overlap_fraction"] * 100,
+        hit_summary["server_hit"] * 100,
+        color=COLORS["muted"],
+        linestyle="--",
+        linewidth=1.7,
+        alpha=0.95,
     )
     ax2.set_ylabel("server prefix hit rate (%)", fontsize=8.8, color=COLORS["teal"])
     ax2.tick_params(axis="y", colors=COLORS["teal"], labelsize=8)
@@ -226,24 +280,25 @@ def draw_cache_frontier(ax, df: pd.DataFrame) -> None:
     ax2.spines["right"].set_color(COLORS["grid"])
     ax2.set_ylim(0, 100)
 
-    low = summary.iloc[0]
-    high = summary.iloc[-1]
-    delta = low["p95_ttft_ms"] - high["p95_ttft_ms"]
-    hit_delta = (high["server_hit"] - low["server_hit"]) * 100
-    ax.text(
-        0.04,
-        0.08,
-        f"-{delta:.0f} ms p95 TTFT\n+{hit_delta:.1f} pp prefix hits",
-        transform=ax.transAxes,
-        fontsize=9,
-        color=COLORS["ink"],
-        weight="bold",
-        bbox={
-            "boxstyle": "round,pad=0.28",
-            "facecolor": "white",
-            "edgecolor": COLORS["grid"],
-        },
-    )
+    if not large.empty:
+        low = large.iloc[0]
+        high = large.iloc[-1]
+        delta = low["p95_ttft_ms"] - high["p95_ttft_ms"]
+        hit_delta = (high["server_hit"] - low["server_hit"]) * 100
+        ax.text(
+            0.04,
+            0.08,
+            f"7B anchors: -{delta:.0f} ms p95\n+{hit_delta:.1f} pp prefix hits",
+            transform=ax.transAxes,
+            fontsize=8.6,
+            color=COLORS["ink"],
+            weight="bold",
+            bbox={
+                "boxstyle": "round,pad=0.28",
+                "facecolor": "white",
+                "edgecolor": COLORS["grid"],
+            },
+        )
 
 
 def _source_frontier(df: pd.DataFrame) -> pd.DataFrame:

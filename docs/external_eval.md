@@ -28,6 +28,8 @@ To replace the fixture:
 `make validate-external-eval` is intentionally stricter than the smoke tests. It
 requires at least 500 rows, all four task types, both prompt layouts, balanced
 task counts, repeated shared-prefix groups, and tenant/trust-group fields.
+`make research-readiness` separately reports `independent_external_eval` as
+`needs_evidence` while the template still points at the generated fixture.
 
 For multi-model comparisons, use
 `configs/benchmark/model_family_vllm_template.yaml`. Each model family needs

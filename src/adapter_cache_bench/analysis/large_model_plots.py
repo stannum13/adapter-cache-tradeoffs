@@ -5,6 +5,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
 from adapter_cache_bench.bench.aggregate import load_summaries
 
@@ -46,53 +48,75 @@ def write_large_model_overlap_plot(
         ax.text(0.5, 0.5, "No large-model overlap runs found", ha="center", va="center")
         ax.set_axis_off()
     else:
-        x = summary["sweep_overlap_fraction"] * 100
-        ttft_handle = ax.errorbar(
-            x,
+        labels = [f"{value:.0%} overlap" for value in summary["sweep_overlap_fraction"]]
+        x = range(len(summary))
+        bars = ax.bar(
+            list(x),
             summary["p95_ttft_ms"],
-            yerr=summary["p95_ttft_std_ms"].fillna(0),
-            marker="o",
-            linewidth=2.4,
-            capsize=4,
+            yerr=summary["p95_ttft_std_ms"].fillna(0).to_numpy(),
+            capsize=5,
             color="#2563a9",
+            alpha=0.88,
             label="p95 TTFT",
         )
-        ax.set_xlabel("shared-prefix overlap (%)")
+        ax.bar_label(bars, fmt="%.0f ms", fontsize=8, padding=3)
+        ax.set_xticks(list(x))
+        ax.set_xticklabels(labels)
         ax.set_ylabel("p95 TTFT (ms)", color="#2563a9")
         ax.tick_params(axis="y", colors="#2563a9")
         ax.grid(axis="y", color="#d8dee8", linewidth=0.8)
 
         ax2 = ax.twinx()
-        ax2.plot(
-            x,
+        ax2.scatter(
+            list(x),
             summary["server_prefix_cache_hit_rate"] * 100,
             marker="s",
-            linewidth=2.2,
+            s=70,
             color="#1b8a7a",
             label="server prefix hit rate",
+            zorder=4,
         )
-        ax2.plot(
-            x,
+        ax2.scatter(
+            list(x),
             summary["slo_attainment_rate"] * 100,
             marker="^",
-            linewidth=2.0,
+            s=72,
             color="#b7791f",
             label="SLO attainment",
+            zorder=4,
         )
         ax2.set_ylabel("rate (%)", color="#1b8a7a")
         ax2.tick_params(axis="y", colors="#1b8a7a")
         ax2.set_ylim(0, 105)
 
-        handles = [ttft_handle, *ax2.get_lines()]
-        labels = ["p95 TTFT", *[line.get_label() for line in ax2.get_lines()]]
         ax.legend(
-            handles,
-            labels,
-            loc="best",
+            [
+                Patch(facecolor="#2563a9", alpha=0.88, label="p95 TTFT"),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="s",
+                    linestyle="None",
+                    color="#1b8a7a",
+                    label="server prefix hit rate",
+                ),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="^",
+                    linestyle="None",
+                    color="#b7791f",
+                    label="SLO attainment",
+                ),
+            ],
+            ["p95 TTFT", "server prefix hit rate", "SLO attainment"],
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.10),
+            ncol=3,
             fontsize=8,
             frameon=False,
         )
-        ax.set_title("Qwen2.5-7B reset-isolated cache locality sweep")
+        ax.set_title("Qwen2.5-7B reset-isolated two-condition confirmation")
 
     fig.tight_layout()
     fig.savefig(out, dpi=180)

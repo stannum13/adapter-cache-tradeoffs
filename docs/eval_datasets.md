@@ -35,6 +35,9 @@ Optional fields:
 - `prompt_layout`: `document_before_instruction` or
   `instruction_before_document`.
 - `requires_json`: whether the task expects JSON output.
+- `source_title`, `source_url`, `source_license`: provenance metadata used for
+  public research snapshots. Public-domain fixtures can additionally be checked
+  with `--require-public-domain-license`.
 
 Validate a dataset-backed config before running:
 

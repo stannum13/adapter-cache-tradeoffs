@@ -1,6 +1,7 @@
 import json
 
 from adapter_cache_bench.analysis.adapter_cache_metrics import build_adapter_cache_metrics
+from adapter_cache_bench.analysis.benchmark_v0 import benchmark_v0_summary
 from adapter_cache_bench.bench.aggregate import (
     cache_model_means,
     load_request_rows,
@@ -497,6 +498,62 @@ def test_repeated_seed_summary_reports_mean_and_std():
     assert summary.iloc[0]["run_count"] == 2
     assert summary.iloc[0]["quality_adjusted_goodput_mean"] == 2.0
     assert summary.iloc[0]["quality_adjusted_goodput_std"] > 0
+    assert summary.iloc[0]["quality_adjusted_goodput_ci95_half_width"] > 0
+    assert summary.iloc[0]["quality_adjusted_goodput_ci95_low"] < 2.0
+    assert summary.iloc[0]["quality_adjusted_goodput_ci95_high"] > 2.0
+
+
+def test_benchmark_v0_summary_keeps_latest_complete_matrix():
+    import pandas as pd
+
+    rows = []
+    for workload in [
+        "shared_doc_qa",
+        "mixed_tasks_same_doc",
+        "prompt_layout_ablation",
+        "low_overlap_control",
+    ]:
+        for router in ["semantic", "multitask", "sticky_session", "cache_aware", "oracle"]:
+            for cache in ["standard_lora", "activated_lora", "copy_on_write"]:
+                for seed in [17, 23, 31]:
+                    rows.append(
+                        {
+                            "run_id": f"{workload}-{router}-{cache}-seed{seed}-100",
+                            "request_count": 96,
+                            "backend_kind": "mock",
+                            "workload": workload,
+                            "router_policy": router,
+                            "cache_model": cache,
+                            "quality_adjusted_goodput": 1.0,
+                            "mean_quality": 0.8,
+                            "p95_ttft_ms": 20.0,
+                            "memory_token_footprint": 10,
+                            "mean_ttft_ms": 10.0,
+                            "p50_ttft_ms": 10.0,
+                            "p99_ttft_ms": 30.0,
+                            "mean_e2e_ms": 40.0,
+                            "p95_e2e_ms": 50.0,
+                            "slo_attainment_rate": 1.0,
+                            "request_throughput": 2.0,
+                            "token_throughput": 20.0,
+                            "quality_adjusted_goodput_per_memory_token": 0.1,
+                            "cache_hit_rate": 0.5,
+                            "cached_prompt_token_ratio": 0.4,
+                            "fragmentation_index": 1.0,
+                            "eviction_count": 0,
+                            "evicted_tokens": 0,
+                        }
+                    )
+    rows.append({**rows[0], "run_id": "shared_doc_qa-semantic-standard_lora-seed17-200"})
+
+    summary = benchmark_v0_summary(pd.DataFrame(rows))
+
+    assert len(summary) == 180
+    assert summary.iloc[0]["benchmark_suite"] == "benchmark_v0_mock"
+    assert (
+        summary[summary["run_id"].eq("shared_doc_qa-semantic-standard_lora-seed17-200")].shape[0]
+        == 1
+    )
 
 
 def test_compare_runs_returns_leader_tables(tmp_path):

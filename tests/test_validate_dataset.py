@@ -59,6 +59,7 @@ def test_validate_expanded_source_eval_config_requires_provenance():
         min_shared_prefix_groups=15,
         require_tenant_fields=True,
         require_source_fields=True,
+        require_public_domain_license=True,
     )
 
     assert result["request_count"] == 240
@@ -147,3 +148,67 @@ workload:
 
     with pytest.raises(ValueError, match="missing source provenance"):
         validate_workload_config(config, require_source_fields=True)
+
+
+def test_validate_workload_accepts_non_public_domain_source_license(tmp_path):
+    dataset = tmp_path / "cc_by.jsonl"
+    dataset.write_text(
+        (
+            '{"request_id":"r1","document_id":"d1","shared_prefix_id":"d1",'
+            '"task_type":"qa","document":"doc","question":"q","ground_truth":"a",'
+            '"expected_adapter":"qa","prompt_layout":"document_before_instruction",'
+            '"source_title":"Unit Source","source_url":"https://example.test/source",'
+            '"source_license":"cc-by-4.0"}\n'
+        ),
+        encoding="utf-8",
+    )
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        f"""
+workload:
+  name: jsonl_eval
+  dataset_path: {dataset}
+  request_count: 1
+""",
+        encoding="utf-8",
+    )
+
+    result = validate_workload_config(
+        config,
+        require_source_fields=True,
+        min_shared_prefix_groups=0,
+    )
+
+    assert result["request_count"] == 1
+
+
+def test_validate_workload_can_require_public_domain_license(tmp_path):
+    dataset = tmp_path / "cc_by.jsonl"
+    dataset.write_text(
+        (
+            '{"request_id":"r1","document_id":"d1","shared_prefix_id":"d1",'
+            '"task_type":"qa","document":"doc","question":"q","ground_truth":"a",'
+            '"expected_adapter":"qa","prompt_layout":"document_before_instruction",'
+            '"source_title":"Unit Source","source_url":"https://example.test/source",'
+            '"source_license":"cc-by-4.0"}\n'
+        ),
+        encoding="utf-8",
+    )
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        f"""
+workload:
+  name: jsonl_eval
+  dataset_path: {dataset}
+  request_count: 1
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="without public-domain license"):
+        validate_workload_config(
+            config,
+            require_source_fields=True,
+            require_public_domain_license=True,
+            min_shared_prefix_groups=0,
+        )

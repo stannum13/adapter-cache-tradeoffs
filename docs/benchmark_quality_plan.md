@@ -29,11 +29,13 @@ Command:
 
 ```bash
 make benchmark-v0-mock
+make benchmark-v0-csv
 ```
 
 Config:
 
 - [configs/benchmark/benchmark_v0_mock.yaml](../configs/benchmark/benchmark_v0_mock.yaml)
+- Canonical CSV: [data/results/benchmark_v0_mock.csv](../data/results/benchmark_v0_mock.csv)
 
 Frozen dimensions:
 
@@ -105,6 +107,9 @@ Every table that claims benchmark evidence should include:
 - memory-token footprint or vLLM KV cache capacity;
 - adapter distribution.
 
+Repeated-run summaries also report 95% confidence intervals for
+quality-adjusted goodput, mean quality, and p95 TTFT.
+
 ## External eval requirements
 
 The next credibility jump is an independent public eval fixture. It must have:
@@ -156,11 +161,11 @@ Claims to avoid until stronger evidence exists:
 
 ## Remaining work
 
-1. Freeze `benchmark_v0` outputs into one canonical CSV.
-2. Add confidence intervals over repeated serving runs.
-3. Add an independently curated external eval fixture.
-4. Run real vLLM conditions with server reset per condition.
-5. Maintain the paper-style capacity frontier table in
+1. Add an independently curated external eval fixture.
+2. Run real vLLM conditions with server reset per condition.
+3. Maintain the paper-style capacity frontier table in
    [data/results/capacity_frontier.yaml](../data/results/capacity_frontier.yaml)
-   and regenerate it with `make capacity-frontier`.
-6. Keep failed runs in the documentation when they explain the frontier.
+   and regenerate it with `make capacity-frontier`; `make research-readiness`
+   checks that the records include both startup failures and a larger-GPU
+   success.
+4. Keep failed runs in the documentation when they explain the frontier.

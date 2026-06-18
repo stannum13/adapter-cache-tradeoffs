@@ -1,4 +1,4 @@
-.PHONY: sync test lint format check small matrix benchmark-v0-mock report release-report whitepaper-figure large-model-figures adapter-metrics capacity-frontier research-readiness compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval validate-source-eval-expanded validate-external-eval source-eval source-eval-expanded transformers-source-eval train-qwen7b-adapters train-qwen7b-adapters-seed23 train-qwen7b-adapters-seed31 vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-l4-qwen7b vllm-source-eval-expanded-qwen7b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-source-eval-lora-trained-qwen7b vllm-source-eval-lora-multitask-qwen7b vllm-source-eval-expanded-lora-trained-qwen7b vllm-source-eval-expanded-lora-multitask-qwen7b vllm-source-eval-lora-trained-qwen7b-seed23 vllm-source-eval-lora-multitask-qwen7b-seed23 vllm-source-eval-lora-trained-qwen7b-seed31 vllm-source-eval-lora-multitask-qwen7b-seed31 vllm-external-eval vllm-model-family vllm-large-model-pilot vllm-large-model-confidence vllm-large-model-confidence-reset vllm-large-model vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b-concurrent vllm-heldout-xlarge-lora-trained-qwen15b-concurrent vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent vllm-heldout-xlarge-qwen7b vllm-heldout-xlarge-lora-trained-qwen7b vllm-heldout-xlarge-lora-multitask-qwen7b vllm-heldout-xlarge-qwen7b-concurrent vllm-heldout-xlarge-lora-trained-qwen7b-concurrent vllm-heldout-xlarge-lora-multitask-qwen7b-concurrent vllm-overnight-frontier vllm-overnight-frontier-streaming vllm-exhaustive-layout vllm-exhaustive-overlap vllm-exhaustive-adapter-count vllm-exhaustive-tenant-isolation vllm-exhaustive-confidence vllm-exhaustive-all vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
+.PHONY: sync test lint format check small matrix benchmark-v0-mock benchmark-v0-csv report release-report whitepaper-figure large-model-figures adapter-metrics capacity-frontier research-readiness compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval validate-source-eval-expanded validate-external-eval source-eval source-eval-expanded transformers-source-eval train-qwen7b-adapters train-qwen7b-adapters-seed23 train-qwen7b-adapters-seed31 vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-l4-qwen7b vllm-source-eval-expanded-qwen7b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-source-eval-lora-trained-qwen7b vllm-source-eval-lora-multitask-qwen7b vllm-source-eval-expanded-lora-trained-qwen7b vllm-source-eval-expanded-lora-multitask-qwen7b vllm-source-eval-lora-trained-qwen7b-seed23 vllm-source-eval-lora-multitask-qwen7b-seed23 vllm-source-eval-lora-trained-qwen7b-seed31 vllm-source-eval-lora-multitask-qwen7b-seed31 vllm-external-eval vllm-model-family vllm-large-model-pilot vllm-large-model-confidence vllm-large-model-confidence-reset vllm-large-model vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b-concurrent vllm-heldout-xlarge-lora-trained-qwen15b-concurrent vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent vllm-heldout-xlarge-qwen7b vllm-heldout-xlarge-lora-trained-qwen7b vllm-heldout-xlarge-lora-multitask-qwen7b vllm-heldout-xlarge-qwen7b-concurrent vllm-heldout-xlarge-lora-trained-qwen7b-concurrent vllm-heldout-xlarge-lora-multitask-qwen7b-concurrent vllm-overnight-frontier vllm-overnight-frontier-streaming vllm-exhaustive-layout vllm-exhaustive-overlap vllm-exhaustive-overlap-reset vllm-exhaustive-adapter-count vllm-exhaustive-adapter-count-reset vllm-exhaustive-tenant-isolation vllm-exhaustive-confidence vllm-exhaustive-all vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
 
 sync:
 	uv sync --extra dev
@@ -23,6 +23,9 @@ matrix:
 
 benchmark-v0-mock:
 	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/benchmark_v0_mock.yaml
+
+benchmark-v0-csv:
+	uv run python -m adapter_cache_bench.analysis.benchmark_v0 --runs-dir artifacts/runs --output-csv data/results/benchmark_v0_mock.csv
 
 report:
 	uv run python -m adapter_cache_bench.analysis.report --runs-dir artifacts/runs
@@ -67,7 +70,7 @@ validate-source-eval:
 	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/source_eval.yaml
 
 validate-source-eval-expanded:
-	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/source_eval_expanded.yaml --min-records 200 --require-tasks qa,json,summary,code --require-layouts document_before_instruction,instruction_before_document --balanced-tasks --min-shared-prefix-groups 15 --require-tenant-fields --require-source-fields
+	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/source_eval_expanded.yaml --min-records 200 --require-tasks qa,json,summary,code --require-layouts document_before_instruction,instruction_before_document --balanced-tasks --min-shared-prefix-groups 15 --require-tenant-fields --require-source-fields --require-public-domain-license
 
 validate-external-eval:
 	uv run python -m adapter_cache_bench.workloads.validate_dataset --config configs/benchmark/external_eval_vllm_template.yaml --min-records 500 --require-tasks qa,json,summary,code --require-layouts document_before_instruction,instruction_before_document --balanced-tasks --min-shared-prefix-groups 4 --require-tenant-fields
@@ -216,8 +219,14 @@ vllm-exhaustive-layout:
 vllm-exhaustive-overlap:
 	uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep --config configs/benchmark/exhaustive_overlap_vllm_streaming.yaml
 
+vllm-exhaustive-overlap-reset:
+	uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep --config configs/benchmark/exhaustive_overlap_vllm_streaming.yaml configs/benchmark/local_vllm_reset.yaml
+
 vllm-exhaustive-adapter-count:
 	uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep --config configs/benchmark/exhaustive_adapter_count_vllm_streaming.yaml
+
+vllm-exhaustive-adapter-count-reset:
+	uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep --config configs/benchmark/exhaustive_adapter_count_vllm_streaming.yaml configs/benchmark/local_vllm_reset.yaml
 
 vllm-exhaustive-tenant-isolation:
 	uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep --config configs/benchmark/exhaustive_tenant_isolation_vllm_streaming.yaml

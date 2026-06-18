@@ -25,6 +25,7 @@ def validate_workload_config(
     min_shared_prefix_groups: int = 1,
     require_tenant_fields: bool = False,
     require_source_fields: bool = False,
+    require_public_domain_license: bool = False,
 ) -> dict[str, object]:
     config = load_config(config_path)
     raw_rows = []
@@ -60,10 +61,20 @@ def validate_workload_config(
             for index, row in enumerate(raw_rows[: len(records)])
             if not row.get("source_title")
             or not row.get("source_url")
-            or row.get("source_license") != "public-domain"
+            or not row.get("source_license")
         ]
         if missing_source_fields:
             raise ValueError(f"Records missing source provenance: {missing_source_fields}")
+    if require_public_domain_license:
+        if len(raw_rows) < len(records):
+            raise ValueError("Public-domain license validation requires a JSONL dataset path")
+        non_public_domain = [
+            str(row.get("request_id", index))
+            for index, row in enumerate(raw_rows[: len(records)])
+            if row.get("source_license") != "public-domain"
+        ]
+        if non_public_domain:
+            raise ValueError(f"Records without public-domain license: {non_public_domain}")
 
     task_counts = Counter(record.task_type for record in records)
     layout_counts = Counter(record.prompt_layout for record in records)
@@ -115,6 +126,7 @@ def main() -> None:
     parser.add_argument("--min-shared-prefix-groups", type=int, default=1)
     parser.add_argument("--require-tenant-fields", action="store_true")
     parser.add_argument("--require-source-fields", action="store_true")
+    parser.add_argument("--require-public-domain-license", action="store_true")
     args = parser.parse_args()
     result = validate_workload_config(
         args.config,
@@ -125,6 +137,7 @@ def main() -> None:
         min_shared_prefix_groups=args.min_shared_prefix_groups,
         require_tenant_fields=args.require_tenant_fields,
         require_source_fields=args.require_source_fields,
+        require_public_domain_license=args.require_public_domain_license,
     )
     print(result)
 
