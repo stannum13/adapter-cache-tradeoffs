@@ -145,11 +145,19 @@ def check_research_readiness(
         configured = len(model_specs)
         complete_specs = _complete_model_specs(model_specs)
         observed_aliases = _observed_model_family_aliases(runs_dir)
-        if configured >= 2 and len(complete_specs) >= 2 and len(observed_aliases) >= 2:
+        if len(observed_aliases) >= 2:
             items.append(
                 _ok(
                     "multi_model_comparison",
                     f"{len(observed_aliases)} served model families observed",
+                )
+            )
+        elif configured >= 2 and len(complete_specs) >= 2:
+            items.append(
+                _needs_evidence(
+                    "multi_model_comparison",
+                    "multi-family sweep config is complete; run at least two served "
+                    "model families before claiming cross-family evidence",
                 )
             )
         else:

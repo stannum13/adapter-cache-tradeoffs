@@ -28,8 +28,9 @@ backend.
 
 - `mock` / `mock-causal-transformer`: 182 runs, 17552 requests, mean quality 0.892, mean p95 TTFT 77.5 ms.
 - `unknown` / `unknown`: 116 runs, 5221 requests, mean quality 0.837, mean p95 TTFT 111.4 ms.
-- `vllm` / `Qwen/Qwen2.5-1.5B-Instruct`: 193 runs, 12036 requests, mean quality 0.447, mean p95 TTFT 1263.3 ms.
+- `vllm` / `Qwen/Qwen2.5-1.5B-Instruct`: 199 runs, 15036 requests, mean quality 0.448, mean p95 TTFT 1228.5 ms.
 - `vllm` / `Qwen/Qwen2.5-7B-Instruct`: 46 runs, 3432 requests, mean quality 0.274, mean p95 TTFT 1033.7 ms.
+- `vllm` / `TinyLlama/TinyLlama-1.1B-Chat-v1.0`: 6 runs, 3000 requests, mean quality 0.375, mean p95 TTFT 87.4 ms.
 
 ### Claim ladder
 
@@ -70,7 +71,7 @@ budget for the workload.
 ### Interpretation
 
 - Best aggregate cache strategy: `base_shared` with mean quality-adjusted goodput 13.940.
-- Best cache-footprint efficiency: `activated_lora` with mean quality-adjusted goodput per memory token 0.012056.
+- Best cache-footprint efficiency: `activated_lora` with mean quality-adjusted goodput per memory token 0.011626.
 - Prompt layout matters: `document_before_instruction` is 58.2 ms lower mean TTFT than `instruction_before_document` in the current artifact set.
 - Highest eviction pressure: `standard_lora` on `mixed_tasks_same_doc` with 12 evictions.
 - Repeated-seed leader: `cache_aware` with `activated_lora` on `mixed_tasks_same_doc`.
@@ -118,7 +119,7 @@ Generated tables:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | base_shared | multitask-or-shared-base | 13.940 | 0.000 | 52.145 | 0.844 | 1.000 | nan |
 | copy_on_write | copy-on-write-delta | 11.945 | 0.003 | 168.414 | 0.796 | 1.029 | 0.000 |
-| activated_lora | activated-late-specialization | 11.529 | 0.012 | 889.673 | 0.779 | 1.002 | 0.000 |
+| activated_lora | activated-late-specialization | 11.480 | 0.012 | 858.350 | 0.779 | 1.001 | 0.000 |
 | standard_lora | specialist-adapter | 9.373 | 0.002 | 337.503 | 0.772 | 1.126 | 0.122 |
 
 ### Router means
@@ -127,10 +128,10 @@ Generated tables:
 | --- | --- | --- | --- | --- |
 | oracle | 13.810 | 0.003 | 0.918 | 71.827 |
 | sticky_session | 13.810 | 0.003 | 0.918 | 71.827 |
-| cache_aware | 12.757 | 0.015 | 0.519 | 889.302 |
+| cache_aware | 12.662 | 0.015 | 0.518 | 868.615 |
 | semantic | 11.336 | 0.003 | 0.898 | 241.675 |
 | random | 10.508 | 0.000 | 0.685 | 56.757 |
-| multitask | 5.378 | 0.002 | 0.557 | 849.183 |
+| multitask | 5.698 | 0.002 | 0.549 | 809.996 |
 
 ### Repeated-seed summary
 
@@ -183,9 +184,9 @@ Generated tables:
 
 | ttft_slo_ms | workload | router_policy | cache_model | quality_adjusted_goodput | requests_under_slo |
 | --- | --- | --- | --- | --- | --- |
-| 250.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
 | 100.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
 | 150.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
+| 250.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
 | 50.000 | jsonl_eval | cache_aware | activated_lora | 19.389 | 100 |
 | 25.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 18.808 | 30 |
 

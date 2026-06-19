@@ -1,7 +1,32 @@
+import json
+
 from adapter_cache_bench.analysis.research_readiness import (
     check_research_readiness,
     format_markdown,
 )
+
+
+def write_model_family_summary(runs_dir, run_id, model_alias):
+    run_dir = runs_dir / run_id
+    run_dir.mkdir()
+    (run_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "workload": "jsonl_eval",
+                "router_policy": "cache_aware",
+                "cache_model": "activated_lora",
+                "quality_adjusted_goodput": 1.0,
+                "mean_quality": 1.0,
+                "p95_ttft_ms": 100.0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "manifest.json").write_text(
+        json.dumps({"sweep_dimensions": {"model_alias": model_alias}}),
+        encoding="utf-8",
+    )
 
 
 def test_research_readiness_reports_all_lanes(tmp_path):
@@ -62,3 +87,14 @@ matrix:
     by_name = {item.name: item for item in items}
 
     assert by_name["multi_model_comparison"].status == "needs_evidence"
+
+
+def test_multi_model_readiness_accepts_observed_run_aliases(tmp_path):
+    write_model_family_summary(tmp_path, "model-family-vllm-a", "a")
+    write_model_family_summary(tmp_path, "model-family-vllm-b", "b")
+
+    items = check_research_readiness(runs_dir=tmp_path)
+    by_name = {item.name: item for item in items}
+
+    assert by_name["multi_model_comparison"].status == "ok"
+    assert "2 served model families observed" in by_name["multi_model_comparison"].detail
