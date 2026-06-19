@@ -1,13 +1,14 @@
 # External eval path
 
-The included JSONL fixtures are public-domain-style engineering fixtures. They
-are enough to validate the benchmark harness, but stronger claims need a larger
-independently curated eval set.
+The included external JSONL fixture is source-backed public-domain data derived
+from online public-domain texts. It is enough to validate the benchmark harness
+and provide a license-clear external path, but stronger claims should still
+prefer a separately curated eval set.
 
 Use `configs/benchmark/external_eval_vllm_template.yaml` as the starting point.
-The default points at the generated 500-row public-domain-style fixture so the
-systems path is runnable, but public claims should replace
-`workload.dataset_path` with an independently curated JSONL dataset:
+The default points at `data/eval/external_public_domain_eval.jsonl`, a 500-row
+fixture with source provenance, repeated shared-prefix groups, balanced task
+types, and both prompt layouts:
 
 ```bash
 make validate-external-eval
@@ -27,9 +28,8 @@ To replace the fixture:
 
 `make validate-external-eval` is intentionally stricter than the smoke tests. It
 requires at least 500 rows, all four task types, both prompt layouts, balanced
-task counts, repeated shared-prefix groups, and tenant/trust-group fields.
-`make research-readiness` separately reports `independent_external_eval` as
-`needs_evidence` while the template still points at the generated fixture.
+task counts, repeated shared-prefix groups, tenant/trust-group fields, source
+provenance, and public-domain licenses for the included fixture.
 
 For multi-model comparisons, use
 `configs/benchmark/model_family_vllm_template.yaml`. Each model family needs

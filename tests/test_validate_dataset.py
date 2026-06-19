@@ -38,6 +38,25 @@ def test_validate_xlarge_public_domain_eval_config():
     assert result["trust_group_count"] == 2
 
 
+def test_validate_external_public_domain_eval_config():
+    result = validate_workload_config(
+        "configs/benchmark/external_eval_vllm_template.yaml",
+        min_records=500,
+        required_tasks={"qa", "json", "summary", "code"},
+        required_layouts={"document_before_instruction", "instruction_before_document"},
+        balanced_tasks=True,
+        min_shared_prefix_groups=25,
+        require_tenant_fields=True,
+        require_source_fields=True,
+        require_public_domain_license=True,
+    )
+
+    assert result["request_count"] == 500
+    assert result["task_counts"] == {"code": 125, "json": 125, "qa": 125, "summary": 125}
+    assert result["repeated_shared_prefix_groups"] == 25
+    assert result["tenant_count"] == 5
+
+
 def test_validate_source_eval_config():
     result = validate_workload_config("configs/benchmark/source_eval.yaml")
 

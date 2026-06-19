@@ -183,9 +183,10 @@ health, scrapes `/metrics`, runs the benchmark, and records metric deltas.
 
 ## Stronger Eval And Multi-Model Work
 
-The included JSONL fixtures are engineering fixtures, not paper-grade external
-evals. The next research pass should replace them with independently curated
-data and repeat the same sweeps across model families.
+The included external JSONL fixture is source-backed public-domain data with
+provenance fields. It is license-clear and reproducible, but it is not a
+standard public benchmark. The next research pass should run it through vLLM and
+repeat the same sweeps across model families.
 
 ```bash
 make validate-external-eval

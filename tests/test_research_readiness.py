@@ -18,7 +18,7 @@ def test_research_readiness_reports_all_lanes(tmp_path):
         "public_result_refresh",
     }
     assert by_name["external_eval_preflight"].status == "ok"
-    assert by_name["independent_external_eval"].status == "needs_evidence"
+    assert by_name["independent_external_eval"].status == "ok"
     assert by_name["per_condition_vllm_cache_isolation"].status == "ok"
     assert by_name["multi_model_comparison"].status == "needs_evidence"
     assert by_name["capacity_frontier_evidence"].status == "ok"

@@ -62,7 +62,7 @@ Avoid saying:
 
 - specialists are universally better than multitask adapters;
 - these scores are comparable to standard public LLM benchmarks;
-- the quality margin will hold on independently curated data.
+- the quality margin will hold on separately curated benchmark data.
 
 ## Claim 3: adapter count changes serving capacity
 
@@ -122,7 +122,8 @@ Operationally, this repo measures that with:
 
 ## What remains unproven
 
-- independently curated external eval performance;
+- vLLM performance on the 500-row source-backed external fixture;
+- separately curated standard-benchmark performance;
 - multi-family results beyond the current Qwen-centered evidence;
 - adapter-aware vLLM cache counters rather than server-level counters;
 - production activated-LoRA cache-key behavior;

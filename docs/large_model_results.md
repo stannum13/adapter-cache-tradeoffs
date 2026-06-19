@@ -298,6 +298,6 @@ Notes:
   large-model cache/SLO evidence.
 - The concurrent trained-adapter run above addresses the serving-load part of
   the next-step evidence. The source-backed runs add a larger non-generated
-  eval fixture and three trained-adapter seeds. Remaining gaps are an
-  independently curated external eval, larger-GPU confirmation of the adapter
-  capacity frontier, and publication of adapter checkpoints.
+  eval fixture and three trained-adapter seeds. Remaining gaps are serving the
+  500-row external fixture, running a second trained model family, and
+  publication of adapter checkpoints.

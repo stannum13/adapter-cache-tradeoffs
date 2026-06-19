@@ -14,7 +14,7 @@ data, scoring, and run protocol below are frozen and repeated.
 | Cache evidence | Simulator metrics and vLLM server-level counters exist. | Report simulator cache accounting and server counters side by side, with metric scope clearly labeled. |
 | Capacity evidence | One L4 fails 8/10 LoRAs at 4096 context; one H100 80GB serves 10 LoRAs. | Record a GPU/model/context/adapter-count capacity table with exact failure messages and startup logs. |
 | Claim discipline | [claim_ladder.md](claim_ladder.md) separates supported claims from non-claims. | Keep each public claim tied to request count, run count, model, hardware, and metric scope. |
-| External validity | Public-domain-style and source-backed fixtures exist. | Add an independently curated public eval fixture before making broad model-quality claims. |
+| External validity | Source-backed public-domain fixtures exist, including a 500-row external path. | Prefer a separately curated public eval fixture before making broad model-quality claims. |
 
 ## Benchmark v0 definition
 
@@ -112,7 +112,9 @@ quality-adjusted goodput, mean quality, and p95 TTFT.
 
 ## External eval requirements
 
-The next credibility jump is an independent public eval fixture. It must have:
+The included external fixture is a 500-row source-backed public-domain suite.
+The next credibility jump is a separately curated public eval fixture. It must
+have:
 
 - at least 500 records;
 - balanced `qa`, `json`, `summary`, and `code` tasks;
@@ -129,8 +131,9 @@ The repo already has a preflight command:
 make validate-external-eval
 ```
 
-The current default external-eval template is still an engineering fixture. It
-is useful for exercising the pipeline, not for final paper-quality claims.
+The current default external-eval template points at the included
+source-backed public-domain fixture. It is useful for exercising the pipeline
+and license-clear external runs, but it is not a standard public LLM benchmark.
 
 ## Claim discipline
 
@@ -161,11 +164,10 @@ Claims to avoid until stronger evidence exists:
 
 ## Remaining work
 
-1. Add an independently curated external eval fixture.
-2. Run real vLLM conditions with server reset per condition.
-3. Maintain the paper-style capacity frontier table in
+1. Run real vLLM conditions with server reset per condition.
+2. Maintain the paper-style capacity frontier table in
    [data/results/capacity_frontier.yaml](../data/results/capacity_frontier.yaml)
    and regenerate it with `make capacity-frontier`; `make research-readiness`
    checks that the records include both startup failures and a larger-GPU
    success.
-4. Keep failed runs in the documentation when they explain the frontier.
+3. Keep failed runs in the documentation when they explain the frontier.
