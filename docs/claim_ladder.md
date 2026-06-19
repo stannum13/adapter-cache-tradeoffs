@@ -99,6 +99,38 @@ Best current wording:
 > production validation requires a serving stack with the corresponding kernel
 > or cache-key behavior.
 
+## Claim 5: the tradeoff reproduces across two small causal-transformer families
+
+Status: **supported on the included 500-row source-backed fixture**.
+
+Run provenance: June 20, 2026 overnight L4 run using vLLM `0.23.0`, one
+NVIDIA L4, `Qwen/Qwen2.5-1.5B-Instruct`,
+`TinyLlama/TinyLlama-1.1B-Chat-v1.0`, and task/multitask LoRAs trained from
+the same source-backed SFT split. Each strategy/family cell used three seeds
+and 1,500 total requests.
+
+| family | strategy | requests | runs | mean quality | p95 TTFT | QAG | SLO attainment | server prefix hit rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Qwen2.5-1.5B | specialists | 1,500 | 3 | 0.532 | 108.2 ms | 12.164 | 100.0% | 78.4% |
+| Qwen2.5-1.5B | multitask | 1,500 | 3 | 0.460 | 111.9 ms | 12.654 | 100.0% | 80.4% |
+| TinyLlama-1.1B | specialists | 1,500 | 3 | 0.383 | 77.5 ms | 6.026 | 100.0% | 74.2% |
+| TinyLlama-1.1B | multitask | 1,500 | 3 | 0.366 | 97.4 ms | 10.290 | 100.0% | 76.3% |
+
+Best current wording:
+
+> On the included 500-row source-backed fixture, the basic specialization/cache
+> tradeoff reproduced on both Qwen2.5-1.5B and TinyLlama-1.1B. Specialist
+> adapters improved mean quality in both families, but the serving objective was
+> not uniformly better: multitask routing had similar or better cache reuse and
+> higher QAG in the TinyLlama run because it used one adapter slot instead of
+> four.
+
+Avoid saying:
+
+- specialists dominate multitask on every metric;
+- TinyLlama evidence establishes behavior for larger Llama-family models;
+- this source-backed fixture is a standard public LLM benchmark.
+
 ## Decision rule
 
 Treat specialization as worth it only when:
@@ -122,9 +154,8 @@ Operationally, this repo measures that with:
 
 ## What remains unproven
 
-- vLLM performance on the 500-row source-backed external fixture;
 - separately curated standard-benchmark performance;
-- multi-family results beyond the current Qwen-centered evidence;
+- multi-family results beyond the current Qwen/TinyLlama small-model evidence;
 - adapter-aware vLLM cache counters rather than server-level counters;
 - production activated-LoRA cache-key behavior;
 - dollar-cost and power-cost frontiers across GPU types.

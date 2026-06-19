@@ -53,6 +53,35 @@ make vllm-exhaustive-all
   - routers: `semantic`, `cache_aware`
   - caches: `standard_lora`, `activated_lora`, `copy_on_write`
   - seeds: `17`, `23`, `31`
+- 12-run model-family sweep on the 500-row source-backed fixture:
+  - families: `Qwen/Qwen2.5-1.5B-Instruct`,
+    `TinyLlama/TinyLlama-1.1B-Chat-v1.0`
+  - strategies: `specialists`, `multitask`
+  - seeds: `17`, `23`, `31`
+  - requests: 6,000
+
+## Source-backed model-family sweep
+
+This overnight sweep served two causal-transformer families through vLLM with
+compatible specialist and multitask LoRAs trained from the same SFT split of
+`data/eval/external_public_domain_eval.jsonl`.
+
+| family | strategy | requests | runs | quality | p95 TTFT ms | QAG | SLO attainment | server prefix hit rate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Qwen2.5-1.5B | specialists | 1,500 | 3 | 0.532 | 108.2 | 12.164 | 1.000 | 0.784 |
+| Qwen2.5-1.5B | multitask | 1,500 | 3 | 0.460 | 111.9 | 12.654 | 1.000 | 0.804 |
+| TinyLlama-1.1B | specialists | 1,500 | 3 | 0.383 | 77.5 | 6.026 | 1.000 | 0.742 |
+| TinyLlama-1.1B | multitask | 1,500 | 3 | 0.366 | 97.4 | 10.290 | 1.000 | 0.763 |
+
+Interpretation:
+
+- Specialist adapters improved mean quality in both families.
+- Qwen specialists and multitask had similar p95 TTFT and QAG; specialists won
+  quality, multitask had slightly higher QAG.
+- TinyLlama specialists had higher quality and lower p95 TTFT, but multitask
+  had higher QAG because it used one adapter slot instead of four.
+- This is cross-family evidence for the tradeoff, not a universal specialist
+  win and not a replacement for a standard public benchmark.
 
 ## Headline xlarge result
 
