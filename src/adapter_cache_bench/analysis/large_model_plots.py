@@ -4,10 +4,16 @@ import argparse
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
 
+from adapter_cache_bench.analysis.plot_style import (
+    COLORS,
+    apply_dark_theme,
+    save_figure,
+    style_axis,
+)
 from adapter_cache_bench.bench.aggregate import load_summaries
 
 
@@ -42,86 +48,109 @@ def write_large_model_overlap_plot(
     summary = latest_large_overlap_summary(load_summaries(runs_dir))
     out = Path(output)
     out.parent.mkdir(parents=True, exist_ok=True)
+    apply_dark_theme()
 
-    fig, ax = plt.subplots(figsize=(7.2, 4.2))
+    fig, ax = plt.subplots(figsize=(8.2, 4.6))
     if summary.empty:
-        ax.text(0.5, 0.5, "No large-model overlap runs found", ha="center", va="center")
+        ax.text(
+            0.5,
+            0.5,
+            "No large-model overlap runs found",
+            ha="center",
+            va="center",
+            color=COLORS["muted"],
+        )
         ax.set_axis_off()
     else:
         labels = [f"{value:.0%} overlap" for value in summary["sweep_overlap_fraction"]]
-        x = range(len(summary))
-        bars = ax.bar(
-            list(x),
+        y = np.arange(len(summary))
+        bars = ax.barh(
+            y,
             summary["p95_ttft_ms"],
-            yerr=summary["p95_ttft_std_ms"].fillna(0).to_numpy(),
+            xerr=summary["p95_ttft_std_ms"].fillna(0).to_numpy(),
             capsize=5,
-            color="#2563a9",
-            alpha=0.88,
+            color=COLORS["blue"],
+            alpha=0.94,
+            height=0.54,
             label="p95 TTFT",
         )
-        ax.bar_label(bars, fmt="%.0f ms", fontsize=8, padding=3)
-        ax.set_xticks(list(x))
-        ax.set_xticklabels(labels)
-        ax.set_ylabel("p95 TTFT (ms)", color="#2563a9")
-        ax.tick_params(axis="y", colors="#2563a9")
-        ax.grid(axis="y", color="#d8dee8", linewidth=0.8)
+        ax.bar_label(
+            bars,
+            labels=[f"{value:.0f} ms" for value in summary["p95_ttft_ms"]],
+            fontsize=8,
+            padding=4,
+            color=COLORS["text"],
+        )
+        ax.set_yticks(y)
+        ax.set_yticklabels(labels)
+        ax.set_xlabel("p95 TTFT (ms)")
+        style_axis(ax, xgrid=True, ygrid=False)
 
-        ax2 = ax.twinx()
+        ax2 = ax.twiny()
         ax2.scatter(
-            list(x),
             summary["server_prefix_cache_hit_rate"] * 100,
-            marker="s",
-            s=70,
-            color="#1b8a7a",
+            y,
+            marker="o",
+            s=58,
+            color=COLORS["teal"],
             label="server prefix hit rate",
             zorder=4,
         )
         ax2.scatter(
-            list(x),
             summary["slo_attainment_rate"] * 100,
-            marker="^",
-            s=72,
-            color="#b7791f",
+            y,
+            marker="s",
+            s=56,
+            color=COLORS["amber"],
             label="SLO attainment",
             zorder=4,
         )
-        ax2.set_ylabel("rate (%)", color="#1b8a7a")
-        ax2.tick_params(axis="y", colors="#1b8a7a")
-        ax2.set_ylim(0, 105)
+        ax2.set_xlabel("Rate (%)", color=COLORS["muted"])
+        ax2.tick_params(axis="x", colors=COLORS["muted"], labelsize=8.5)
+        ax2.spines["top"].set_color(COLORS["spine"])
+        ax2.spines["right"].set_visible(False)
+        ax2.spines["left"].set_visible(False)
+        ax2.spines["bottom"].set_visible(False)
+        ax2.set_xlim(0, 105)
 
-        ax.legend(
+        legend = ax.legend(
             [
-                Patch(facecolor="#2563a9", alpha=0.88, label="p95 TTFT"),
                 Line2D(
                     [0],
                     [0],
-                    marker="s",
+                    color=COLORS["blue"],
+                    linewidth=5,
+                    label="p95 TTFT",
+                ),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
                     linestyle="None",
-                    color="#1b8a7a",
+                    color=COLORS["teal"],
                     label="server prefix hit rate",
                 ),
                 Line2D(
                     [0],
                     [0],
-                    marker="^",
+                    marker="s",
                     linestyle="None",
-                    color="#b7791f",
+                    color=COLORS["amber"],
                     label="SLO attainment",
                 ),
             ],
             ["p95 TTFT", "server prefix hit rate", "SLO attainment"],
             loc="upper center",
-            bbox_to_anchor=(0.5, -0.10),
+            bbox_to_anchor=(0.5, -0.14),
             ncol=3,
             fontsize=8,
             frameon=False,
         )
-        ax.set_title("Qwen2.5-7B reset-isolated two-condition confirmation")
+        for text in legend.get_texts():
+            text.set_color(COLORS["muted"])
+        ax.set_title("Qwen2.5-7B reset-isolated two-condition confirmation", loc="left", pad=10)
 
-    fig.tight_layout()
-    fig.savefig(out, dpi=180)
-    plt.close(fig)
-    return out
+    return save_figure(fig, out)
 
 
 def main() -> None:
