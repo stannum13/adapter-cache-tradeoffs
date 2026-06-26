@@ -1,7 +1,11 @@
+import importlib
 import json
+
+import pytest
 
 from adapter_cache_bench.analysis.adapter_cache_metrics import build_adapter_cache_metrics
 from adapter_cache_bench.analysis.benchmark_v0 import benchmark_v0_summary
+from adapter_cache_bench.backends.mock_backend import MockBackend
 from adapter_cache_bench.bench.aggregate import (
     cache_model_means,
     load_request_rows,
@@ -41,15 +45,81 @@ def test_benchmark_run_writes_artifacts(tmp_path):
     assert (run_dir / "requests.jsonl").exists()
     assert (run_dir / "summary.json").exists()
     assert (run_dir / "config_resolved.yaml").exists()
+    assert (run_dir / "status.json").exists()
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["run_id"] == "unit"
     assert manifest["request_count"] == 8
     assert manifest["cache_model"] == "activated_lora"
+    assert manifest["backend_model"] == "mock-causal-transformer"
+    assert manifest["base_url"] == "http://localhost:8000/v1"
+    assert manifest["stream"] is False
+    assert manifest["adapter_model_names"] == {}
+    assert manifest["max_concurrency"] == 1
+    assert manifest["request_spacing_ms"] == 0.0
+    assert "status.json" in manifest["artifact_files"]
     assert "git_commit" in manifest
     assert "git_dirty" in manifest
+    status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+    assert status["status"] == "complete"
+    assert status["completed_request_count"] == 8
+    assert status["failed_request_count"] == 0
+    assert status["elapsed_s"] >= 0.0
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["slo_attainment_rate"] >= 0.0
     assert summary["quality_adjusted_goodput_per_memory_token"] >= 0.0
+
+
+def test_benchmark_run_marks_failed_status_on_request_exception(tmp_path, monkeypatch):
+    run_workload_module = importlib.import_module("adapter_cache_bench.bench.run_workload")
+
+    class FlakyBackend:
+        def __init__(self, config):
+            self.inner = MockBackend(config)
+
+        def generate(self, request, decision, cache_model):
+            if request.request_id.endswith("00001"):
+                raise RuntimeError("unit boom")
+            return self.inner.generate(request, decision, cache_model)
+
+    monkeypatch.setattr(
+        run_workload_module,
+        "make_backend",
+        lambda backend_config: FlakyBackend(backend_config),
+    )
+    config = BenchmarkConfig(
+        run_name="test-failed",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="mixed_tasks_same_doc", request_count=4, document_tokens=24),
+        cache=CacheConfig(model="activated_lora", block_size=4),
+        router=RouterConfig(policy="cache_aware"),
+    )
+
+    with pytest.raises(RuntimeError, match="unit boom"):
+        run_workload_module.run(
+            config,
+            run_id="unit-failed",
+            report_path=tmp_path / "report.md",
+            tables_dir=tmp_path / "tables",
+            generate_report_artifacts=False,
+        )
+
+    run_dir = tmp_path / "unit-failed"
+    rows = [
+        json.loads(line)
+        for line in (run_dir / "requests.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+    assert (run_dir / "config_resolved.yaml").exists()
+    assert (run_dir / "manifest.json").exists()
+    assert len(rows) == 2
+    assert "response" in rows[0]
+    assert rows[1]["error"]["type"] == "RuntimeError"
+    assert rows[1]["error"]["message"] == "unit boom"
+    assert status["status"] == "failed"
+    assert status["completed_request_count"] == 1
+    assert status["failed_request_count"] == 1
+    assert status["exception_type"] == "RuntimeError"
+    assert status["exception_message"] == "unit boom"
 
 
 def test_benchmark_run_scrapes_backend_metrics_when_enabled(tmp_path, monkeypatch):
@@ -181,6 +251,66 @@ def test_concurrent_benchmark_run_writes_artifacts(tmp_path):
     assert summary["request_throughput"] > 0.0
     assert manifest["max_concurrency"] == 3
     assert first_row["load"]["max_concurrency"] == 3
+
+
+def test_concurrent_benchmark_streams_error_rows_and_failed_status(tmp_path, monkeypatch):
+    run_concurrent_module = importlib.import_module("adapter_cache_bench.bench.run_concurrent")
+
+    class FlakyBackend:
+        def __init__(self, config):
+            self.inner = MockBackend(config)
+
+        def generate(self, request, decision, cache_model):
+            if request.request_id.endswith("00001"):
+                raise RuntimeError("concurrent unit boom")
+            return self.inner.generate(request, decision, cache_model)
+
+    monkeypatch.setattr(
+        run_concurrent_module,
+        "make_backend",
+        lambda backend_config: FlakyBackend(backend_config),
+    )
+    config = BenchmarkConfig(
+        run_name="concurrent-failed",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="mixed_tasks_same_doc", request_count=4, document_tokens=24),
+        cache=CacheConfig(model="activated_lora", block_size=4),
+        router=RouterConfig(policy="cache_aware"),
+        backend=BackendConfig(kind="mock", max_concurrency=2),
+    )
+
+    with pytest.raises(RuntimeError, match=r"1 concurrent request\(s\) failed"):
+        run_concurrent_module.run_concurrent(
+            config,
+            run_id="unit-concurrent-failed",
+            report_path=tmp_path / "report.md",
+            tables_dir=tmp_path / "tables",
+            generate_report_artifacts=False,
+        )
+
+    run_dir = tmp_path / "unit-concurrent-failed"
+    rows = [
+        json.loads(line)
+        for line in (run_dir / "requests.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    error_rows = [row for row in rows if "error" in row]
+    response_rows = [row for row in rows if "response" in row]
+    status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert len(rows) == 4
+    assert len(response_rows) == 3
+    assert len(error_rows) == 1
+    assert error_rows[0]["error"]["type"] == "RuntimeError"
+    assert error_rows[0]["error"]["message"] == "concurrent unit boom"
+    assert error_rows[0]["load"]["max_concurrency"] == 2
+    assert summary["request_count"] == 3
+    assert status["status"] == "failed"
+    assert status["completed_request_count"] == 3
+    assert status["failed_request_count"] == 1
+    assert status["exception_type"] == "RuntimeError"
+    assert status["exception_message"] == "1 concurrent request(s) failed"
+    assert manifest["wall_duration_s"] > 0.0
 
 
 def test_load_request_rows_reads_layout_and_metrics(tmp_path):
