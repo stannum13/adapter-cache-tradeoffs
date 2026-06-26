@@ -54,6 +54,10 @@ capacity-frontier:
 research-readiness:
 	uv run python -m adapter_cache_bench.analysis.research_readiness --runs-dir artifacts/runs
 
+.PHONY: evidence-bundle
+evidence-bundle:
+	uv run python -m adapter_cache_bench.analysis.evidence_bundle --bundle-name $(or $(BUNDLE),latest) $(if $(OUTPUT),--output-dir $(OUTPUT),) $(foreach run,$(RUNS),--run $(run)) $(foreach pattern,$(RUN_GLOBS),--run-glob $(pattern)) $(foreach report,$(REPORTS),--report $(report)) $(foreach figure,$(FIGURES),--figure $(figure))
+
 compare:
 	uv run python -m adapter_cache_bench.bench.compare --runs-dir artifacts/runs
 
