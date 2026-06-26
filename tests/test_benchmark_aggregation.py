@@ -369,6 +369,65 @@ def test_load_request_rows_reads_layout_and_metrics(tmp_path):
     assert df.iloc[0]["sweep_overlap_fraction"] == 0.75
 
 
+def test_load_request_rows_skips_error_rows(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run",
+                "router_policy": "semantic",
+                "cache_model": "activated_lora",
+                "workload": "prompt_layout_ablation",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "requests.jsonl").write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "request": {
+                            "request_id": "r1",
+                            "prompt_layout": "document_before_instruction",
+                            "task_type": "qa",
+                        },
+                        "routing": {"adapter_id": "qa"},
+                        "error": {"type": "RuntimeError", "message": "boom"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "request": {
+                            "request_id": "r2",
+                            "prompt_layout": "document_before_instruction",
+                            "task_type": "qa",
+                        },
+                        "routing": {"adapter_id": "qa"},
+                        "response": {
+                            "metrics": {
+                                "ttft_ms": 12.0,
+                                "e2e_ms": 24.0,
+                                "cached_prompt_tokens": 4,
+                                "prompt_tokens": 16,
+                            },
+                            "quality": {"score": 0.7},
+                        },
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    df = load_request_rows(tmp_path)
+
+    assert list(df["request_id"]) == ["r2"]
+    assert df.iloc[0]["ttft_ms"] == 12.0
+
+
 def test_load_summaries_reads_concurrency_metadata_from_manifest(tmp_path):
     run_dir = tmp_path / "run"
     run_dir.mkdir()

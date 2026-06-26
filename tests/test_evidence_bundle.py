@@ -34,6 +34,10 @@ def _write_run(runs_dir, run_id: str, *, include_manifest: bool = True):
             ),
             encoding="utf-8",
         )
+    (run_dir / "status.json").write_text(
+        json.dumps({"run_id": run_id, "status": "complete"}),
+        encoding="utf-8",
+    )
     (run_dir / "requests.jsonl").write_text(
         json.dumps({"request": {"id": "r1"}}) + "\n",
         encoding="utf-8",
@@ -75,6 +79,7 @@ def test_build_evidence_bundle_records_selected_runs_and_hashes(tmp_path):
         "config_resolved_yaml": True,
         "manifest_json": True,
         "summary_json": True,
+        "status_json": True,
     }
     assert run_record["missing_required_files"] == []
     assert run_record["run_git"] == {"commit": "abc123", "dirty": False}
@@ -83,6 +88,7 @@ def test_build_evidence_bundle_records_selected_runs_and_hashes(tmp_path):
     assert included["summary"]["sha256"] == sha256_file(run_a / "summary.json")
     assert included["resolved_config"]["relative_path"] == "run-a/config_resolved.yaml"
     assert included["run_manifest"]["size_bytes"] > 0
+    assert included["run_status"]["sha256"] == sha256_file(run_a / "status.json")
     assert all(item["exists"] for item in included.values())
 
     excluded = run_record["excluded_raw_artifacts"]
@@ -114,6 +120,7 @@ def test_build_evidence_bundle_supports_globs_and_missing_manifest(tmp_path):
     assert [run["run_id"] for run in payload["runs"]] == ["alpha-1"]
     run_record = payload["runs"][0]
     assert run_record["presence"]["manifest_json"] is False
+    assert run_record["presence"]["status_json"] is True
     assert run_record["missing_required_files"] == ["alpha-1/manifest.json"]
     manifest_file = [
         item for item in run_record["included_files"] if item["role"] == "run_manifest"

@@ -297,6 +297,8 @@ def load_request_rows(runs_dir: str | Path) -> pd.DataFrame:
         with path.open("r", encoding="utf-8") as handle:
             for line in handle:
                 record = json.loads(line)
+                if "response" not in record:
+                    continue
                 request = record["request"]
                 response = record["response"]
                 metrics = response["metrics"]

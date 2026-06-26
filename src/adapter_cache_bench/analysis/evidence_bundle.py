@@ -15,6 +15,7 @@ CORE_RUN_FILES = {
     "summary.json": "summary",
     "config_resolved.yaml": "resolved_config",
     "manifest.json": "run_manifest",
+    "status.json": "run_status",
 }
 RAW_ARTIFACT_PATTERNS = (
     "requests.jsonl",
@@ -172,6 +173,7 @@ def _run_record(run_dir: Path, runs_dir: Path) -> dict[str, Any]:
         "summary_json": (run_dir / "summary.json").exists(),
         "config_resolved_yaml": (run_dir / "config_resolved.yaml").exists(),
         "manifest_json": (run_dir / "manifest.json").exists(),
+        "status_json": (run_dir / "status.json").exists(),
     }
     excluded_raw = [
         _file_record_dict(_path_record(path, role="raw_artifact", relative_to=runs_dir))
