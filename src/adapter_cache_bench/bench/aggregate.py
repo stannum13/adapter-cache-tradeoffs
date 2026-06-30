@@ -254,6 +254,7 @@ def write_analysis_tables(
 ) -> dict[str, Path]:
     from adapter_cache_bench.analysis.adapter_cache_metrics import build_adapter_cache_metrics
     from adapter_cache_bench.analysis.pareto import workload_pareto_frontiers
+    from adapter_cache_bench.analysis.policy_regret import build_policy_regret_table
     from adapter_cache_bench.analysis.slo import slo_sweep
 
     out = Path(output_dir)
@@ -268,6 +269,7 @@ def write_analysis_tables(
         "pareto_frontier": workload_pareto_frontiers(df),
         "slo_sweep": slo_sweep(request_df),
         "adapter_cache_metrics": build_adapter_cache_metrics(runs_dir),
+        "policy_regret": build_policy_regret_table(runs_dir),
     }
     paths = {}
     for name, table in tables.items():

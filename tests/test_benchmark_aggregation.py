@@ -596,6 +596,7 @@ def test_analysis_tables_rank_workloads_and_export_csv(tmp_path):
     assert cache_means.iloc[0]["cache_model"] == "activated_lora"
     assert routers.iloc[0]["router_policy"] == "cache_aware"
     assert paths["workload_leaders"].exists()
+    assert paths["policy_regret"].exists()
     assert paths["adapter_cache_metrics"].exists()
 
 
