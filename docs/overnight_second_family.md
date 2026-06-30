@@ -87,6 +87,11 @@ rm artifacts/overnight/20260620-010000/markers/run_second_family.done
 OVERNIGHT_RUN_DIR=artifacts/overnight/20260620-010000 make overnight-second-family
 ```
 
+For future matrix-style overnight work, prefer the resumable sweep flags in
+[sweep_operations.md](sweep_operations.md). Run a `--dry-run` with budget gates
+before launching GPU work, then use a stable `--sweep-name` and `--resume` so
+interrupted child runs are recovered instead of duplicated.
+
 ## Interpretation
 
 The loop closes the readiness gap only if `research_readiness.md` reports
