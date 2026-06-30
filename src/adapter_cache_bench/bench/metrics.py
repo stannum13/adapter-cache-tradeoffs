@@ -4,7 +4,7 @@ from collections import Counter
 
 from adapter_cache_bench.cache.cache_models import CacheModel
 from adapter_cache_bench.config import BenchmarkConfig
-from adapter_cache_bench.types import BackendResponse, BenchmarkSummary
+from adapter_cache_bench.types import BackendResponse, BenchmarkSummary, RequestRecord
 
 
 def percentile(values: list[float], p: float) -> float:
@@ -22,6 +22,7 @@ def summarize(
     cache_model: CacheModel,
     duration_s: float | None = None,
     backend_metrics: dict[str, float] | None = None,
+    requests: list[RequestRecord] | None = None,
 ) -> BenchmarkSummary:
     ttft = [response.metrics.ttft_ms for response in responses]
     e2e = [response.metrics.e2e_ms for response in responses]
@@ -35,6 +36,12 @@ def summarize(
     goodput_under_slo = len(good) / duration_s
     quality_adjusted_goodput = goodput_under_slo * mean_quality
     memory_tokens = cache_model.memory_tokens()
+    if requests is None:
+        workload_structure = None
+    else:
+        from adapter_cache_bench.bench.workload_metrics import compute_workload_structure_metrics
+
+        workload_structure = compute_workload_structure_metrics(requests)
     return BenchmarkSummary(
         run_id=run_id,
         request_count=len(responses),
@@ -69,4 +76,5 @@ def summarize(
         evicted_tokens=cache_model.evicted_tokens(),
         adapter_distribution=dict(adapter_distribution),
         backend_metrics=backend_metrics or {},
+        **({"workload_structure": workload_structure} if workload_structure is not None else {}),
     )

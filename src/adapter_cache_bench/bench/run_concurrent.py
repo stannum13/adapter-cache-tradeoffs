@@ -129,6 +129,7 @@ async def _run_async(
             cache_model,
             duration_s=wall_duration_s,
             backend_metrics=backend_metrics_delta(run_dir),
+            requests=requests,
         )
         with (run_dir / "summary.json").open("w", encoding="utf-8") as handle:
             json.dump(summary.model_dump(mode="json"), handle, indent=2)
