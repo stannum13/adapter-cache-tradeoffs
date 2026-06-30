@@ -513,6 +513,12 @@ def test_load_summaries_flattens_backend_metrics_and_sweep_dimensions(tmp_path):
                     "vllm:prefix_cache_hits_total": 7.0,
                     "vllm:prompt_tokens_cached_total": 99.0,
                 },
+                "workload_structure": {
+                    "adapter_entropy": 1.5,
+                    "task_entropy": 1.25,
+                    "adapter_switch_rate": 0.75,
+                    "shared_prefix_reuse_ratio": 0.5,
+                },
             }
         ),
         encoding="utf-8",
@@ -537,6 +543,10 @@ def test_load_summaries_flattens_backend_metrics_and_sweep_dimensions(tmp_path):
     assert df.iloc[0]["server_prefix_cache_hits"] == 7.0
     assert df.iloc[0]["server_prefix_cache_hit_rate"] == 0.7
     assert df.iloc[0]["server_prompt_tokens_cached"] == 99.0
+    assert df.iloc[0]["workload_adapter_entropy"] == 1.5
+    assert df.iloc[0]["workload_task_entropy"] == 1.25
+    assert df.iloc[0]["workload_adapter_switch_rate"] == 0.75
+    assert df.iloc[0]["workload_shared_prefix_reuse_ratio"] == 0.5
     assert df.iloc[0]["sweep_strategy"] == "specialists"
     assert df.iloc[0]["sweep_overlap_fraction"] == 0.75
     assert df.iloc[0]["sweep_adapter_count"] == 4

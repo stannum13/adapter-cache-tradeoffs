@@ -121,6 +121,7 @@ def run(
             responses,
             cache_model,
             backend_metrics=backend_metrics_delta(run_dir),
+            requests=requests,
         )
         with (run_dir / "summary.json").open("w", encoding="utf-8") as handle:
             json.dump(summary.model_dump(mode="json"), handle, indent=2)

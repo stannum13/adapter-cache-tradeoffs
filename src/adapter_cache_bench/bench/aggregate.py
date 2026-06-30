@@ -27,6 +27,11 @@ def add_server_cache_columns(row: dict) -> None:
     row.setdefault("server_prefix_cache_hit_rate", hits / queries if queries > 0 else 0.0)
 
 
+def add_workload_structure_columns(row: dict) -> None:
+    for metric_name, metric_value in row.get("workload_structure", {}).items():
+        row.setdefault(f"workload_{metric_name}", metric_value)
+
+
 def load_summaries(runs_dir: str | Path) -> pd.DataFrame:
     rows = []
     for path in Path(runs_dir).glob("*/summary.json"):
@@ -39,6 +44,7 @@ def load_summaries(runs_dir: str | Path) -> pd.DataFrame:
             for metric_name, metric_value in row.get("backend_metrics", {}).items():
                 row[f"backend_metric:{metric_name}"] = metric_value
             add_server_cache_columns(row)
+            add_workload_structure_columns(row)
             manifest_path = path.parent / "manifest.json"
             if manifest_path.exists():
                 with manifest_path.open("r", encoding="utf-8") as manifest_handle:

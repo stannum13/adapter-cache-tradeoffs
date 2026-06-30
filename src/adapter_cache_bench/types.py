@@ -63,6 +63,17 @@ class BackendResponse(BaseModel):
     quality: QualityResult
 
 
+class WorkloadStructureMetrics(BaseModel):
+    adapter_entropy: float = 0.0
+    task_entropy: float = 0.0
+    adapter_gini_concentration: float = 0.0
+    task_gini_concentration: float = 0.0
+    adapter_switch_rate: float = 0.0
+    mean_reuse_distance: float = 0.0
+    shared_prefix_reuse_ratio: float = 0.0
+    session_locality: float = 0.0
+
+
 class BenchmarkSummary(BaseModel):
     run_id: str
     request_count: int
@@ -96,3 +107,4 @@ class BenchmarkSummary(BaseModel):
     evicted_tokens: int = 0
     adapter_distribution: dict[str, int] = Field(default_factory=dict)
     backend_metrics: dict[str, float] = Field(default_factory=dict)
+    workload_structure: WorkloadStructureMetrics = Field(default_factory=WorkloadStructureMetrics)
