@@ -122,6 +122,42 @@ def test_benchmark_run_marks_failed_status_on_request_exception(tmp_path, monkey
     assert status["exception_message"] == "unit boom"
 
 
+def test_benchmark_manifest_includes_cloud_provenance_from_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("ACB_CLOUD_PROVIDER", "gcp")
+    monkeypatch.setenv("ACB_CLOUD_PROJECT", "unit-project")
+    monkeypatch.setenv("ACB_CLOUD_ZONE", "us-central1-a")
+    monkeypatch.setenv("ACB_CLOUD_INSTANCE", "unit-vm")
+    monkeypatch.setenv("ACB_CLOUD_GPU_TYPE", "nvidia-l4")
+    monkeypatch.setenv("ACB_CLOUD_GPU_COUNT", "1")
+    monkeypatch.setenv("ACB_CLOUD_TTL_HOURS", "8")
+    monkeypatch.setenv("ACB_VLLM_IMAGE", "vllm/vllm-openai:test")
+    config = BenchmarkConfig(
+        run_name="cloud-test",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="mixed_tasks_same_doc", request_count=1, document_tokens=16),
+    )
+
+    run_dir = run(
+        config,
+        run_id="unit-cloud",
+        report_path=tmp_path / "report.md",
+        tables_dir=tmp_path / "tables",
+        generate_report_artifacts=False,
+    )
+
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["cloud"] == {
+        "provider": "gcp",
+        "project": "unit-project",
+        "zone": "us-central1-a",
+        "instance": "unit-vm",
+        "gpu_type": "nvidia-l4",
+        "gpu_count": "1",
+        "ttl_hours": "8",
+        "vllm_image": "vllm/vllm-openai:test",
+    }
+
+
 def test_benchmark_run_scrapes_backend_metrics_when_enabled(tmp_path, monkeypatch):
     from adapter_cache_bench.bench import run_workload
 

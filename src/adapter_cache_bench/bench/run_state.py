@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -38,6 +39,34 @@ def _optional_backend_field(config: BenchmarkConfig, name: str) -> Any | None:
     return config.backend.extra_body.get(name)
 
 
+_CLOUD_ENV_FIELDS = {
+    "provider": "ACB_CLOUD_PROVIDER",
+    "project": "ACB_CLOUD_PROJECT",
+    "zone": "ACB_CLOUD_ZONE",
+    "instance": "ACB_CLOUD_INSTANCE",
+    "machine_type": "ACB_CLOUD_MACHINE_TYPE",
+    "gpu_type": "ACB_CLOUD_GPU_TYPE",
+    "gpu_count": "ACB_CLOUD_GPU_COUNT",
+    "provisioning_model": "ACB_CLOUD_PROVISIONING_MODEL",
+    "image": "ACB_CLOUD_IMAGE",
+    "boot_disk_size": "ACB_CLOUD_BOOT_DISK_SIZE",
+    "ttl_hours": "ACB_CLOUD_TTL_HOURS",
+    "hourly_rate_usd": "ACB_CLOUD_HOURLY_RATE_USD",
+}
+
+
+def cloud_provenance_from_env() -> dict[str, Any]:
+    provenance = {
+        key: os.environ[env_name]
+        for key, env_name in _CLOUD_ENV_FIELDS.items()
+        if os.environ.get(env_name)
+    }
+    docker_image = os.environ.get("ACB_VLLM_IMAGE")
+    if docker_image:
+        provenance["vllm_image"] = docker_image
+    return provenance
+
+
 def build_manifest(
     run_id: str,
     config: BenchmarkConfig,
@@ -69,6 +98,9 @@ def build_manifest(
     request_timeout_s = _optional_backend_field(config, "request_timeout_s")
     if request_timeout_s is not None:
         manifest["request_timeout_s"] = request_timeout_s
+    cloud = cloud_provenance_from_env()
+    if cloud:
+        manifest["cloud"] = cloud
     return manifest
 
 
