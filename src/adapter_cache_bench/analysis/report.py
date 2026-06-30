@@ -5,6 +5,7 @@ from pathlib import Path
 
 from adapter_cache_bench.analysis.pareto import workload_pareto_frontiers
 from adapter_cache_bench.analysis.plots import generate_plots
+from adapter_cache_bench.analysis.regime_science import write_regime_policy_failure_map
 from adapter_cache_bench.analysis.slo import slo_sweep
 from adapter_cache_bench.bench.aggregate import (
     cache_model_means,
@@ -185,11 +186,18 @@ def generate_report(
     runs_dir: str | Path = "artifacts/runs",
     report_path: str | Path = "reports/adapter-cache-tradeoffs.md",
     tables_dir: str | Path = "reports/tables",
+    figures_dir: str | Path = "reports/figures",
 ) -> Path:
     df = load_summaries(runs_dir)
     request_df = load_request_rows(runs_dir)
-    figures = generate_plots(df, request_df=request_df)
+    figures = generate_plots(df, output_dir=figures_dir, request_df=request_df)
     table_paths = write_analysis_tables(df, request_df, tables_dir, runs_dir=runs_dir)
+    regime_figure = write_regime_policy_failure_map(
+        runs_dir,
+        Path(figures_dir) / "regime_policy_failure_map.png",
+    )
+    if regime_figure is not None:
+        figures.append(regime_figure)
     leaders = workload_leaders(df)
     cache_means = cache_model_means(df)
     routers = router_means(df)
@@ -446,8 +454,9 @@ def main() -> None:
     parser.add_argument("--runs-dir", default="artifacts/runs")
     parser.add_argument("--report-path", default="reports/adapter-cache-tradeoffs.md")
     parser.add_argument("--tables-dir", default="reports/tables")
+    parser.add_argument("--figures-dir", default="reports/figures")
     args = parser.parse_args()
-    print(generate_report(args.runs_dir, args.report_path, args.tables_dir))
+    print(generate_report(args.runs_dir, args.report_path, args.tables_dir, args.figures_dir))
 
 
 if __name__ == "__main__":

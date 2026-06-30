@@ -65,6 +65,16 @@ The first deliverable is a CPU/mock evidence bundle with:
 6. One concise figure or table answering which policies fail under which
    workload structures.
 
+Run the CPU/mock suite with:
+
+```bash
+make regime-v0-mock
+make report
+make evidence-bundle BUNDLE=regime-v0-mock RUN_GLOBS="regime_*" \
+  REPORTS="reports/adapter-cache-tradeoffs.md" \
+  FIGURES="reports/figures/regime_policy_failure_map.png"
+```
+
 ## Non-Goals
 
 - Do not claim broad model-quality results.

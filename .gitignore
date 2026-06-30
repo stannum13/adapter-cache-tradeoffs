@@ -6,6 +6,7 @@ __pycache__/
 .DS_Store
 .tmp-gcloud/
 artifacts/
+evidence/
 reports/figures/*.png
 reports/adapter-cache-bench.md
 reports/adapter-cache-tradeoffs.md
