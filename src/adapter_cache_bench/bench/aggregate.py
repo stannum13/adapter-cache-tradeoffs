@@ -268,6 +268,7 @@ def write_analysis_tables(
     runs_dir: str | Path = "artifacts/runs",
 ) -> dict[str, Path]:
     from adapter_cache_bench.analysis.adapter_cache_metrics import build_adapter_cache_metrics
+    from adapter_cache_bench.analysis.claim_tables import build_claim_evidence_table
     from adapter_cache_bench.analysis.pareto import workload_pareto_frontiers
     from adapter_cache_bench.analysis.policy_regret import build_policy_regret_table
     from adapter_cache_bench.analysis.slo import slo_sweep
@@ -285,6 +286,7 @@ def write_analysis_tables(
         "slo_sweep": slo_sweep(request_df),
         "adapter_cache_metrics": build_adapter_cache_metrics(runs_dir),
         "policy_regret": build_policy_regret_table(runs_dir),
+        "claim_evidence": build_claim_evidence_table(runs_dir),
     }
     paths = {}
     for name, table in tables.items():

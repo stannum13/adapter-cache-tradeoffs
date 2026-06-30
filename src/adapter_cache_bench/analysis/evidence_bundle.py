@@ -215,6 +215,7 @@ def build_evidence_bundle(
     run_globs: Iterable[str] | None = None,
     reports: Iterable[str | Path] | None = None,
     figures: Iterable[str | Path] | None = None,
+    tables: Iterable[str | Path] | None = None,
     repo_dir: str | Path = ".",
 ) -> Path:
     runs_root = Path(runs_dir)
@@ -238,6 +239,7 @@ def build_evidence_bundle(
         "generated_artifacts": {
             "reports": _generated_records(reports or [], role="report"),
             "figures": _generated_records(figures or [], role="figure"),
+            "tables": _generated_records(tables or [], role="table"),
         },
     }
     manifest_path = bundle_dir / "bundle_manifest.json"
@@ -259,6 +261,7 @@ def main() -> None:
     parser.add_argument("--run-glob", dest="run_globs", action="append", default=[])
     parser.add_argument("--report", dest="reports", action="append", default=[])
     parser.add_argument("--figure", dest="figures", action="append", default=[])
+    parser.add_argument("--table", dest="tables", action="append", default=[])
     parser.add_argument("--repo-dir", default=".")
     args = parser.parse_args()
 
@@ -270,6 +273,7 @@ def main() -> None:
         run_globs=args.run_globs,
         reports=args.reports,
         figures=args.figures,
+        tables=args.tables,
         repo_dir=args.repo_dir,
     )
     print(manifest_path)

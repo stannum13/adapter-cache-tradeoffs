@@ -65,7 +65,7 @@ research-readiness:
 
 .PHONY: evidence-bundle
 evidence-bundle:
-	uv run python -m adapter_cache_bench.analysis.evidence_bundle --bundle-name $(or $(BUNDLE),latest) $(if $(OUTPUT),--output-dir $(OUTPUT),) $(foreach run,$(RUNS),--run $(run)) $(foreach pattern,$(RUN_GLOBS),--run-glob $(pattern)) $(foreach report,$(REPORTS),--report $(report)) $(foreach figure,$(FIGURES),--figure $(figure))
+	uv run python -m adapter_cache_bench.analysis.evidence_bundle --bundle-name $(or $(BUNDLE),latest) $(if $(OUTPUT),--output-dir $(OUTPUT),) $(foreach run,$(RUNS),--run $(run)) $(foreach pattern,$(RUN_GLOBS),--run-glob $(pattern)) $(foreach report,$(REPORTS),--report $(report)) $(foreach figure,$(FIGURES),--figure $(figure)) $(foreach table,$(TABLES),--table $(table))
 
 compare:
 	uv run python -m adapter_cache_bench.bench.compare --runs-dir artifacts/runs
