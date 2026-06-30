@@ -165,6 +165,13 @@ window.
 Dry-run and budget check:
 
 ```bash
+uv run acb doctor \
+  --config configs/benchmark/vllm_bridge_reset.yaml \
+  --max-runs 12 \
+  --max-requests 300 \
+  --estimated-seconds-per-run 180 \
+  --max-estimated-gpu-hours 1
+
 uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
   --config configs/benchmark/vllm_bridge_reset.yaml \
   --sweep-name vllm-bridge-reset-g8 \
@@ -196,6 +203,15 @@ For a GCP L4 run, create/setup/start the VM and tunnel `localhost:8000` as in
 then layer the cloud reset overlay:
 
 ```bash
+uv run acb doctor \
+  --config configs/benchmark/vllm_bridge_reset.yaml \
+           configs/benchmark/gcloud_7b_lora_bridge_reset.yaml \
+  --check-gcloud \
+  --max-runs 12 \
+  --max-requests 300 \
+  --estimated-seconds-per-run 240 \
+  --max-estimated-gpu-hours 1
+
 uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
   --config configs/benchmark/vllm_bridge_reset.yaml \
            configs/benchmark/gcloud_7b_lora_bridge_reset.yaml \

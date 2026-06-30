@@ -106,6 +106,11 @@ Exit criteria:
 
 Goal: a new user can run and understand the project quickly.
 
+Status: the CPU-first quickstart, minimal `acb run`, `acb report`,
+`acb bundle`, and non-invasive `acb doctor --config` preflight are implemented.
+`recommend` remains deferred until real-server evidence and claim tables are
+strong enough to support recommendations.
+
 Tasks:
 
 - Add `docs/quickstart.md` with CPU smoke, benchmark-v0, custom JSONL eval, and
