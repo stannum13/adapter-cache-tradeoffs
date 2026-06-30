@@ -16,6 +16,9 @@ dependencies = [
 dev = ["pytest>=8.0", "ruff>=0.6"]
 real = ["torch>=2.0", "transformers>=4.45", "peft>=0.13", "accelerate>=0.33"]
 
+[project.scripts]
+acb = "adapter_cache_bench.cli:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
