@@ -13,6 +13,12 @@ Build the remaining work as a closed loop:
 6. Commit one coherent change.
 7. Record conclusions and residual risk before starting the next slice.
 
+Use the detailed branch policy in
+[`docs/autonomous_logic_tree.md`](autonomous_logic_tree.md) before each major
+stage. That logic tree defines the four-critic review loop, evidence gates, and
+fallback branches for mock evidence, real-server evidence, product tooling, and
+claim bundles.
+
 ## Phase 1: Evidence Reliability
 
 Goal: no GPU run should be scientifically useless just because it partially
