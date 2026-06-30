@@ -3,14 +3,19 @@ from __future__ import annotations
 import argparse
 import copy
 import itertools
-import json
 import re
-from pathlib import Path
 from typing import Any
 
 from adapter_cache_bench.analysis.report import generate_report
 from adapter_cache_bench.bench.run_concurrency_sweep import apply_strategy
 from adapter_cache_bench.bench.run_concurrent import run_concurrent
+from adapter_cache_bench.bench.sweep_state import (
+    SweepChild,
+    add_sweep_arguments,
+    execute_sweep,
+    options_from_args,
+    record_sweep_dimensions,
+)
 from adapter_cache_bench.config import BenchmarkConfig, load_config
 
 ADAPTER_MODEL_NAMES = {
@@ -82,15 +87,6 @@ def apply_adapter_count(
     config.backend.adapter_model_names = {
         adapter_id: adapter_model_names[adapter_id] for adapter_id in adapter_ids
     }
-
-
-def record_sweep_dimensions(run_dir: Path, dimensions: dict[str, Any]) -> None:
-    manifest_path = run_dir / "manifest.json"
-    if not manifest_path.exists():
-        return
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["sweep_dimensions"] = dimensions
-    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
 def expand_exhaustive_sweep(
@@ -192,13 +188,29 @@ def main() -> None:
     parser.add_argument("--config", required=True, nargs="+")
     parser.add_argument("--report-path", default="reports/adapter-cache-tradeoffs.md")
     parser.add_argument("--tables-dir", default="reports/tables")
+    add_sweep_arguments(parser)
     args = parser.parse_args()
     config = load_config(args.config)
-    for child, dimensions in expand_exhaustive_sweep(config):
-        run_dir = run_concurrent(child, generate_report_artifacts=False)
-        record_sweep_dimensions(run_dir, dimensions)
-        print(run_dir)
-    generate_report(config.output_dir, report_path=args.report_path, tables_dir=args.tables_dir)
+    children = [
+        SweepChild(child, dimensions) for child, dimensions in expand_exhaustive_sweep(config)
+    ]
+    execute_sweep(
+        config=config,
+        sweep_name=args.sweep_name or f"{config.run_name}-exhaustive",
+        children=children,
+        run_child=lambda child_config, run_id: run_concurrent(
+            child_config,
+            run_id=run_id,
+            generate_report_artifacts=False,
+        ),
+        record_dimensions=record_sweep_dimensions,
+        options=options_from_args(args),
+        on_complete=lambda: generate_report(
+            config.output_dir,
+            report_path=args.report_path,
+            tables_dir=args.tables_dir,
+        ),
+    )
 
 
 if __name__ == "__main__":

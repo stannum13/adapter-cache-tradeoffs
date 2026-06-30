@@ -2,39 +2,22 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import time
 from pathlib import Path
 from typing import Any
 
+import adapter_cache_bench.bench.run_state as run_state
 from adapter_cache_bench.backends.base import make_backend
 from adapter_cache_bench.backends.metrics_client import MetricsClient, prometheus_delta
 from adapter_cache_bench.backends.server_control import prepare_backend_server
 from adapter_cache_bench.cache.cache_models import make_cache_model
-from adapter_cache_bench.config import BenchmarkConfig, dump_config, load_config
+from adapter_cache_bench.config import BenchmarkConfig, load_config
 from adapter_cache_bench.routing.base import make_router
 from adapter_cache_bench.workloads.generator import generate_workload
 
 
 def git_metadata(cwd: str | Path = ".") -> dict[str, Any]:
-    try:
-        commit = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=cwd,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        status = subprocess.run(
-            ["git", "status", "--short"],
-            cwd=cwd,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        return {"git_commit": None, "git_dirty": None}
-    return {"git_commit": commit, "git_dirty": bool(status)}
+    return run_state.git_metadata(cwd)
 
 
 def build_manifest(
@@ -43,21 +26,7 @@ def build_manifest(
     request_count: int,
     artifact_files: list[str],
 ) -> dict[str, Any]:
-    return {
-        "run_id": run_id,
-        "run_name": config.run_name,
-        "created_at_unix_ms": int(time.time() * 1000),
-        "model": config.model.name,
-        "backend": config.backend.kind,
-        "workload": config.workload.name,
-        "router_policy": config.router.policy,
-        "cache_model": config.cache.model,
-        "adapter_ids": config.adapters.adapter_ids,
-        "request_count": request_count,
-        "artifact_files": artifact_files,
-        "metrics_scraped": config.backend.scrape_metrics,
-        **git_metadata(),
-    }
+    return run_state.build_manifest(run_id, config, request_count, artifact_files)
 
 
 def scrape_backend_metrics(config: BenchmarkConfig, run_dir: Path, label: str) -> str | None:
@@ -95,59 +64,76 @@ def run(
     run_dir = Path(config.output_dir) / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    artifact_files = ["requests.jsonl", "summary.json", "config_resolved.yaml", "manifest.json"]
-    reset_artifact = prepare_backend_server(config.backend, run_dir)
-    if reset_artifact:
-        artifact_files.append(reset_artifact)
-    cache_model = make_cache_model(config.cache)
-    router = make_router(config.router)
-    backend = make_backend(config.backend)
-    requests = generate_workload(config.workload, config.cache)
-    before_metrics = scrape_backend_metrics(config, run_dir, "before")
-    if before_metrics:
-        artifact_files.append(before_metrics)
-
+    state = run_state.RunState(
+        run_dir,
+        run_id,
+        config,
+        planned_request_count=config.workload.request_count,
+    )
+    state.initialize()
     responses = []
-    with (run_dir / "requests.jsonl").open("w", encoding="utf-8") as handle:
-        for request in requests:
-            decision = router.route(request, config.adapters.adapter_ids, cache_model)
-            response = backend.generate(request, decision, cache_model)
-            responses.append(response)
-            row = {
-                "request": request.model_dump(mode="json"),
-                "routing": decision.model_dump(mode="json"),
-                "response": response.model_dump(mode="json"),
-            }
-            handle.write(json.dumps(row) + "\n")
-    after_metrics = scrape_backend_metrics(config, run_dir, "after")
-    if after_metrics:
-        artifact_files.append(after_metrics)
+    run_error: BaseException | None = None
+    try:
+        requests = generate_workload(config.workload, config.cache)
+        state.planned_request_count = len(requests)
+        state.write_manifest()
+        state.write_status("running")
+        reset_artifact = prepare_backend_server(config.backend, run_dir)
+        state.add_artifact(reset_artifact)
+        cache_model = make_cache_model(config.cache)
+        router = make_router(config.router)
+        backend = make_backend(config.backend)
+        before_metrics = scrape_backend_metrics(config, run_dir, "before")
+        state.add_artifact(before_metrics)
 
-    from adapter_cache_bench.bench.metrics import summarize
+        with (run_dir / "requests.jsonl").open("w", encoding="utf-8") as handle:
+            for request in requests:
+                decision = router.route(request, config.adapters.adapter_ids, cache_model)
+                try:
+                    response = backend.generate(request, decision, cache_model)
+                except Exception as exc:
+                    state.failed_request_count += 1
+                    row = {
+                        "request": request.model_dump(mode="json"),
+                        "routing": decision.model_dump(mode="json"),
+                        "error": run_state.error_record(exc),
+                    }
+                    handle.write(json.dumps(row) + "\n")
+                    handle.flush()
+                    raise
+                responses.append(response)
+                state.completed_request_count += 1
+                row = {
+                    "request": request.model_dump(mode="json"),
+                    "routing": decision.model_dump(mode="json"),
+                    "response": response.model_dump(mode="json"),
+                }
+                handle.write(json.dumps(row) + "\n")
+                handle.flush()
+        after_metrics = scrape_backend_metrics(config, run_dir, "after")
+        state.add_artifact(after_metrics)
 
-    summary = summarize(
-        run_id,
-        config,
-        responses,
-        cache_model,
-        backend_metrics=backend_metrics_delta(run_dir),
-    )
-    with (run_dir / "summary.json").open("w", encoding="utf-8") as handle:
-        json.dump(summary.model_dump(mode="json"), handle, indent=2)
-    dump_config(config, run_dir / "config_resolved.yaml")
-    manifest = build_manifest(
-        run_id,
-        config,
-        request_count=len(responses),
-        artifact_files=artifact_files,
-    )
-    with (run_dir / "manifest.json").open("w", encoding="utf-8") as handle:
-        json.dump(manifest, handle, indent=2)
+        from adapter_cache_bench.bench.metrics import summarize
 
-    if generate_report_artifacts:
-        from adapter_cache_bench.analysis.report import generate_report
+        summary = summarize(
+            run_id,
+            config,
+            responses,
+            cache_model,
+            backend_metrics=backend_metrics_delta(run_dir),
+        )
+        with (run_dir / "summary.json").open("w", encoding="utf-8") as handle:
+            json.dump(summary.model_dump(mode="json"), handle, indent=2)
 
-        generate_report(config.output_dir, report_path=report_path, tables_dir=tables_dir)
+        if generate_report_artifacts:
+            from adapter_cache_bench.analysis.report import generate_report
+
+            generate_report(config.output_dir, report_path=report_path, tables_dir=tables_dir)
+    except Exception as exc:
+        run_error = exc
+        raise
+    finally:
+        state.write_status("failed" if run_error else "complete", run_error)
     return run_dir
 
 

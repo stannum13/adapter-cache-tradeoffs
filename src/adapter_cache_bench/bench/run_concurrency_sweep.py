@@ -5,6 +5,13 @@ import copy
 
 from adapter_cache_bench.analysis.report import generate_report
 from adapter_cache_bench.bench.run_concurrent import run_concurrent
+from adapter_cache_bench.bench.sweep_state import (
+    SweepChild,
+    add_sweep_arguments,
+    execute_sweep,
+    options_from_args,
+    record_sweep_dimensions,
+)
 from adapter_cache_bench.config import BenchmarkConfig, load_config
 
 SPECIALIST_MODEL_NAMES = {
@@ -37,7 +44,7 @@ def apply_strategy(config: BenchmarkConfig, strategy: str) -> BenchmarkConfig:
     raise ValueError(f"Unknown sweep strategy: {strategy}")
 
 
-def expand_concurrency_sweep(config: BenchmarkConfig) -> list[BenchmarkConfig]:
+def expand_concurrency_sweep_children(config: BenchmarkConfig) -> list[SweepChild]:
     matrix = config.matrix or {}
     strategies = [str(item) for item in matrix.get("strategies", ["base", "specialists"])]
     concurrencies = [
@@ -55,8 +62,17 @@ def expand_concurrency_sweep(config: BenchmarkConfig) -> list[BenchmarkConfig]:
                 child.backend.seed = seed
                 child.run_name = f"{child.run_name}-c{concurrency}-seed{seed}"
                 child.matrix = {}
-                children.append(child)
+                dimensions = {
+                    "strategy": strategy,
+                    "concurrency": concurrency,
+                    "seed": seed,
+                }
+                children.append(SweepChild(child, dimensions))
     return children
+
+
+def expand_concurrency_sweep(config: BenchmarkConfig) -> list[BenchmarkConfig]:
+    return [child.config for child in expand_concurrency_sweep_children(config)]
 
 
 def main() -> None:
@@ -64,11 +80,26 @@ def main() -> None:
     parser.add_argument("--config", required=True, nargs="+")
     parser.add_argument("--report-path", default="reports/adapter-cache-tradeoffs.md")
     parser.add_argument("--tables-dir", default="reports/tables")
+    add_sweep_arguments(parser)
     args = parser.parse_args()
     config = load_config(args.config)
-    for child in expand_concurrency_sweep(config):
-        print(run_concurrent(child, generate_report_artifacts=False))
-    generate_report(config.output_dir, report_path=args.report_path, tables_dir=args.tables_dir)
+    execute_sweep(
+        config=config,
+        sweep_name=args.sweep_name or f"{config.run_name}-concurrency",
+        children=expand_concurrency_sweep_children(config),
+        run_child=lambda child_config, run_id: run_concurrent(
+            child_config,
+            run_id=run_id,
+            generate_report_artifacts=False,
+        ),
+        record_dimensions=record_sweep_dimensions,
+        options=options_from_args(args),
+        on_complete=lambda: generate_report(
+            config.output_dir,
+            report_path=args.report_path,
+            tables_dir=args.tables_dir,
+        ),
+    )
 
 
 if __name__ == "__main__":

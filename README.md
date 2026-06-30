@@ -58,6 +58,13 @@ while eight and ten registered LoRAs failed because vLLM could not reserve
 enough KV cache. A follow-up preemptible H100 run served Qwen2.5-7B with ten
 LoRAs at 4096 context and reported about `53.34 GiB` available KV-cache memory.
 
+The latest model-family evidence is a 12-run vLLM sweep over the 500-row
+source-backed fixture. It served `Qwen/Qwen2.5-1.5B-Instruct` and
+`TinyLlama/TinyLlama-1.1B-Chat-v1.0` with specialist and multitask LoRAs across
+three seeds. Specialists improved mean quality in both families, while
+multitask remained competitive or better on QAG because it uses one adapter
+slot.
+
 Best current wording:
 
 > Specialization can buy quality, but only the joint quality/cache/SLO frontier
@@ -183,9 +190,11 @@ health, scrapes `/metrics`, runs the benchmark, and records metric deltas.
 
 ## Stronger Eval And Multi-Model Work
 
-The included JSONL fixtures are engineering fixtures, not paper-grade external
-evals. The next research pass should replace them with independently curated
-data and repeat the same sweeps across model families.
+The included external JSONL fixture is source-backed public-domain data with
+provenance fields. It is license-clear and reproducible, but it is not a
+standard public benchmark. It has now been served through vLLM for Qwen2.5-1.5B
+and TinyLlama-1.1B. The next research pass should repeat the protocol on a
+separately curated public benchmark fixture and a stronger non-Qwen family.
 
 ```bash
 make validate-external-eval

@@ -1,6 +1,11 @@
+import importlib
 import json
 
+import pytest
+
 from adapter_cache_bench.analysis.adapter_cache_metrics import build_adapter_cache_metrics
+from adapter_cache_bench.analysis.benchmark_v0 import benchmark_v0_summary
+from adapter_cache_bench.backends.mock_backend import MockBackend
 from adapter_cache_bench.bench.aggregate import (
     cache_model_means,
     load_request_rows,
@@ -40,15 +45,117 @@ def test_benchmark_run_writes_artifacts(tmp_path):
     assert (run_dir / "requests.jsonl").exists()
     assert (run_dir / "summary.json").exists()
     assert (run_dir / "config_resolved.yaml").exists()
+    assert (run_dir / "status.json").exists()
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["run_id"] == "unit"
     assert manifest["request_count"] == 8
     assert manifest["cache_model"] == "activated_lora"
+    assert manifest["backend_model"] == "mock-causal-transformer"
+    assert manifest["base_url"] == "http://localhost:8000/v1"
+    assert manifest["stream"] is False
+    assert manifest["adapter_model_names"] == {}
+    assert manifest["max_concurrency"] == 1
+    assert manifest["request_spacing_ms"] == 0.0
+    assert "status.json" in manifest["artifact_files"]
     assert "git_commit" in manifest
     assert "git_dirty" in manifest
+    status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+    assert status["status"] == "complete"
+    assert status["completed_request_count"] == 8
+    assert status["failed_request_count"] == 0
+    assert status["elapsed_s"] >= 0.0
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["slo_attainment_rate"] >= 0.0
     assert summary["quality_adjusted_goodput_per_memory_token"] >= 0.0
+
+
+def test_benchmark_run_marks_failed_status_on_request_exception(tmp_path, monkeypatch):
+    run_workload_module = importlib.import_module("adapter_cache_bench.bench.run_workload")
+
+    class FlakyBackend:
+        def __init__(self, config):
+            self.inner = MockBackend(config)
+
+        def generate(self, request, decision, cache_model):
+            if request.request_id.endswith("00001"):
+                raise RuntimeError("unit boom")
+            return self.inner.generate(request, decision, cache_model)
+
+    monkeypatch.setattr(
+        run_workload_module,
+        "make_backend",
+        lambda backend_config: FlakyBackend(backend_config),
+    )
+    config = BenchmarkConfig(
+        run_name="test-failed",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="mixed_tasks_same_doc", request_count=4, document_tokens=24),
+        cache=CacheConfig(model="activated_lora", block_size=4),
+        router=RouterConfig(policy="cache_aware"),
+    )
+
+    with pytest.raises(RuntimeError, match="unit boom"):
+        run_workload_module.run(
+            config,
+            run_id="unit-failed",
+            report_path=tmp_path / "report.md",
+            tables_dir=tmp_path / "tables",
+            generate_report_artifacts=False,
+        )
+
+    run_dir = tmp_path / "unit-failed"
+    rows = [
+        json.loads(line)
+        for line in (run_dir / "requests.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+    assert (run_dir / "config_resolved.yaml").exists()
+    assert (run_dir / "manifest.json").exists()
+    assert len(rows) == 2
+    assert "response" in rows[0]
+    assert rows[1]["error"]["type"] == "RuntimeError"
+    assert rows[1]["error"]["message"] == "unit boom"
+    assert status["status"] == "failed"
+    assert status["completed_request_count"] == 1
+    assert status["failed_request_count"] == 1
+    assert status["exception_type"] == "RuntimeError"
+    assert status["exception_message"] == "unit boom"
+
+
+def test_benchmark_manifest_includes_cloud_provenance_from_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("ACB_CLOUD_PROVIDER", "gcp")
+    monkeypatch.setenv("ACB_CLOUD_PROJECT", "unit-project")
+    monkeypatch.setenv("ACB_CLOUD_ZONE", "us-central1-a")
+    monkeypatch.setenv("ACB_CLOUD_INSTANCE", "unit-vm")
+    monkeypatch.setenv("ACB_CLOUD_GPU_TYPE", "nvidia-l4")
+    monkeypatch.setenv("ACB_CLOUD_GPU_COUNT", "1")
+    monkeypatch.setenv("ACB_CLOUD_TTL_HOURS", "8")
+    monkeypatch.setenv("ACB_VLLM_IMAGE", "vllm/vllm-openai:test")
+    config = BenchmarkConfig(
+        run_name="cloud-test",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="mixed_tasks_same_doc", request_count=1, document_tokens=16),
+    )
+
+    run_dir = run(
+        config,
+        run_id="unit-cloud",
+        report_path=tmp_path / "report.md",
+        tables_dir=tmp_path / "tables",
+        generate_report_artifacts=False,
+    )
+
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["cloud"] == {
+        "provider": "gcp",
+        "project": "unit-project",
+        "zone": "us-central1-a",
+        "instance": "unit-vm",
+        "gpu_type": "nvidia-l4",
+        "gpu_count": "1",
+        "ttl_hours": "8",
+        "vllm_image": "vllm/vllm-openai:test",
+    }
 
 
 def test_benchmark_run_scrapes_backend_metrics_when_enabled(tmp_path, monkeypatch):
@@ -182,6 +289,66 @@ def test_concurrent_benchmark_run_writes_artifacts(tmp_path):
     assert first_row["load"]["max_concurrency"] == 3
 
 
+def test_concurrent_benchmark_streams_error_rows_and_failed_status(tmp_path, monkeypatch):
+    run_concurrent_module = importlib.import_module("adapter_cache_bench.bench.run_concurrent")
+
+    class FlakyBackend:
+        def __init__(self, config):
+            self.inner = MockBackend(config)
+
+        def generate(self, request, decision, cache_model):
+            if request.request_id.endswith("00001"):
+                raise RuntimeError("concurrent unit boom")
+            return self.inner.generate(request, decision, cache_model)
+
+    monkeypatch.setattr(
+        run_concurrent_module,
+        "make_backend",
+        lambda backend_config: FlakyBackend(backend_config),
+    )
+    config = BenchmarkConfig(
+        run_name="concurrent-failed",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="mixed_tasks_same_doc", request_count=4, document_tokens=24),
+        cache=CacheConfig(model="activated_lora", block_size=4),
+        router=RouterConfig(policy="cache_aware"),
+        backend=BackendConfig(kind="mock", max_concurrency=2),
+    )
+
+    with pytest.raises(RuntimeError, match=r"1 concurrent request\(s\) failed"):
+        run_concurrent_module.run_concurrent(
+            config,
+            run_id="unit-concurrent-failed",
+            report_path=tmp_path / "report.md",
+            tables_dir=tmp_path / "tables",
+            generate_report_artifacts=False,
+        )
+
+    run_dir = tmp_path / "unit-concurrent-failed"
+    rows = [
+        json.loads(line)
+        for line in (run_dir / "requests.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    error_rows = [row for row in rows if "error" in row]
+    response_rows = [row for row in rows if "response" in row]
+    status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert len(rows) == 4
+    assert len(response_rows) == 3
+    assert len(error_rows) == 1
+    assert error_rows[0]["error"]["type"] == "RuntimeError"
+    assert error_rows[0]["error"]["message"] == "concurrent unit boom"
+    assert error_rows[0]["load"]["max_concurrency"] == 2
+    assert summary["request_count"] == 3
+    assert status["status"] == "failed"
+    assert status["completed_request_count"] == 3
+    assert status["failed_request_count"] == 1
+    assert status["exception_type"] == "RuntimeError"
+    assert status["exception_message"] == "1 concurrent request(s) failed"
+    assert manifest["wall_duration_s"] > 0.0
+
+
 def test_load_request_rows_reads_layout_and_metrics(tmp_path):
     run_dir = tmp_path / "run"
     run_dir.mkdir()
@@ -236,6 +403,65 @@ def test_load_request_rows_reads_layout_and_metrics(tmp_path):
     assert df.iloc[0]["max_concurrency"] == 8
     assert df.iloc[0]["sweep_strategy"] == "specialists"
     assert df.iloc[0]["sweep_overlap_fraction"] == 0.75
+
+
+def test_load_request_rows_skips_error_rows(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run",
+                "router_policy": "semantic",
+                "cache_model": "activated_lora",
+                "workload": "prompt_layout_ablation",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "requests.jsonl").write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "request": {
+                            "request_id": "r1",
+                            "prompt_layout": "document_before_instruction",
+                            "task_type": "qa",
+                        },
+                        "routing": {"adapter_id": "qa"},
+                        "error": {"type": "RuntimeError", "message": "boom"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "request": {
+                            "request_id": "r2",
+                            "prompt_layout": "document_before_instruction",
+                            "task_type": "qa",
+                        },
+                        "routing": {"adapter_id": "qa"},
+                        "response": {
+                            "metrics": {
+                                "ttft_ms": 12.0,
+                                "e2e_ms": 24.0,
+                                "cached_prompt_tokens": 4,
+                                "prompt_tokens": 16,
+                            },
+                            "quality": {"score": 0.7},
+                        },
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    df = load_request_rows(tmp_path)
+
+    assert list(df["request_id"]) == ["r2"]
+    assert df.iloc[0]["ttft_ms"] == 12.0
 
 
 def test_load_summaries_reads_concurrency_metadata_from_manifest(tmp_path):
@@ -497,6 +723,62 @@ def test_repeated_seed_summary_reports_mean_and_std():
     assert summary.iloc[0]["run_count"] == 2
     assert summary.iloc[0]["quality_adjusted_goodput_mean"] == 2.0
     assert summary.iloc[0]["quality_adjusted_goodput_std"] > 0
+    assert summary.iloc[0]["quality_adjusted_goodput_ci95_half_width"] > 0
+    assert summary.iloc[0]["quality_adjusted_goodput_ci95_low"] < 2.0
+    assert summary.iloc[0]["quality_adjusted_goodput_ci95_high"] > 2.0
+
+
+def test_benchmark_v0_summary_keeps_latest_complete_matrix():
+    import pandas as pd
+
+    rows = []
+    for workload in [
+        "shared_doc_qa",
+        "mixed_tasks_same_doc",
+        "prompt_layout_ablation",
+        "low_overlap_control",
+    ]:
+        for router in ["semantic", "multitask", "sticky_session", "cache_aware", "oracle"]:
+            for cache in ["standard_lora", "activated_lora", "copy_on_write"]:
+                for seed in [17, 23, 31]:
+                    rows.append(
+                        {
+                            "run_id": f"{workload}-{router}-{cache}-seed{seed}-100",
+                            "request_count": 96,
+                            "backend_kind": "mock",
+                            "workload": workload,
+                            "router_policy": router,
+                            "cache_model": cache,
+                            "quality_adjusted_goodput": 1.0,
+                            "mean_quality": 0.8,
+                            "p95_ttft_ms": 20.0,
+                            "memory_token_footprint": 10,
+                            "mean_ttft_ms": 10.0,
+                            "p50_ttft_ms": 10.0,
+                            "p99_ttft_ms": 30.0,
+                            "mean_e2e_ms": 40.0,
+                            "p95_e2e_ms": 50.0,
+                            "slo_attainment_rate": 1.0,
+                            "request_throughput": 2.0,
+                            "token_throughput": 20.0,
+                            "quality_adjusted_goodput_per_memory_token": 0.1,
+                            "cache_hit_rate": 0.5,
+                            "cached_prompt_token_ratio": 0.4,
+                            "fragmentation_index": 1.0,
+                            "eviction_count": 0,
+                            "evicted_tokens": 0,
+                        }
+                    )
+    rows.append({**rows[0], "run_id": "shared_doc_qa-semantic-standard_lora-seed17-200"})
+
+    summary = benchmark_v0_summary(pd.DataFrame(rows))
+
+    assert len(summary) == 180
+    assert summary.iloc[0]["benchmark_suite"] == "benchmark_v0_mock"
+    assert (
+        summary[summary["run_id"].eq("shared_doc_qa-semantic-standard_lora-seed17-200")].shape[0]
+        == 1
+    )
 
 
 def test_compare_runs_returns_leader_tables(tmp_path):
