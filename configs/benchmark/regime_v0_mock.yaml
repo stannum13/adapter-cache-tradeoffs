@@ -1,0 +1,33 @@
+run_name: regime-v0-mock
+output_dir: artifacts/runs
+workload:
+  name: regime_uniform
+  request_count: 120
+  shared_document_count: 8
+  sessions: 12
+  tenants: 4
+  max_tokens: 64
+  seed: 17
+  document_tokens: 180
+router:
+  policy: cache_aware
+  seed: 17
+cache:
+  model: standard_lora
+  block_size: 8
+  isolation_scope: trust_group
+backend:
+  kind: mock
+  seed: 17
+  ttft_slo_ms: 220
+  e2e_slo_ms: 1200
+matrix:
+  routers: [semantic, sticky_session, cache_aware, oracle]
+  caches: [standard_lora, activated_lora, copy_on_write]
+  workloads:
+    - regime_uniform
+    - regime_zipfian
+    - regime_bursty_session
+    - regime_phase_shift
+    - regime_adversarial_churn
+  seeds: [17, 23, 31]
