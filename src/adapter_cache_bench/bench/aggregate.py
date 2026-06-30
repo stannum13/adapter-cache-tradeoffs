@@ -144,10 +144,63 @@ def router_means(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def _t_critical_95(sample_count: int) -> float:
+    # Two-sided 95% Student-t critical values for small repeated-run groups.
+    by_degrees_of_freedom = {
+        1: 12.706,
+        2: 4.303,
+        3: 3.182,
+        4: 2.776,
+        5: 2.571,
+        6: 2.447,
+        7: 2.365,
+        8: 2.306,
+        9: 2.262,
+        10: 2.228,
+        11: 2.201,
+        12: 2.179,
+        13: 2.160,
+        14: 2.145,
+        15: 2.131,
+        16: 2.120,
+        17: 2.110,
+        18: 2.101,
+        19: 2.093,
+        20: 2.086,
+        21: 2.080,
+        22: 2.074,
+        23: 2.069,
+        24: 2.064,
+        25: 2.060,
+        26: 2.056,
+        27: 2.052,
+        28: 2.048,
+        29: 2.045,
+        30: 2.042,
+    }
+    if sample_count <= 1:
+        return 0.0
+    return by_degrees_of_freedom.get(sample_count - 1, 1.96)
+
+
+def _add_confidence_interval_columns(df: pd.DataFrame, metric: str) -> None:
+    mean_col = f"{metric}_mean"
+    std_col = f"{metric}_std"
+    half_width_col = f"{metric}_ci95_half_width"
+    low_col = f"{metric}_ci95_low"
+    high_col = f"{metric}_ci95_high"
+    critical = df["run_count"].map(lambda count: _t_critical_95(int(count)))
+    standard_error = df[std_col] / df["run_count"].pow(0.5)
+    half_width = critical * standard_error
+    df[half_width_col] = half_width.fillna(0.0)
+    df[low_col] = df[mean_col] - df[half_width_col]
+    df[high_col] = df[mean_col] + df[half_width_col]
+
+
 def repeated_seed_summary(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
-    return (
+    summary = (
         df.groupby(["workload", "router_policy", "cache_model"], as_index=False)
         .agg(
             run_count=("quality_adjusted_goodput", "count"),
@@ -162,6 +215,9 @@ def repeated_seed_summary(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index(drop=True)
         .fillna(0.0)
     )
+    for metric in ["quality_adjusted_goodput", "mean_quality", "p95_ttft_ms"]:
+        _add_confidence_interval_columns(summary, metric)
+    return summary
 
 
 def layout_ablation_means(request_df: pd.DataFrame) -> pd.DataFrame:
@@ -241,6 +297,8 @@ def load_request_rows(runs_dir: str | Path) -> pd.DataFrame:
         with path.open("r", encoding="utf-8") as handle:
             for line in handle:
                 record = json.loads(line)
+                if "response" not in record:
+                    continue
                 request = record["request"]
                 response = record["response"]
                 metrics = response["metrics"]

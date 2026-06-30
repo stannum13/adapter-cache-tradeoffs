@@ -16,18 +16,15 @@ TRAIN_MULTITASK="${TRAIN_MULTITASK:-1}"
 TRAIN_SEED="${TRAIN_SEED:-17}"
 
 extra_args=()
+uv_args=(uv run --extra real)
 if [[ "${LOAD_IN_4BIT}" == "1" ]]; then
   extra_args+=(--load-in-4bit)
-fi
-
-python3 -m pip install -q -e ".[real]"
-if [[ "${LOAD_IN_4BIT}" == "1" ]]; then
-  python3 -m pip install -q bitsandbytes
+  uv_args+=(--with bitsandbytes)
 fi
 
 for task in qa json summary code; do
   echo "TRAINING-${task}"
-  python3 experimental/training/train_lora.py \
+  "${uv_args[@]}" python experimental/training/train_lora.py \
     --base-model "${BASE_MODEL}" \
     --train-file "${SFT_DIR}/train_${task}.jsonl" \
     --adapter-id "${task}" \
@@ -43,7 +40,7 @@ done
 
 if [[ "${TRAIN_MULTITASK}" == "1" ]]; then
   echo "TRAINING-multitask"
-  python3 -m experimental.training.train_multitask_lora \
+  "${uv_args[@]}" python -m experimental.training.train_multitask_lora \
     --base-model "${BASE_MODEL}" \
     --train-file "${SFT_DIR}/train.jsonl" \
     --output-dir "${OUTPUT_DIR}/${OUTPUT_PREFIX}-multitask" \

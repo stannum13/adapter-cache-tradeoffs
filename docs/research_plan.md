@@ -1,20 +1,21 @@
 # Research plan
 
 This repo now has a reproducible mock benchmark, real streamed vLLM runs,
-committed result figures, strict external-eval preflight, model-family sweep
-support, server reset hooks, and an adapter/cache metrics postprocessor. The
-remaining work is mostly about collecting stronger evidence, not adding another
-mock-only feature.
+committed result figures, strict external-eval preflight, a completed
+Qwen/TinyLlama model-family sweep, server reset hooks, and an adapter/cache
+metrics postprocessor. The remaining work is mostly about collecting stronger
+external and standard-benchmark evidence, not adding another mock-only feature.
 
 For the line between current evidence and benchmark-quality claims, see
 [benchmark_quality_plan.md](benchmark_quality_plan.md). The short version:
 `benchmark_v0` is frozen as a reproducible suite, while broad model-quality
-claims still require independent external data and repeated isolated vLLM runs.
+claims still require separately curated benchmark data and repeated isolated
+vLLM runs.
 
 ## 1. External evaluation data
 
-Goal: replace public-domain-style engineering fixtures with a larger held-out
-dataset whose provenance and license are suitable for public research claims.
+Goal: use a larger held-out dataset whose provenance and license are suitable
+for public research claims.
 
 Acceptance criteria:
 
@@ -33,10 +34,11 @@ make validate-external-eval
 make vllm-external-eval
 ```
 
-Status: command path is implemented. The default config uses the generated
-500-row public-domain-style fixture to keep the run reproducible; replace
-`workload.dataset_path` with independently curated records before making public
-dataset-quality claims.
+Status: the 500-row source-backed fixture has been served through the
+model-family vLLM path. The default config uses
+`data/eval/external_public_domain_eval.jsonl`. Replace
+`workload.dataset_path` with separately curated records before making
+standard-benchmark claims.
 
 ## 2. Per-condition vLLM cache isolation
 
@@ -54,13 +56,13 @@ Acceptance criteria:
 Run path:
 
 ```bash
-make vllm-exhaustive-overlap
-make vllm-exhaustive-adapter-count
+make vllm-exhaustive-overlap-reset
+make vllm-exhaustive-adapter-count-reset
 ```
 
 Status: reset/warmup hooks are implemented through `BackendConfig`, and
-manifests record `server_reset.log` when enabled. Use this path for the next
-isolated vLLM rerun.
+manifests record `server_reset.log` when enabled. Use these reset-overlay
+targets for the next isolated vLLM rerun.
 
 ## 3. Multi-model comparison
 
@@ -81,9 +83,13 @@ Run path:
 make vllm-model-family
 ```
 
-Status: sweep expansion supports `matrix.models` and per-family adapter maps.
-The evidence is not complete until a second family has compatible specialist
-and multitask adapters trained with the same SFT protocol.
+Status: completed for `Qwen/Qwen2.5-1.5B-Instruct` and
+`TinyLlama/TinyLlama-1.1B-Chat-v1.0` on the 500-row source-backed fixture.
+Each family ran specialists and multitask across three seeds, for 12 vLLM runs
+and 6,000 total requests. `make model-family-summary` regenerates
+`reports/tables/model_family_summary.csv` from the run manifests. Next
+credibility step: repeat with a stronger non-Qwen family and a separately
+curated public benchmark fixture.
 
 ## 4. Adapter-aware serving metrics
 
@@ -140,7 +146,7 @@ Run this before pushing a public research snapshot:
 make research-readiness
 ```
 
-The checker reports the five lanes above as `ok`, `needs_evidence`, or
-`missing`. A `needs_evidence` result is acceptable for the multi-model lane
-until a second model family has actually been trained and served; it should not
-be described as completed evidence in the paper text before then.
+The checker reports implementation preflights and evidence lanes as `ok`,
+`needs_evidence`, or `missing`. The multi-model lane is now evidence-backed by
+observed `model-family-vllm` run manifests. The capacity-frontier lane checks
+that the structured records include startup failures and a larger-GPU success.

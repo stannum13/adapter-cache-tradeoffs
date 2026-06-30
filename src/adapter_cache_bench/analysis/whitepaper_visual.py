@@ -8,21 +8,29 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from adapter_cache_bench.analysis.capacity_frontier import load_capacity_frontier
+from adapter_cache_bench.analysis.plot_style import (
+    COLORS as DARK_COLORS,
+)
+from adapter_cache_bench.analysis.plot_style import (
+    apply_dark_theme,
+)
 from adapter_cache_bench.bench.aggregate import load_summaries
 
 COLORS = {
-    "ink": "#142033",
-    "muted": "#5d6b7c",
-    "grid": "#d8dee8",
-    "panel": "#fbfcff",
-    "blue": "#2563a9",
-    "teal": "#1b8a7a",
-    "gold": "#b7791f",
-    "red": "#b23b3b",
-    "green": "#2f7d46",
-    "purple": "#6f58a8",
-    "prefix": "#dbeafe",
-    "prefix_edge": "#9fbfe8",
+    "background": DARK_COLORS["background"],
+    "ink": DARK_COLORS["text"],
+    "muted": DARK_COLORS["muted"],
+    "grid": DARK_COLORS["grid"],
+    "panel": DARK_COLORS["panel"],
+    "panel_alt": DARK_COLORS["panel_alt"],
+    "blue": DARK_COLORS["blue"],
+    "teal": DARK_COLORS["teal"],
+    "gold": DARK_COLORS["amber"],
+    "red": DARK_COLORS["rose"],
+    "green": DARK_COLORS["green"],
+    "purple": DARK_COLORS["violet"],
+    "prefix": "#1A2433",
+    "prefix_edge": "#344052",
 }
 
 
@@ -30,7 +38,7 @@ def _panel(ax, title: str, subtitle: str | None = None) -> None:
     ax.set_facecolor(COLORS["panel"])
     for spine in ax.spines.values():
         spine.set_color(COLORS["grid"])
-        spine.set_linewidth(0.9)
+        spine.set_linewidth(0.8)
     ax.set_title(title, loc="left", fontsize=11.5, weight="bold", color=COLORS["ink"], pad=12)
     if subtitle:
         ax.text(
@@ -51,8 +59,10 @@ def _axis_style(ax, *, ygrid: bool = True) -> None:
     ax.spines["left"].set_color(COLORS["grid"])
     ax.spines["bottom"].set_color(COLORS["grid"])
     ax.tick_params(colors=COLORS["muted"], labelsize=8)
+    ax.xaxis.label.set_color(COLORS["muted"])
+    ax.yaxis.label.set_color(COLORS["muted"])
     if ygrid:
-        ax.grid(axis="y", color=COLORS["grid"], linewidth=0.7, alpha=0.9)
+        ax.grid(axis="y", color=COLORS["grid"], linewidth=0.7, alpha=0.62)
 
 
 def _box(ax, x: float, y: float, w: float, h: float, color: str, text: str = "") -> None:
@@ -63,8 +73,8 @@ def _box(ax, x: float, y: float, w: float, h: float, color: str, text: str = "")
             h,
             boxstyle="round,pad=0.004,rounding_size=0.012",
             facecolor=color,
-            edgecolor="white",
-            linewidth=0.9,
+            edgecolor=COLORS["grid"],
+            linewidth=0.75,
         )
     )
     if text:
@@ -75,7 +85,7 @@ def _box(ax, x: float, y: float, w: float, h: float, color: str, text: str = "")
             ha="center",
             va="center",
             fontsize=7.2,
-            color="white",
+            color=COLORS["background"],
             weight="bold",
         )
 
@@ -179,46 +189,100 @@ def _large_overlap_summary(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def _dense_overlap_summary(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or "run_id" not in df:
+        return pd.DataFrame()
+    sub = df[df["run_id"].str.contains("exhaustive-overlap-vllm-streaming", na=False)]
+    required = {
+        "sweep_strategy",
+        "sweep_overlap_fraction",
+        "p95_ttft_ms",
+        "server_prefix_cache_hit_rate",
+    }
+    if sub.empty or not required <= set(sub.columns):
+        return pd.DataFrame()
+    return (
+        sub.groupby(["sweep_strategy", "sweep_overlap_fraction"], as_index=False)
+        .agg(
+            runs=("run_id", "count"),
+            p95_ttft_ms=("p95_ttft_ms", "mean"),
+            server_hit=("server_prefix_cache_hit_rate", "mean"),
+            qag=("quality_adjusted_goodput", "mean"),
+        )
+        .sort_values(["sweep_strategy", "sweep_overlap_fraction"])
+    )
+
+
 def draw_cache_frontier(ax, df: pd.DataFrame) -> None:
     _panel(
         ax,
-        "B. Real 7B cache-locality effect",
-        "reset-isolated vLLM runs on one L4",
+        "B. Real overlap trend",
+        "1.5B vLLM: 5 overlap levels x 3 seeds; 7B shown as anchors",
     )
-    summary = _large_overlap_summary(df)
-    if summary.empty:
+    dense = _dense_overlap_summary(df)
+    large = _large_overlap_summary(df)
+    if dense.empty:
         ax.text(
             0.5,
             0.5,
-            "Run large_model_overlap_confidence_vllm",
+            "Run vllm-exhaustive-overlap",
             ha="center",
             va="center",
         )
         return
 
-    x = summary["sweep_overlap_fraction"] * 100
-    ax.plot(
-        x,
-        summary["p95_ttft_ms"],
-        marker="o",
-        linewidth=2.6,
-        color=COLORS["blue"],
-        label="p95 TTFT",
-    )
+    strategy_colors = {
+        "specialists": COLORS["blue"],
+        "multitask": COLORS["teal"],
+    }
+    for strategy, group in dense.groupby("sweep_strategy", sort=False):
+        if group["sweep_overlap_fraction"].nunique() < 4:
+            marker = "o"
+            linestyle = "None"
+        else:
+            marker = "o" if strategy == "specialists" else "s"
+            linestyle = "-"
+        ax.plot(
+            group["sweep_overlap_fraction"] * 100,
+            group["p95_ttft_ms"],
+            marker=marker,
+            linestyle=linestyle,
+            linewidth=2.3,
+            markersize=5.0,
+            color=strategy_colors.get(str(strategy), COLORS["muted"]),
+            label=f"{strategy} p95 TTFT",
+        )
+    if not large.empty:
+        ax.scatter(
+            large["sweep_overlap_fraction"] * 100,
+            large["p95_ttft_ms"],
+            marker="D",
+            s=54,
+            color=COLORS["gold"],
+            edgecolor=COLORS["background"],
+            linewidth=0.7,
+            label="7B reset anchors",
+            zorder=5,
+        )
     ax.set_xlabel("shared-prefix overlap (%)", fontsize=8.8)
-    ax.set_ylabel("p95 TTFT (ms)", fontsize=8.8, color=COLORS["blue"])
-    ax.tick_params(axis="y", colors=COLORS["blue"])
-    ax.set_xlim(45, 100)
+    ax.set_ylabel("p95 TTFT (ms)", fontsize=8.8)
+    ax.set_xlim(-3, 100)
     _axis_style(ax)
+    ax.legend(frameon=False, fontsize=7.5, loc="upper right")
 
     ax2 = ax.twinx()
+    hit_summary = (
+        dense.groupby("sweep_overlap_fraction", as_index=False)
+        .agg(server_hit=("server_hit", "mean"))
+        .sort_values("sweep_overlap_fraction")
+    )
     ax2.plot(
-        x,
-        summary["server_hit"] * 100,
-        marker="s",
-        linewidth=2.3,
-        color=COLORS["teal"],
-        label="server prefix hit",
+        hit_summary["sweep_overlap_fraction"] * 100,
+        hit_summary["server_hit"] * 100,
+        color=COLORS["muted"],
+        linestyle="--",
+        linewidth=1.7,
+        alpha=0.95,
     )
     ax2.set_ylabel("server prefix hit rate (%)", fontsize=8.8, color=COLORS["teal"])
     ax2.tick_params(axis="y", colors=COLORS["teal"], labelsize=8)
@@ -226,24 +290,25 @@ def draw_cache_frontier(ax, df: pd.DataFrame) -> None:
     ax2.spines["right"].set_color(COLORS["grid"])
     ax2.set_ylim(0, 100)
 
-    low = summary.iloc[0]
-    high = summary.iloc[-1]
-    delta = low["p95_ttft_ms"] - high["p95_ttft_ms"]
-    hit_delta = (high["server_hit"] - low["server_hit"]) * 100
-    ax.text(
-        0.04,
-        0.08,
-        f"-{delta:.0f} ms p95 TTFT\n+{hit_delta:.1f} pp prefix hits",
-        transform=ax.transAxes,
-        fontsize=9,
-        color=COLORS["ink"],
-        weight="bold",
-        bbox={
-            "boxstyle": "round,pad=0.28",
-            "facecolor": "white",
-            "edgecolor": COLORS["grid"],
-        },
-    )
+    if not large.empty:
+        low = large.iloc[0]
+        high = large.iloc[-1]
+        delta = low["p95_ttft_ms"] - high["p95_ttft_ms"]
+        hit_delta = (high["server_hit"] - low["server_hit"]) * 100
+        ax.text(
+            0.04,
+            0.08,
+            f"7B anchors: -{delta:.0f} ms p95\n+{hit_delta:.1f} pp prefix hits",
+            transform=ax.transAxes,
+            fontsize=8.6,
+            color=COLORS["ink"],
+            weight="bold",
+            bbox={
+                "boxstyle": "round,pad=0.28",
+                "facecolor": COLORS["panel_alt"],
+                "edgecolor": COLORS["grid"],
+            },
+        )
 
 
 def _source_frontier(df: pd.DataFrame) -> pd.DataFrame:
@@ -284,8 +349,8 @@ def draw_quality_frontier(ax, df: pd.DataFrame) -> None:
             s=max(90, float(row["quality_adjusted_goodput"]) * 520),
             color=colors.get(condition, COLORS["gold"]),
             alpha=0.86,
-            edgecolor="white",
-            linewidth=1.0,
+            edgecolor=COLORS["background"],
+            linewidth=0.9,
         )
         ax.text(
             row["p95_ttft_ms"] + dx,
@@ -329,8 +394,8 @@ def draw_capacity_frontier(ax, path: str | Path = "data/results/capacity_frontie
             s=170,
             marker="o",
             color=color,
-            edgecolor="white",
-            linewidth=1.1,
+            edgecolor=COLORS["background"],
+            linewidth=0.9,
         )
         label = "starts" if row.status == "starts" else "fails"
         ax.text(row.lora_count + 0.18, idx, label, fontsize=8.5, va="center", color=COLORS["ink"])
@@ -355,23 +420,12 @@ def draw_capacity_frontier(ax, path: str | Path = "data/results/capacity_frontie
     ax.set_xlabel("registered LoRAs", fontsize=8.8)
     ax.set_xlim(4.3, 10.9)
     ax.set_ylim(-0.7, len(y_positions) - 0.3)
-    ax.axvspan(7.5, 10.5, color="#fff1f1", alpha=0.75, zorder=0)
+    ax.axvspan(7.5, 10.5, color=COLORS["red"], alpha=0.12, zorder=0)
     ax.text(8.05, len(y_positions) - 0.72, "L4 failure region", fontsize=7.8, color=COLORS["red"])
     _axis_style(ax, ygrid=False)
 
 
 def draw_takeaway(fig) -> None:
-    box = patches.FancyBboxPatch(
-        (0.16, 0.035),
-        0.70,
-        0.050,
-        boxstyle="round,pad=0.008,rounding_size=0.010",
-        facecolor="#f8fafc",
-        edgecolor=COLORS["grid"],
-        linewidth=0.9,
-        transform=fig.transFigure,
-    )
-    fig.add_artist(box)
     fig.text(
         0.51,
         0.060,
@@ -390,11 +444,12 @@ def generate_whitepaper_visual(
     output_dir: str | Path = "docs/figures",
 ) -> list[Path]:
     df = load_summaries(runs_dir)
+    apply_dark_theme()
     plt.rcParams.update(
         {
             "font.family": "DejaVu Sans",
-            "figure.facecolor": "white",
-            "savefig.facecolor": "white",
+            "figure.facecolor": COLORS["background"],
+            "savefig.facecolor": COLORS["background"],
             "axes.titlepad": 10,
         }
     )
@@ -447,8 +502,8 @@ def generate_whitepaper_visual(
     out.mkdir(parents=True, exist_ok=True)
     png = out / "whitepaper_specialization_cache_tradeoff.png"
     pdf = out / "whitepaper_specialization_cache_tradeoff.pdf"
-    fig.savefig(png, dpi=300, bbox_inches="tight")
-    fig.savefig(pdf, bbox_inches="tight")
+    fig.savefig(png, dpi=300, bbox_inches="tight", facecolor=COLORS["background"])
+    fig.savefig(pdf, bbox_inches="tight", facecolor=COLORS["background"])
     plt.close(fig)
     return [png, pdf]
 

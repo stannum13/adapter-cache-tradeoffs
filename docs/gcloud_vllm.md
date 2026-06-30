@@ -101,6 +101,22 @@ curl http://localhost:8000/v1/models
 
 ## 5. Run the benchmark
 
+Export cloud provenance before launching GPU benchmarks. The runner copies
+these values into `manifest.json` without calling gcloud directly:
+
+```bash
+export ACB_CLOUD_PROVIDER=gcp
+export ACB_CLOUD_PROJECT=<project-id>
+export ACB_CLOUD_ZONE=us-central1-a
+export ACB_CLOUD_INSTANCE=adapter-cache-vllm-l4
+export ACB_CLOUD_MACHINE_TYPE=g2-standard-8
+export ACB_CLOUD_GPU_TYPE=nvidia-l4
+export ACB_CLOUD_GPU_COUNT=1
+export ACB_CLOUD_PROVISIONING_MODEL=STANDARD
+export ACB_CLOUD_TTL_HOURS=8
+export ACB_VLLM_IMAGE=vllm/vllm-openai:latest
+```
+
 Base-model run:
 
 ```bash
@@ -114,7 +130,9 @@ make vllm-source-eval-lora-qwen
 ```
 
 The run writes `requests.jsonl`, `summary.json`, `config_resolved.yaml`, and
-`manifest.json` under `artifacts/runs/`.
+`manifest.json` under `artifacts/runs/`. Current runners also write
+`status.json`, and sweep runners write `sweep_plan.json`, `sweep_status.json`,
+and `sweep_summary.md` under `artifacts/runs/_sweeps/<sweep-name>/`.
 
 ## 6. Stop resources
 
@@ -126,3 +144,18 @@ PROJECT=<project-id> ./scripts/gcloud_l4_vllm.sh stop
 
 Stopping the VM stops GPU billing for the instance, but persistent disk storage
 continues until the VM or disk is deleted.
+
+For overnight work, set an explicit shutdown command in the surrounding shell or
+loop. Prefer stop-on-exit for routine evidence runs and keep-alive-on-failure
+only for debugging sessions:
+
+```bash
+trap 'PROJECT=<project-id> ./scripts/gcloud_l4_vllm.sh stop' EXIT
+```
+
+When launching VMs manually, label them with a TTL so external watchdogs can
+find stale resources:
+
+```bash
+--labels=project=adapter-cache-bench,owner=<name>,purpose=benchmark,ttl_hours=8
+```

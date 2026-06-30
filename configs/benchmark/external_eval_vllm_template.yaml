@@ -2,10 +2,9 @@ run_name: external-eval-vllm
 output_dir: artifacts/runs
 workload:
   name: jsonl_eval
-  # Replace this with an independently curated JSONL file following
-  # docs/eval_datasets.md. The generated 500-row default keeps the
-  # systems path runnable and exercises the same repeated-prefix shape.
-  dataset_path: data/eval/public_domain_eval_xlarge.jsonl
+  # Source-backed public-domain fixture built from online public-domain texts.
+  # Replace this path with a separately curated JSONL for stronger paper claims.
+  dataset_path: data/eval/external_public_domain_eval.jsonl
   request_count: 500
   sessions: 20
   tenants: 4

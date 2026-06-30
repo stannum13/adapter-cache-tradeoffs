@@ -14,7 +14,7 @@ data, scoring, and run protocol below are frozen and repeated.
 | Cache evidence | Simulator metrics and vLLM server-level counters exist. | Report simulator cache accounting and server counters side by side, with metric scope clearly labeled. |
 | Capacity evidence | One L4 fails 8/10 LoRAs at 4096 context; one H100 80GB serves 10 LoRAs. | Record a GPU/model/context/adapter-count capacity table with exact failure messages and startup logs. |
 | Claim discipline | [claim_ladder.md](claim_ladder.md) separates supported claims from non-claims. | Keep each public claim tied to request count, run count, model, hardware, and metric scope. |
-| External validity | Public-domain-style and source-backed fixtures exist. | Add an independently curated public eval fixture before making broad model-quality claims. |
+| External validity | The 500-row source-backed public-domain fixture has been served on Qwen2.5-1.5B and TinyLlama-1.1B. | Prefer a separately curated public eval fixture before making broad model-quality claims. |
 
 ## Benchmark v0 definition
 
@@ -29,11 +29,13 @@ Command:
 
 ```bash
 make benchmark-v0-mock
+make benchmark-v0-csv
 ```
 
 Config:
 
 - [configs/benchmark/benchmark_v0_mock.yaml](../configs/benchmark/benchmark_v0_mock.yaml)
+- Canonical CSV: [data/results/benchmark_v0_mock.csv](../data/results/benchmark_v0_mock.csv)
 
 Frozen dimensions:
 
@@ -105,9 +107,14 @@ Every table that claims benchmark evidence should include:
 - memory-token footprint or vLLM KV cache capacity;
 - adapter distribution.
 
+Repeated-run summaries also report 95% confidence intervals for
+quality-adjusted goodput, mean quality, and p95 TTFT.
+
 ## External eval requirements
 
-The next credibility jump is an independent public eval fixture. It must have:
+The included external fixture is a 500-row source-backed public-domain suite.
+The next credibility jump is a separately curated public eval fixture. It must
+have:
 
 - at least 500 records;
 - balanced `qa`, `json`, `summary`, and `code` tasks;
@@ -124,8 +131,9 @@ The repo already has a preflight command:
 make validate-external-eval
 ```
 
-The current default external-eval template is still an engineering fixture. It
-is useful for exercising the pipeline, not for final paper-quality claims.
+The current default external-eval template points at the included
+source-backed public-domain fixture. It is useful for exercising the pipeline
+and license-clear external runs, but it is not a standard public LLM benchmark.
 
 ## Claim discipline
 
@@ -144,7 +152,9 @@ More precise current claim:
 > and reduced mean p95 TTFT by 666.0 ms. On the included source-backed eval,
 > trained specialist LoRAs improved quality versus the base causal transformer,
 > while showing the expected cache-footprint cost relative to base/multitask
-> routing.
+> routing. On the 500-row source-backed fixture, the specialist-versus-multitask
+> tradeoff was observed on both Qwen2.5-1.5B and TinyLlama-1.1B, with specialist
+> adapters improving quality but not uniformly winning QAG.
 
 Claims to avoid until stronger evidence exists:
 
@@ -156,11 +166,13 @@ Claims to avoid until stronger evidence exists:
 
 ## Remaining work
 
-1. Freeze `benchmark_v0` outputs into one canonical CSV.
-2. Add confidence intervals over repeated serving runs.
-3. Add an independently curated external eval fixture.
-4. Run real vLLM conditions with server reset per condition.
-5. Maintain the paper-style capacity frontier table in
+1. Repeat the source-backed and model-family evidence with a separately curated
+   standard public benchmark fixture.
+2. Run the most claim-relevant real vLLM conditions with server reset per
+   condition.
+3. Maintain the paper-style capacity frontier table in
    [data/results/capacity_frontier.yaml](../data/results/capacity_frontier.yaml)
-   and regenerate it with `make capacity-frontier`.
-6. Keep failed runs in the documentation when they explain the frontier.
+   and regenerate it with `make capacity-frontier`; `make research-readiness`
+   checks that the records include both startup failures and a larger-GPU
+   success.
+3. Keep failed runs in the documentation when they explain the frontier.
