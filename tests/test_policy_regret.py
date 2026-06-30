@@ -201,6 +201,115 @@ def test_policy_regret_keeps_non_policy_sweep_dimensions_comparable(tmp_path):
     assert high_overlap[high_overlap["policy"].eq("multitask")].iloc[0]["rank"] == 1
 
 
+def test_policy_regret_keeps_cache_conditions_comparable(tmp_path):
+    write_run(
+        tmp_path,
+        "warm-specialists",
+        strategy="specialists",
+        qag=8.0,
+    )
+    write_run(
+        tmp_path,
+        "warm-multitask",
+        router_policy="multitask",
+        cache_model="base_shared",
+        strategy="multitask",
+        qag=6.0,
+    )
+    write_run(
+        tmp_path,
+        "disabled-specialists",
+        strategy="specialists",
+        qag=5.0,
+    )
+    write_run(
+        tmp_path,
+        "disabled-multitask",
+        router_policy="multitask",
+        cache_model="base_shared",
+        strategy="multitask",
+        qag=7.0,
+    )
+    for run_id, condition in [
+        ("warm-specialists", "warm"),
+        ("warm-multitask", "warm"),
+        ("disabled-specialists", "prefix_disabled"),
+        ("disabled-multitask", "prefix_disabled"),
+    ]:
+        manifest_path = tmp_path / run_id / "manifest.json"
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        payload["sweep_dimensions"]["cache_condition"] = condition
+        manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    table = build_policy_regret_table(tmp_path)
+
+    assert table["regime_id"].nunique() == 2
+    assert "sweep_cache_condition" in table.columns
+    warm = table[table["sweep_cache_condition"].eq("warm")]
+    disabled = table[table["sweep_cache_condition"].eq("prefix_disabled")]
+    assert warm[warm["policy"].eq("specialists")].iloc[0]["rank"] == 1
+    assert disabled[disabled["policy"].eq("multitask")].iloc[0]["rank"] == 1
+
+
+def test_policy_regret_uses_summary_cache_condition_without_sweep(tmp_path):
+    write_run(
+        tmp_path,
+        "warm-specialists",
+        strategy="specialists",
+        qag=8.0,
+        include_manifest=False,
+    )
+    write_run(
+        tmp_path,
+        "cold-specialists",
+        strategy="specialists",
+        qag=5.0,
+        include_manifest=False,
+    )
+    for run_id, condition in [("warm-specialists", "warm"), ("cold-specialists", "cold")]:
+        summary_path = tmp_path / run_id / "summary.json"
+        payload = json.loads(summary_path.read_text(encoding="utf-8"))
+        payload["cache_condition"] = condition
+        summary_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    table = build_policy_regret_table(tmp_path)
+
+    assert table["regime_id"].nunique() == 2
+    assert "cache_condition" in table.columns
+
+
+def test_policy_regret_backfills_missing_sweep_cache_condition_from_summary(tmp_path):
+    write_run(
+        tmp_path,
+        "legacy-warm",
+        strategy="specialists",
+        qag=8.0,
+        include_manifest=False,
+    )
+    write_run(
+        tmp_path,
+        "new-cold",
+        strategy="specialists",
+        qag=5.0,
+    )
+    legacy_summary = tmp_path / "legacy-warm" / "summary.json"
+    legacy_payload = json.loads(legacy_summary.read_text(encoding="utf-8"))
+    legacy_payload["cache_condition"] = "warm"
+    legacy_summary.write_text(json.dumps(legacy_payload), encoding="utf-8")
+    cold_summary = tmp_path / "new-cold" / "summary.json"
+    cold_payload = json.loads(cold_summary.read_text(encoding="utf-8"))
+    cold_payload["cache_condition"] = "cold"
+    cold_summary.write_text(json.dumps(cold_payload), encoding="utf-8")
+    cold_manifest = tmp_path / "new-cold" / "manifest.json"
+    cold_manifest_payload = json.loads(cold_manifest.read_text(encoding="utf-8"))
+    cold_manifest_payload["sweep_dimensions"]["cache_condition"] = "cold"
+    cold_manifest.write_text(json.dumps(cold_manifest_payload), encoding="utf-8")
+
+    table = build_policy_regret_table(tmp_path)
+
+    assert set(table["sweep_cache_condition"]) == {"warm", "cold"}
+
+
 def test_policy_regret_handles_missing_manifest_and_empty_csv(tmp_path):
     write_run(
         tmp_path,

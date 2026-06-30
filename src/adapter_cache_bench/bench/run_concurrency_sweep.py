@@ -50,24 +50,33 @@ def expand_concurrency_sweep_children(config: BenchmarkConfig) -> list[SweepChil
     concurrencies = [
         int(item) for item in matrix.get("concurrencies", [config.backend.max_concurrency])
     ]
+    cache_conditions = [
+        str(item) for item in matrix.get("cache_conditions", [config.cache.condition])
+    ]
+    include_cache_condition = "cache_conditions" in matrix or config.cache.condition != "warm"
     seeds = [int(item) for item in matrix.get("seeds", [config.workload.seed])]
     children = []
     for strategy in strategies:
         for concurrency in concurrencies:
-            for seed in seeds:
-                child = apply_strategy(config, strategy)
-                child.backend.max_concurrency = concurrency
-                child.workload.seed = seed
-                child.router.seed = seed
-                child.backend.seed = seed
-                child.run_name = f"{child.run_name}-c{concurrency}-seed{seed}"
-                child.matrix = {}
-                dimensions = {
-                    "strategy": strategy,
-                    "concurrency": concurrency,
-                    "seed": seed,
-                }
-                children.append(SweepChild(child, dimensions))
+            for cache_condition in cache_conditions:
+                for seed in seeds:
+                    child = apply_strategy(config, strategy)
+                    child.backend.max_concurrency = concurrency
+                    child.cache.condition = cache_condition
+                    child.workload.seed = seed
+                    child.router.seed = seed
+                    child.backend.seed = seed
+                    condition_label = f"-{cache_condition}" if include_cache_condition else ""
+                    child.run_name = f"{child.run_name}-c{concurrency}{condition_label}-seed{seed}"
+                    child.matrix = {}
+                    dimensions = {
+                        "strategy": strategy,
+                        "concurrency": concurrency,
+                        "seed": seed,
+                    }
+                    if include_cache_condition:
+                        dimensions["cache_condition"] = cache_condition
+                    children.append(SweepChild(child, dimensions))
     return children
 
 

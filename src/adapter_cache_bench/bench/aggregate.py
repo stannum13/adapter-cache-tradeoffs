@@ -52,10 +52,16 @@ def load_summaries(runs_dir: str | Path) -> pd.DataFrame:
                 row.setdefault("max_concurrency", manifest.get("max_concurrency", 1))
                 row.setdefault("request_spacing_ms", manifest.get("request_spacing_ms", 0.0))
                 row.setdefault("wall_duration_s", manifest.get("wall_duration_s"))
+                row.setdefault("cache_condition", manifest.get("cache_condition", "warm"))
                 for key, value in manifest.get("sweep_dimensions", {}).items():
                     row.setdefault(f"sweep_{key}", value)
+                row.setdefault(
+                    "cache_condition",
+                    manifest.get("sweep_dimensions", {}).get("cache_condition", "warm"),
+                )
             row.setdefault("max_concurrency", 1)
             row.setdefault("request_spacing_ms", 0.0)
+            row.setdefault("cache_condition", "warm")
             rows.append(row)
     return pd.DataFrame(rows)
 
@@ -77,6 +83,8 @@ def with_strategy_columns(df: pd.DataFrame) -> pd.DataFrame:
         enriched["cache_model"].map(STRATEGY_BY_CACHE_MODEL).fillna(enriched["cache_model"])
     )
     enriched["router_cache_pair"] = enriched["router_policy"] + " / " + enriched["cache_model"]
+    if "cache_condition" not in enriched:
+        enriched["cache_condition"] = "warm"
     return enriched
 
 
@@ -90,6 +98,7 @@ def workload_leaders(df: pd.DataFrame) -> pd.DataFrame:
     )
     columns = [
         "workload",
+        "cache_condition",
         "router_policy",
         "cache_model",
         "adapter_strategy",
@@ -101,7 +110,11 @@ def workload_leaders(df: pd.DataFrame) -> pd.DataFrame:
         "memory_token_footprint",
         "fragmentation_index",
     ]
-    return ordered.groupby("workload", as_index=False).head(1)[columns].reset_index(drop=True)
+    return (
+        ordered.groupby(["workload", "cache_condition"], as_index=False)
+        .head(1)[columns]
+        .reset_index(drop=True)
+    )
 
 
 def cache_model_means(df: pd.DataFrame) -> pd.DataFrame:
@@ -109,7 +122,7 @@ def cache_model_means(df: pd.DataFrame) -> pd.DataFrame:
         return df
     enriched = with_strategy_columns(df)
     return (
-        enriched.groupby(["cache_model", "adapter_strategy"], as_index=False)
+        enriched.groupby(["cache_model", "cache_condition", "adapter_strategy"], as_index=False)
         .agg(
             quality_adjusted_goodput=("quality_adjusted_goodput", "mean"),
             quality_adjusted_goodput_per_memory_token=(
@@ -134,7 +147,7 @@ def router_means(df: pd.DataFrame) -> pd.DataFrame:
         return df
     enriched = with_strategy_columns(df)
     return (
-        enriched.groupby("router_policy", as_index=False)
+        enriched.groupby(["router_policy", "cache_condition"], as_index=False)
         .agg(
             quality_adjusted_goodput=("quality_adjusted_goodput", "mean"),
             quality_adjusted_goodput_per_memory_token=(
@@ -206,8 +219,10 @@ def _add_confidence_interval_columns(df: pd.DataFrame, metric: str) -> None:
 def repeated_seed_summary(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
+    if "cache_condition" not in df:
+        df = df.assign(cache_condition="warm")
     summary = (
-        df.groupby(["workload", "router_policy", "cache_model"], as_index=False)
+        df.groupby(["workload", "cache_condition", "router_policy", "cache_model"], as_index=False)
         .agg(
             run_count=("quality_adjusted_goodput", "count"),
             quality_adjusted_goodput_mean=("quality_adjusted_goodput", "mean"),

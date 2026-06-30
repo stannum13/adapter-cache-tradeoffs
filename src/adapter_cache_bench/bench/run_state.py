@@ -86,6 +86,7 @@ def build_manifest(
         "workload": config.workload.name,
         "router_policy": config.router.policy,
         "cache_model": config.cache.model,
+        "cache_condition": config.cache.condition,
         "adapter_ids": config.adapters.adapter_ids,
         "adapter_model_names": config.backend.adapter_model_names,
         "max_concurrency": config.backend.max_concurrency,

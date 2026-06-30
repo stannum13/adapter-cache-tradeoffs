@@ -49,6 +49,7 @@ def summarize(
         backend_model=config.backend.model,
         router_policy=config.router.policy,
         cache_model=config.cache.model,
+        cache_condition=config.cache.condition,
         workload=config.workload.name,
         mean_ttft_ms=sum(ttft) / max(1, len(ttft)),
         p50_ttft_ms=percentile(ttft, 0.50),

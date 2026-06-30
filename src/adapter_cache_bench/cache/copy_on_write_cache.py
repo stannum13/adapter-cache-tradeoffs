@@ -12,6 +12,10 @@ class CopyOnWriteCache(CacheModel):
         super().__init__(*args, **kwargs)
         self._delta_tokens: dict[str, int] = {}
 
+    def _reset_storage(self) -> None:
+        super()._reset_storage()
+        self._delta_tokens = {}
+
     def _find_invocation_index(self, tokens: list[str]) -> int:
         markers = set(self.config.invocation_markers.values())
         for index, token in enumerate(tokens):
@@ -28,13 +32,23 @@ class CopyOnWriteCache(CacheModel):
     def observe_request(
         self, adapter_id: str, prompt: str, tenant_id: str, trust_group_id: str
     ) -> None:
+        if self.config.condition == "prefix_disabled":
+            super().observe_request(adapter_id, prompt, tenant_id, trust_group_id)
+            return
+        original_condition = self.config.condition
+        if self.config.condition == "cold":
+            self._reset_storage()
+            self.config.condition = "warm"
         tokens = self.tokenizer.encode(prompt)
         split = self._find_invocation_index(tokens)
         post_tokens = max(1, len(tokens) - split)
         isolation = self._isolation_id(tenant_id, trust_group_id)
         delta = ceil(post_tokens * self.config.copy_on_write_delta_fraction)
         self._delta_tokens[f"{isolation}:{adapter_id}:{split}:{post_tokens}"] = delta
-        super().observe_request(adapter_id, prompt, tenant_id, trust_group_id)
+        try:
+            super().observe_request(adapter_id, prompt, tenant_id, trust_group_id)
+        finally:
+            self.config.condition = original_condition
 
     def memory_tokens(self) -> int:
         return self.table.cached_tokens() + sum(self._delta_tokens.values())

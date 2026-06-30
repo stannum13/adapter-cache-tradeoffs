@@ -14,6 +14,7 @@ router:
   seed: 17
 cache:
   model: standard_lora
+  condition: warm
   block_size: 8
   isolation_scope: trust_group
 backend:
@@ -24,6 +25,7 @@ backend:
 matrix:
   routers: [semantic, sticky_session, cache_aware, oracle]
   caches: [standard_lora, activated_lora, copy_on_write]
+  cache_conditions: [warm, prefix_disabled, cold]
   workloads:
     - regime_uniform
     - regime_zipfian

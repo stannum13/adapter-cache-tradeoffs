@@ -19,18 +19,24 @@ def expand_matrix_sweep(config: BenchmarkConfig) -> list[SweepChild]:
     matrix = config.matrix or {}
     routers = matrix.get("routers", [config.router.policy])
     caches = matrix.get("caches", [config.cache.model])
+    cache_conditions = matrix.get("cache_conditions", [config.cache.condition])
+    include_cache_condition = "cache_conditions" in matrix or config.cache.condition != "warm"
     workloads = matrix.get("workloads", [config.workload.name])
     seeds = [int(seed) for seed in matrix.get("seeds", [config.workload.seed])]
     children = []
-    for router, cache, workload, seed in itertools.product(routers, caches, workloads, seeds):
+    for router, cache, cache_condition, workload, seed in itertools.product(
+        routers, caches, cache_conditions, workloads, seeds
+    ):
         child = copy.deepcopy(config)
         child.router.policy = str(router)
         child.cache.model = str(cache)
+        child.cache.condition = str(cache_condition)
         child.workload.name = str(workload)
         child.workload.seed = seed
         child.router.seed = seed
         child.backend.seed = seed
-        child.run_name = f"{workload}-{router}-{cache}-seed{seed}"
+        condition_label = f"-{cache_condition}" if include_cache_condition else ""
+        child.run_name = f"{workload}-{router}-{cache}{condition_label}-seed{seed}"
         child.matrix = {}
         dimensions = {
             "router": str(router),
@@ -38,6 +44,8 @@ def expand_matrix_sweep(config: BenchmarkConfig) -> list[SweepChild]:
             "workload": str(workload),
             "seed": seed,
         }
+        if include_cache_condition:
+            dimensions["cache_condition"] = str(cache_condition)
         children.append(SweepChild(child, dimensions))
     return children
 

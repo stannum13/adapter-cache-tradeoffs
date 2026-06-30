@@ -1,4 +1,7 @@
-from adapter_cache_bench.bench.run_concurrency_sweep import expand_concurrency_sweep
+from adapter_cache_bench.bench.run_concurrency_sweep import (
+    expand_concurrency_sweep,
+    expand_concurrency_sweep_children,
+)
 from adapter_cache_bench.bench.run_exhaustive_sweep import (
     expand_exhaustive_sweep,
     record_sweep_dimensions,
@@ -47,6 +50,33 @@ def test_expand_matrix_sweep_records_dimensions():
     }
 
 
+def test_expand_matrix_sweep_records_cache_condition_dimension_when_configured():
+    config = BenchmarkConfig(
+        matrix={
+            "routers": ["semantic"],
+            "caches": ["standard_lora"],
+            "cache_conditions": ["warm", "prefix_disabled", "cold"],
+            "workloads": ["shared_doc_qa"],
+            "seeds": [17],
+        }
+    )
+
+    children = expand_matrix_sweep(config)
+
+    assert len(children) == 3
+    assert {child.config.cache.condition for child in children} == {
+        "warm",
+        "prefix_disabled",
+        "cold",
+    }
+    assert {child.dimensions["cache_condition"] for child in children} == {
+        "warm",
+        "prefix_disabled",
+        "cold",
+    }
+    assert all("seed17" in child.config.run_name for child in children)
+
+
 def test_memory_pressure_matrix_uses_finite_cache_budget():
     config = load_config("configs/benchmark/memory_pressure.yaml")
     expanded = expand_matrix(config)
@@ -77,6 +107,32 @@ def test_expand_concurrency_sweep_applies_strategy_and_concurrency():
     assert base.backend.adapter_model_names == {}
 
 
+def test_expand_concurrency_sweep_applies_cache_conditions():
+    config = BenchmarkConfig(
+        run_name="frontier",
+        matrix={
+            "strategies": ["specialists"],
+            "concurrencies": [4],
+            "cache_conditions": ["warm", "prefix_disabled", "cold"],
+            "seeds": [11],
+        },
+    )
+
+    children = expand_concurrency_sweep_children(config)
+
+    assert len(children) == 3
+    assert {child.config.cache.condition for child in children} == {
+        "warm",
+        "prefix_disabled",
+        "cold",
+    }
+    assert {child.dimensions["cache_condition"] for child in children} == {
+        "warm",
+        "prefix_disabled",
+        "cold",
+    }
+
+
 def test_expand_exhaustive_sweep_applies_dimensions():
     config = BenchmarkConfig(
         run_name="exhaustive",
@@ -85,6 +141,7 @@ def test_expand_exhaustive_sweep_applies_dimensions():
             "concurrencies": [8],
             "workloads": ["controlled_overlap"],
             "caches": ["activated_lora"],
+            "cache_conditions": ["warm", "prefix_disabled"],
             "overlap_fractions": [0.25, 0.75],
             "adapter_counts": [2],
             "tenants": [1, 4],
@@ -95,7 +152,7 @@ def test_expand_exhaustive_sweep_applies_dimensions():
 
     expanded = expand_exhaustive_sweep(config)
 
-    assert len(expanded) == 4
+    assert len(expanded) == 8
     child, dimensions = expanded[0]
     assert child.backend.max_concurrency == 8
     assert child.workload.name == "controlled_overlap"
@@ -105,6 +162,8 @@ def test_expand_exhaustive_sweep_applies_dimensions():
     assert child.backend.adapter_model_names == {"qa": "qa-lora", "json": "json-lora"}
     assert dimensions["adapter_count"] == 2
     assert dimensions["isolation_scope"] == "tenant"
+    assert dimensions["cache_condition"] in {"warm", "prefix_disabled"}
+    assert child.cache.condition in {"warm", "prefix_disabled"}
 
 
 def test_expand_exhaustive_sweep_supports_model_dimension():

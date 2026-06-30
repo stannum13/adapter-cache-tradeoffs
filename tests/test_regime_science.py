@@ -112,6 +112,34 @@ def test_regime_policy_failure_matrix_uses_regime_rows_only():
     assert matrix.loc["regime_uniform", "semantic / standard_lora"] == 0.25
 
 
+def test_regime_policy_failure_matrix_keeps_cache_conditions_separate():
+    table = pd.DataFrame(
+        [
+            {
+                "workload": "regime_uniform",
+                "router_policy": "semantic",
+                "cache_model": "standard_lora",
+                "strategy": "standard_lora",
+                "sweep_cache_condition": "warm",
+                "relative_regret": 0.1,
+            },
+            {
+                "workload": "regime_uniform",
+                "router_policy": "semantic",
+                "cache_model": "standard_lora",
+                "strategy": "standard_lora",
+                "sweep_cache_condition": "prefix_disabled",
+                "relative_regret": 0.4,
+            },
+        ]
+    )
+
+    matrix = build_regime_policy_failure_matrix(table)
+
+    assert matrix.loc["regime_uniform", "semantic / standard_lora"] == 0.1
+    assert matrix.loc["regime_uniform / prefix_disabled", "semantic / standard_lora"] == 0.4
+
+
 def test_regime_policy_failure_map_writes_png(tmp_path):
     _write_run(
         tmp_path,

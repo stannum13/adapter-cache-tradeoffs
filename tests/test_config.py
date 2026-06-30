@@ -1,3 +1,5 @@
+import pytest
+
 from adapter_cache_bench.config import deep_merge, load_config
 
 
@@ -51,6 +53,20 @@ cache:
     assert config.router.alpha == 0.02
     assert config.cache.model == "activated_lora"
     assert config.workload.request_count == 5
+
+
+def test_load_config_rejects_unknown_cache_condition(tmp_path):
+    path = tmp_path / "bad.yaml"
+    path.write_text(
+        """
+cache:
+  condition: not-a-real-condition
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError):
+        load_config(path)
 
 
 def test_vllm_example_config_loads_optional_backend():

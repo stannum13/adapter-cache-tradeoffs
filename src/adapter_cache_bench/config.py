@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -22,6 +22,7 @@ class AdapterConfig(BaseModel):
 
 class CacheConfig(BaseModel):
     model: str = "standard_lora"
+    condition: Literal["warm", "cold", "prefix_disabled"] = "warm"
     block_size: int = 16
     max_memory_tokens: int | None = None
     eviction_policy: str = "lru"

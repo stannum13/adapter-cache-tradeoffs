@@ -552,6 +552,52 @@ def test_load_summaries_flattens_backend_metrics_and_sweep_dimensions(tmp_path):
     assert df.iloc[0]["sweep_adapter_count"] == 4
 
 
+def test_load_summaries_preserves_cache_condition_from_manifest(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "summary.json").write_text(
+        json.dumps(
+            {
+                "run_id": "run",
+                "request_count": 1,
+                "router_policy": "semantic",
+                "cache_model": "standard_lora",
+                "workload": "shared_doc_qa",
+                "mean_ttft_ms": 10,
+                "p50_ttft_ms": 10,
+                "p95_ttft_ms": 10,
+                "p99_ttft_ms": 10,
+                "mean_e2e_ms": 20,
+                "p50_e2e_ms": 20,
+                "p95_e2e_ms": 20,
+                "p99_e2e_ms": 20,
+                "mean_itl_ms": 1,
+                "mean_tpot_ms": 2,
+                "request_throughput": 1,
+                "token_throughput": 10,
+                "goodput_under_slo": 1,
+                "slo_attainment_rate": 1,
+                "mean_quality": 0.9,
+                "quality_adjusted_goodput": 0.9,
+                "quality_adjusted_goodput_per_memory_token": 0.09,
+                "cache_hit_rate": 0.5,
+                "cached_prompt_token_ratio": 0.5,
+                "fragmentation_index": 1.0,
+                "memory_token_footprint": 10,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_dir / "manifest.json").write_text(
+        json.dumps({"run_id": "run", "cache_condition": "prefix_disabled"}),
+        encoding="utf-8",
+    )
+
+    df = load_summaries(tmp_path)
+
+    assert df.iloc[0]["cache_condition"] == "prefix_disabled"
+
+
 def test_analysis_tables_rank_workloads_and_export_csv(tmp_path):
     import pandas as pd
 
@@ -737,6 +783,40 @@ def test_repeated_seed_summary_reports_mean_and_std():
     assert summary.iloc[0]["quality_adjusted_goodput_ci95_half_width"] > 0
     assert summary.iloc[0]["quality_adjusted_goodput_ci95_low"] < 2.0
     assert summary.iloc[0]["quality_adjusted_goodput_ci95_high"] > 2.0
+
+
+def test_repeated_seed_summary_does_not_merge_cache_conditions():
+    import pandas as pd
+
+    summaries = pd.DataFrame(
+        [
+            {
+                "run_id": "warm-a",
+                "workload": "shared_doc_qa",
+                "cache_condition": "warm",
+                "router_policy": "semantic",
+                "cache_model": "standard_lora",
+                "quality_adjusted_goodput": 1.0,
+                "mean_quality": 0.8,
+                "p95_ttft_ms": 10.0,
+            },
+            {
+                "run_id": "cold-a",
+                "workload": "shared_doc_qa",
+                "cache_condition": "cold",
+                "router_policy": "semantic",
+                "cache_model": "standard_lora",
+                "quality_adjusted_goodput": 3.0,
+                "mean_quality": 1.0,
+                "p95_ttft_ms": 20.0,
+            },
+        ]
+    )
+
+    summary = repeated_seed_summary(summaries)
+
+    assert set(summary["cache_condition"]) == {"warm", "cold"}
+    assert summary["run_count"].tolist() == [1, 1]
 
 
 def test_benchmark_v0_summary_keeps_latest_complete_matrix():

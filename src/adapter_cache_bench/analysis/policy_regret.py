@@ -59,7 +59,14 @@ def _dimension_columns(df: pd.DataFrame) -> list[str]:
         if column.startswith("sweep_")
         and column.removeprefix("sweep_") not in _NON_REGIME_SWEEP_KEYS
     ]
-    return ["workload", *sorted(sweep_columns)]
+    if "sweep_cache_condition" in sweep_columns and "cache_condition" in df:
+        df["sweep_cache_condition"] = df["sweep_cache_condition"].fillna(df["cache_condition"])
+    direct_columns = []
+    if "cache_condition" in df and "sweep_cache_condition" not in sweep_columns:
+        conditions = set(df["cache_condition"].dropna().astype(str))
+        if conditions - {"", "warm"}:
+            direct_columns.append("cache_condition")
+    return ["workload", *direct_columns, *sorted(sweep_columns)]
 
 
 def _format_dimension_value(value: Any) -> str:

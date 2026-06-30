@@ -43,10 +43,27 @@ def _display_label(value: object) -> str:
     return text.replace("_", " ")
 
 
+def _regime_label(row: pd.Series) -> str:
+    workload = str(row["workload"])
+    condition = str(row.get("sweep_cache_condition", "warm"))
+    if condition in {"", "warm", "nan"}:
+        return workload
+    return f"{workload} / {condition}"
+
+
 def _sort_workloads(workloads: list[str]) -> list[str]:
-    known = [workload for workload in REGIME_WORKLOAD_ORDER if workload in workloads]
-    remaining = sorted(workload for workload in workloads if workload not in set(known))
-    return [*known, *remaining]
+    order = {workload: index for index, workload in enumerate(REGIME_WORKLOAD_ORDER)}
+    condition_order = {"warm": 0, "prefix_disabled": 1, "cold": 2}
+
+    def sort_key(label: str) -> tuple[int, int, str]:
+        workload, _, condition = label.partition(" / ")
+        return (
+            order.get(workload, len(order)),
+            condition_order.get(condition or "warm", len(condition_order)),
+            label,
+        )
+
+    return sorted(workloads, key=sort_key)
 
 
 def build_regime_policy_failure_matrix(regret_table: pd.DataFrame) -> pd.DataFrame:
@@ -60,13 +77,14 @@ def build_regime_policy_failure_matrix(regret_table: pd.DataFrame) -> pd.DataFra
         return pd.DataFrame()
 
     data["policy_label"] = data.apply(_policy_label, axis=1)
+    data["regime_label"] = data.apply(_regime_label, axis=1)
     data["relative_regret"] = pd.to_numeric(data["relative_regret"], errors="coerce")
     data = data[data["relative_regret"].notna()]
     if data.empty:
         return pd.DataFrame()
 
     matrix = data.pivot_table(
-        index="workload",
+        index="regime_label",
         columns="policy_label",
         values="relative_regret",
         aggfunc="mean",

@@ -81,6 +81,7 @@ class BenchmarkSummary(BaseModel):
     backend_model: str = "unknown"
     router_policy: str
     cache_model: str
+    cache_condition: str = "warm"
     workload: str
     mean_ttft_ms: float
     p50_ttft_ms: float
