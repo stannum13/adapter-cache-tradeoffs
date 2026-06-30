@@ -65,6 +65,23 @@ Reports are generated artifacts. Use them for local inspection and evidence
 bundles; do not treat a local report as a public claim unless the underlying
 runs, configs, and claim boundary are documented.
 
+## Check A Config Before Running It
+
+Use `acb doctor` for non-invasive config, runner, and budget checks:
+
+```bash
+uv run acb doctor \
+  --config configs/benchmark/regime_v0_mock.yaml \
+  --max-runs 600 \
+  --max-requests 75000 \
+  --estimated-seconds-per-run 1 \
+  --max-estimated-gpu-hours 1
+```
+
+For remote serving configs, `doctor` warns about optional gcloud state, server
+reset settings, streaming, metrics, and cache-condition scope without starting a
+server or creating cloud resources.
+
 ## Build An Evidence Bundle
 
 Build a manifest for the smoke run:

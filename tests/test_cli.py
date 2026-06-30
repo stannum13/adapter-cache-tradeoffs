@@ -263,3 +263,94 @@ def test_bundle_command_calls_build_evidence_bundle(
         "repo_dir": ".",
     }
     assert str(tmp_path / "bundle_manifest.json") in capsys.readouterr().out
+
+
+def test_doctor_command_reports_vllm_bridge_budget(capsys: pytest.CaptureFixture[str]) -> None:
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "--max-runs",
+            "12",
+            "--max-requests",
+            "300",
+            "--estimated-seconds-per-run",
+            "180",
+            "--max-estimated-gpu-hours",
+            "1",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 0
+    assert "status: ok" in output
+    assert "runner: exhaustive-sweep" in output
+    assert "planned runs: 12" in output
+    assert "planned requests: 288" in output
+    assert "estimated GPU hours: 0.600" in output
+    assert "non-warm cache conditions on remote backends" in output
+
+
+def test_doctor_command_returns_error_for_budget_failure(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = tmp_path / "matrix.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "run_name: cli-matrix",
+                f"output_dir: {tmp_path / 'runs'}",
+                "workload:",
+                "  request_count: 2",
+                "matrix:",
+                "  routers: [random, cache_aware]",
+                "  caches: [standard_lora]",
+                "  workloads: [shared_doc_qa]",
+                "  seeds: [1]",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = cli.main(["doctor", "--config", str(config_path), "--max-runs", "1"])
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "status: error" in output
+    assert "planned run count 2 exceeds --max-runs 1" in output
+
+
+def test_doctor_command_can_check_gcloud_without_starting_resources(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+
+    def fake_run_text_command(command: list[str]) -> tuple[int, str]:
+        joined = " ".join(command)
+        if "auth list" in joined:
+            return 0, "user@example.com"
+        if "get-value project" in joined:
+            return 0, "project-a"
+        if "get-value compute/zone" in joined:
+            return 0, "us-central1-a"
+        raise AssertionError(command)
+
+    monkeypatch.setattr(cli, "_run_text_command", fake_run_text_command)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "--check-gcloud",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 0
+    assert "gcloud account detected: user@example.com" in output
+    assert "gcloud project detected: project-a" in output
+    assert "gcloud zone detected: us-central1-a" in output

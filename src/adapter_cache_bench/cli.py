@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import shutil
+import subprocess
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Literal
 
 from adapter_cache_bench.analysis.evidence_bundle import build_evidence_bundle
@@ -13,10 +16,12 @@ from adapter_cache_bench.bench.run_matrix import expand_matrix_sweep
 from adapter_cache_bench.bench.run_workload import run as run_workload
 from adapter_cache_bench.bench.sweep_state import (
     SweepChild,
+    SweepOptions,
     add_sweep_arguments,
     execute_sweep,
     options_from_args,
     record_sweep_dimensions,
+    validate_budget,
 )
 from adapter_cache_bench.config import BenchmarkConfig, load_config
 
@@ -64,6 +69,17 @@ SWEEP_OPTION_NAMES = (
     "estimated_seconds_per_run",
     "max_estimated_gpu_hours",
 )
+REMOTE_BACKENDS = {"vllm", "openai_compatible"}
+
+
+@dataclass(frozen=True)
+class DoctorResult:
+    runner: RunnerName
+    planned_runs: int
+    planned_requests: int
+    estimated_gpu_hours: float | None
+    warnings: list[str]
+    errors: list[str]
 
 
 def infer_runner(config: BenchmarkConfig) -> RunnerName:
@@ -89,6 +105,163 @@ def infer_runner(config: BenchmarkConfig) -> RunnerName:
 
     keys = ", ".join(sorted(matrix_keys))
     raise ValueError(f"cannot infer runner for matrix key combination: {keys}; pass --runner")
+
+
+def _runner_children(config: BenchmarkConfig, runner: RunnerName) -> list[SweepChild]:
+    if runner in {"workload", "concurrent"}:
+        return [SweepChild(config, {})]
+    if runner == "matrix":
+        return expand_matrix_sweep(config)
+    if runner == "concurrency-sweep":
+        return expand_concurrency_sweep_children(config)
+    if runner == "exhaustive-sweep":
+        return [
+            SweepChild(child_config, dimensions)
+            for child_config, dimensions in expand_exhaustive_sweep(config)
+        ]
+    raise AssertionError(f"unhandled runner: {runner}")
+
+
+def _doctor_sweep_options(args: argparse.Namespace) -> SweepOptions:
+    return SweepOptions(
+        max_runs=args.max_runs,
+        max_requests=args.max_requests,
+        estimated_seconds_per_run=args.estimated_seconds_per_run,
+        max_estimated_gpu_hours=args.max_estimated_gpu_hours,
+    )
+
+
+def _run_text_command(command: list[str]) -> tuple[int, str]:
+    try:
+        completed = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:
+        return 127, str(exc)
+    output = "\n".join(
+        part.strip() for part in [completed.stdout, completed.stderr] if part.strip()
+    )
+    return completed.returncode, output
+
+
+def _check_gcloud_config(warnings: list[str], errors: list[str]) -> None:
+    if shutil.which("gcloud") is None:
+        errors.append("gcloud is not installed or not on PATH")
+        return
+
+    account_code, accounts = _run_text_command(
+        ["gcloud", "auth", "list", "--format=value(account)"]
+    )
+    if account_code != 0 or not accounts.strip():
+        errors.append("gcloud has no authenticated account")
+    else:
+        first_account = accounts.splitlines()[0]
+        warnings.append(f"gcloud account detected: {first_account}")
+
+    project_code, project = _run_text_command(["gcloud", "config", "get-value", "project"])
+    if project_code != 0 or not project.strip():
+        errors.append("gcloud project is not configured")
+    else:
+        warnings.append(f"gcloud project detected: {project.splitlines()[0]}")
+
+    zone_code, zone = _run_text_command(["gcloud", "config", "get-value", "compute/zone"])
+    if zone_code != 0 or not zone.strip():
+        warnings.append("gcloud compute/zone is not configured")
+    else:
+        warnings.append(f"gcloud zone detected: {zone.splitlines()[0]}")
+
+
+def _doctor_config(
+    config: BenchmarkConfig,
+    *,
+    runner: RunnerName,
+    children: list[SweepChild],
+    options: SweepOptions,
+    check_gcloud: bool,
+) -> DoctorResult:
+    warnings: list[str] = []
+    errors: list[str] = []
+    try:
+        budget = validate_budget(children, options)
+    except ValueError as exc:
+        budget = {
+            "planned_runs": len(children),
+            "planned_requests": sum(int(child.config.workload.request_count) for child in children),
+            "estimated_gpu_hours": None,
+        }
+        if options.estimated_seconds_per_run is not None:
+            budget["estimated_gpu_hours"] = (
+                len(children) * options.estimated_seconds_per_run / 3600.0
+            )
+        errors.append(str(exc))
+
+    backend_kinds = {child.config.backend.kind for child in children}
+    if backend_kinds & REMOTE_BACKENDS:
+        for child in children:
+            backend = child.config.backend
+            if backend.kind not in REMOTE_BACKENDS:
+                continue
+            if not backend.base_url.startswith(("http://", "https://")):
+                errors.append(f"{child.config.run_name}: backend.base_url must be http(s)")
+            if backend.kind == "vllm" and not backend.stream:
+                warnings.append(f"{child.config.run_name}: streaming is off, TTFT is a proxy")
+            if backend.kind == "vllm" and backend.scrape_metrics and not backend.metrics_url:
+                errors.append(f"{child.config.run_name}: scrape_metrics requires metrics_url")
+            if backend.kind == "vllm" and not backend.server_reset_command and len(children) > 1:
+                warnings.append(
+                    f"{child.config.run_name}: no server_reset_command for multi-run vLLM sweep"
+                )
+            if backend.kind == "vllm" and backend.adapter_model_names:
+                missing = sorted(
+                    adapter_id
+                    for adapter_id in child.config.adapters.adapter_ids
+                    if adapter_id not in backend.adapter_model_names
+                )
+                if missing:
+                    errors.append(
+                        f"{child.config.run_name}: missing vLLM model name(s) for adapters "
+                        + ", ".join(missing)
+                    )
+        if any(child.config.cache.condition != "warm" for child in children):
+            warnings.append(
+                "non-warm cache conditions on remote backends need server counters before "
+                "mechanism claims"
+            )
+        if check_gcloud:
+            _check_gcloud_config(warnings, errors)
+        elif any(
+            "gcloud" in str(child.config.backend.server_reset_command or "") for child in children
+        ):
+            warnings.append("gcloud reset command detected; rerun with --check-gcloud")
+
+    return DoctorResult(
+        runner=runner,
+        planned_runs=int(budget["planned_runs"]),
+        planned_requests=int(budget["planned_requests"]),
+        estimated_gpu_hours=budget["estimated_gpu_hours"],
+        warnings=sorted(set(warnings)),
+        errors=sorted(set(errors)),
+    )
+
+
+def _print_doctor_result(result: DoctorResult) -> None:
+    print(f"status: {'error' if result.errors else 'ok'}")
+    print(f"runner: {result.runner}")
+    print(f"planned runs: {result.planned_runs}")
+    print(f"planned requests: {result.planned_requests}")
+    if result.estimated_gpu_hours is not None:
+        print(f"estimated GPU hours: {result.estimated_gpu_hours:.3f}")
+    if result.warnings:
+        print("warnings:")
+        for warning in result.warnings:
+            print(f"- {warning}")
+    if result.errors:
+        print("errors:")
+        for error in result.errors:
+            print(f"- {error}")
 
 
 def _has_sweep_options(args: argparse.Namespace) -> bool:
@@ -247,6 +420,26 @@ def bundle_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def doctor_command(args: argparse.Namespace, parser: argparse.ArgumentParser | None = None) -> int:
+    config = load_config(args.config)
+    try:
+        runner = infer_runner(config) if args.runner == "auto" else args.runner
+    except ValueError as exc:
+        if parser is not None:
+            parser.error(str(exc))
+        raise
+    children = _runner_children(config, runner)
+    result = _doctor_config(
+        config,
+        runner=runner,
+        children=children,
+        options=_doctor_sweep_options(args),
+        check_gcloud=args.check_gcloud,
+    )
+    _print_doctor_result(result)
+    return 1 if result.errors else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="acb", description="Adapter Cache Bench CLI.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -290,6 +483,28 @@ def build_parser() -> argparse.ArgumentParser:
     bundle_parser.add_argument("--table", dest="tables", action="append", default=[])
     bundle_parser.add_argument("--repo-dir", default=".")
     bundle_parser.set_defaults(func=bundle_command)
+
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Run non-invasive config, budget, and optional gcloud preflight checks.",
+    )
+    doctor_parser.add_argument("--config", required=True, nargs="+", help="Config path(s) to load.")
+    doctor_parser.add_argument(
+        "--runner",
+        choices=RUNNER_CHOICES,
+        default="auto",
+        help="Runner to use. Auto infers from matrix keys and concurrency settings.",
+    )
+    doctor_parser.add_argument("--max-runs", type=int)
+    doctor_parser.add_argument("--max-requests", type=int)
+    doctor_parser.add_argument("--estimated-seconds-per-run", type=float)
+    doctor_parser.add_argument("--max-estimated-gpu-hours", type=float)
+    doctor_parser.add_argument(
+        "--check-gcloud",
+        action="store_true",
+        help="Check local gcloud auth, project, and zone without starting resources.",
+    )
+    doctor_parser.set_defaults(func=lambda args: doctor_command(args, doctor_parser))
 
     return parser
 
