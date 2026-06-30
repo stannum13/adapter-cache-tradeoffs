@@ -28,7 +28,7 @@ benchmark-v0-csv:
 	uv run python -m adapter_cache_bench.analysis.benchmark_v0 --runs-dir artifacts/runs --output-csv data/results/benchmark_v0_mock.csv
 
 regime-v0-mock:
-	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/regime_v0_mock.yaml --sweep-name regime-v0-mock --resume --continue-on-error --max-runs 200 --max-requests 25000 --estimated-seconds-per-run 1 --max-estimated-gpu-hours 1
+	uv run python -m adapter_cache_bench.bench.run_matrix --config configs/benchmark/regime_v0_mock.yaml --sweep-name regime-v0-mock --resume --continue-on-error --max-runs 600 --max-requests 75000 --estimated-seconds-per-run 1 --max-estimated-gpu-hours 1
 
 build-external-eval:
 	uv run python -m adapter_cache_bench.workloads.build_external_eval --output data/eval/external_public_domain_eval.jsonl

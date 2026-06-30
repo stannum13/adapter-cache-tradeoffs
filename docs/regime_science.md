@@ -41,6 +41,20 @@ quality metrics:
 These are explanatory variables. They should appear in summaries and downstream
 tables so plots can explain why a policy won, not only that it won.
 
+## Cache Conditions
+
+The CPU/mock regime suite includes three benchmark-side cache conditions:
+
+- `warm`: normal prefix-cache reuse across requests.
+- `prefix_disabled`: no prefix-cache lookup or storage; cached-token and memory
+  footprint metrics should remain zero.
+- `cold`: no inter-request prefix-cache reuse, while each request still models
+  the memory footprint it would populate during serving.
+
+These conditions are simulator controls. Real vLLM or other model-server runs
+still need server-side launch/reset settings that match the intended prefix-cache
+behavior.
+
 ## Regret View
 
 For each comparable regime group, report policy regret:
@@ -74,6 +88,9 @@ make evidence-bundle BUNDLE=regime-v0-mock RUN_GLOBS="regime_*" \
   REPORTS="reports/adapter-cache-tradeoffs.md" \
   FIGURES="reports/figures/regime_policy_failure_map.png"
 ```
+
+The full V0 mock matrix covers 540 runs: 4 routers, 3 cache models, 3 cache
+conditions, 5 workload regimes, and 3 seeds.
 
 ## Non-Goals
 

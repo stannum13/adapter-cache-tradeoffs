@@ -100,6 +100,10 @@ def expand_exhaustive_sweep(
     ]
     workloads = [str(item) for item in _matrix_values(matrix, "workloads", config.workload.name)]
     caches = [str(item) for item in _matrix_values(matrix, "caches", config.cache.model)]
+    cache_conditions = [
+        str(item) for item in _matrix_values(matrix, "cache_conditions", config.cache.condition)
+    ]
+    include_cache_condition = "cache_conditions" in matrix or config.cache.condition != "warm"
     seeds = [int(item) for item in _matrix_values(matrix, "seeds", config.workload.seed)]
     overlap_fractions = [
         float(item)
@@ -123,6 +127,7 @@ def expand_exhaustive_sweep(
         concurrency,
         workload,
         cache,
+        cache_condition,
         seed,
         overlap_fraction,
         adapter_count,
@@ -134,6 +139,7 @@ def expand_exhaustive_sweep(
         concurrencies,
         workloads,
         caches,
+        cache_conditions,
         seeds,
         overlap_fractions,
         adapter_counts,
@@ -150,6 +156,7 @@ def expand_exhaustive_sweep(
         child.backend.max_concurrency = concurrency
         child.workload.name = workload
         child.cache.model = cache
+        child.cache.condition = cache_condition
         child.workload.seed = seed
         child.router.seed = seed
         child.backend.seed = seed
@@ -172,10 +179,14 @@ def expand_exhaustive_sweep(
             "tenants": tenant_count,
             "isolation_scope": isolation_scope,
         }
+        if include_cache_condition:
+            dimensions["cache_condition"] = cache_condition
+        condition_label = f"-{_slug(cache_condition)}" if include_cache_condition else ""
         child.run_name = (
             f"{config.run_name}-{_slug(strategy)}-{_slug(model_spec['alias'])}"
             f"-c{concurrency}-{_slug(workload)}"
-            f"-{_slug(cache)}-ov{_slug(overlap_fraction)}-a{dimensions['adapter_count']}"
+            f"-{_slug(cache)}{condition_label}-ov{_slug(overlap_fraction)}"
+            f"-a{dimensions['adapter_count']}"
             f"-t{tenant_count}-{_slug(isolation_scope)}-seed{seed}"
         )
         child.matrix = {}

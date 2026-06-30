@@ -9,9 +9,12 @@ from adapter_cache_bench.config import CacheConfig
 
 class CacheModel(ABC):
     name = "base"
+    CONDITIONS = {"warm", "cold", "prefix_disabled"}
 
     def __init__(self, config: CacheConfig | None = None) -> None:
         self.config = config or CacheConfig()
+        if self.config.condition not in self.CONDITIONS:
+            raise ValueError(f"Unknown cache condition: {self.config.condition}")
         self.tokenizer = WhitespaceTokenizer()
         self.table = PrefixTable(
             max_memory_tokens=self.config.max_memory_tokens,
@@ -20,6 +23,12 @@ class CacheModel(ABC):
         self.request_count = 0
         self.total_prompt_tokens = 0
         self.total_cached_prefix_tokens = 0
+
+    def _reset_storage(self) -> None:
+        self.table = PrefixTable(
+            max_memory_tokens=self.config.max_memory_tokens,
+            eviction_policy=self.config.eviction_policy,
+        )
 
     def _isolation_id(self, tenant_id: str, trust_group_id: str) -> str:
         if self.config.cache_salt:
@@ -97,6 +106,8 @@ class CacheModel(ABC):
     def estimate_cached_prefix_tokens(
         self, adapter_id: str, prompt: str, tenant_id: str, trust_group_id: str
     ) -> int:
+        if self.config.condition in {"cold", "prefix_disabled"}:
+            return 0
         return self._estimate_segments(
             self._segments(adapter_id, prompt, tenant_id, trust_group_id)
         )
@@ -105,6 +116,12 @@ class CacheModel(ABC):
         self, adapter_id: str, prompt: str, tenant_id: str, trust_group_id: str
     ) -> None:
         tokens = self.tokenizer.encode(prompt)
+        if self.config.condition == "prefix_disabled":
+            self.request_count += 1
+            self.total_prompt_tokens += len(tokens)
+            return
+        if self.config.condition == "cold":
+            self._reset_storage()
         cached = self._estimate_segments(
             self._segments(adapter_id, prompt, tenant_id, trust_group_id),
             record_stats=True,

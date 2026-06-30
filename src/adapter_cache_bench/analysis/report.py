@@ -238,6 +238,7 @@ def generate_report(
         leaders.head(8).to_dict("records") if not leaders.empty else [],
         [
             "workload",
+            "cache_condition",
             "router_policy",
             "cache_model",
             "quality_adjusted_goodput",
@@ -249,6 +250,7 @@ def generate_report(
         cache_means.head(8).to_dict("records") if not cache_means.empty else [],
         [
             "cache_model",
+            "cache_condition",
             "adapter_strategy",
             "quality_adjusted_goodput",
             "quality_adjusted_goodput_per_memory_token",
@@ -262,6 +264,7 @@ def generate_report(
         routers.head(8).to_dict("records") if not routers.empty else [],
         [
             "router_policy",
+            "cache_condition",
             "quality_adjusted_goodput",
             "quality_adjusted_goodput_per_memory_token",
             "mean_quality",
@@ -274,6 +277,7 @@ def generate_report(
         else [],
         [
             "workload",
+            "cache_condition",
             "router_policy",
             "cache_model",
             "run_count",

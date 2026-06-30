@@ -83,3 +83,41 @@ def test_copy_on_write_uses_less_memory_than_standard_lora_for_multi_adapter_sha
         standard.observe_request(adapter, prompt, "tenant-a", "trust-a")
         cow.observe_request(adapter, prompt, "tenant-a", "trust-a")
     assert cow.memory_tokens() < standard.memory_tokens()
+
+
+def test_prefix_disabled_condition_never_stores_or_reuses_cache():
+    cache = StandardLoRACache(CacheConfig(block_size=2, condition="prefix_disabled"))
+    prompt = "alpha beta gamma delta"
+
+    cache.observe_request("qa", prompt, "tenant-a", "trust-a")
+
+    assert cache.estimate_cached_prefix_tokens("qa", prompt, "tenant-a", "trust-a") == 0
+    assert cache.cached_prompt_token_ratio() == 0.0
+    assert cache.memory_tokens() == 0
+    assert cache.cache_hit_rate() == 0.0
+
+
+def test_cold_condition_resets_reuse_between_requests_but_models_current_footprint():
+    cache = StandardLoRACache(CacheConfig(block_size=2, condition="cold"))
+    prompt = "alpha beta gamma delta"
+
+    cache.observe_request("qa", prompt, "tenant-a", "trust-a")
+    cache.observe_request("qa", prompt, "tenant-a", "trust-a")
+
+    assert cache.estimate_cached_prefix_tokens("qa", prompt, "tenant-a", "trust-a") == 0
+    assert cache.cached_prompt_token_ratio() == 0.0
+    assert cache.memory_tokens() == 4
+    assert cache.cache_hit_rate() == 0.0
+
+
+def test_copy_on_write_cold_condition_keeps_only_current_request_footprint():
+    cache = CopyOnWriteCache(CacheConfig(block_size=4, condition="cold"))
+    first = "shared prefix tokens repeat repeat <ADAPTER:qa> task qa"
+    second = "shared prefix tokens repeat repeat <ADAPTER:json> task json"
+
+    cache.observe_request("qa", first, "tenant-a", "trust-a")
+    first_memory = cache.memory_tokens()
+    cache.observe_request("json", second, "tenant-a", "trust-a")
+
+    assert cache.estimate_cached_prefix_tokens("json", second, "tenant-a", "trust-a") == 0
+    assert cache.memory_tokens() == first_memory
