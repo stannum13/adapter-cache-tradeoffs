@@ -60,6 +60,11 @@ uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
 
 If any limit is exceeded, the runner fails before launching children.
 
+For the smallest reset-isolated real-server bridge, start with
+`configs/benchmark/vllm_bridge_reset.yaml` and the runbook in
+[vllm.md](vllm.md#run-the-minimal-g8-bridge). It plans 12 child runs and keeps
+GPU/vLLM optional until the non-executing dry-run passes.
+
 ## Resume
 
 Use `--resume` to skip children that already have all required artifacts and a
