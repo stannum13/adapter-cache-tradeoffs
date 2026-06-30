@@ -143,6 +143,7 @@ def write_status(
     *,
     status: str,
     started_at_utc: str,
+    budget: dict[str, Any] | None = None,
     error: BaseException | None = None,
 ) -> Path:
     counts = {
@@ -171,6 +172,7 @@ def write_status(
         "plan_path": str(sweep_dir(config, sweep_name) / "sweep_plan.json"),
         "child_count": plan["child_count"],
         "planned_request_count": plan["planned_request_count"],
+        "budget": budget or {},
         "counts": counts,
         "children": child_records,
     }
@@ -182,6 +184,52 @@ def write_status(
     path = out / "sweep_status.json"
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
+
+
+def write_summary(status: dict[str, Any]) -> Path:
+    status_path = Path(status["plan_path"]).parent / "sweep_summary.md"
+    counts = status.get("counts", {})
+    budget = status.get("budget", {})
+    lines = [
+        f"# Sweep Summary: {status.get('sweep_name', 'unknown')}",
+        "",
+        f"- Status: `{status.get('status', 'unknown')}`",
+        f"- Started: `{status.get('started_at_utc', '')}`",
+        f"- Updated: `{status.get('updated_at_utc', '')}`",
+        f"- Elapsed seconds: `{status.get('elapsed_s', 0.0):.3f}`",
+        f"- Planned children: `{status.get('child_count', 0)}`",
+        f"- Planned requests: `{status.get('planned_request_count', 0)}`",
+        f"- Complete: `{counts.get('complete', 0)}`",
+        f"- Skipped: `{counts.get('skipped', 0)}`",
+        f"- Failed: `{counts.get('failed', 0)}`",
+        f"- Pending: `{counts.get('pending', 0)}`",
+    ]
+    if budget:
+        lines.extend(
+            [
+                "",
+                "## Budget",
+                "",
+                f"- Planned runs: `{budget.get('planned_runs')}`",
+                f"- Planned requests: `{budget.get('planned_requests')}`",
+                f"- Estimated GPU hours: `{budget.get('estimated_gpu_hours')}`",
+            ]
+        )
+    failed_children = [
+        child
+        for child in status.get("children", [])
+        if isinstance(child, dict) and child.get("status") == "failed"
+    ]
+    if failed_children:
+        lines.extend(["", "## Failed Children", ""])
+        for child in failed_children:
+            lines.append(
+                "- "
+                f"`{child.get('run_name')}`: "
+                f"{child.get('exception_type')}: {child.get('exception_message')}"
+            )
+    status_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return status_path
 
 
 def validate_budget(children: list[SweepChild], options: SweepOptions) -> dict[str, Any]:
@@ -281,6 +329,7 @@ def execute_sweep(
         records,
         status="dry_run" if options.dry_run else "running",
         started_at_utc=started_at,
+        budget=budget,
     )
     print(
         "sweep plan: "
@@ -292,7 +341,9 @@ def execute_sweep(
         )
     )
     if options.dry_run:
-        return load_status(config, sweep_name)
+        status = load_status(config, sweep_name)
+        write_summary(status)
+        return status
 
     sweep_error: BaseException | None = None
     for record, child in zip(records, children, strict=True):
@@ -307,6 +358,7 @@ def execute_sweep(
                 records,
                 status="running",
                 started_at_utc=started_at,
+                budget=budget,
             )
             print(f"skip complete child: {record['run_name']}")
             continue
@@ -315,7 +367,15 @@ def execute_sweep(
         record["started_at_utc"] = utc_now()
         record["exception_type"] = None
         record["exception_message"] = None
-        write_status(config, sweep_name, plan, records, status="running", started_at_utc=started_at)
+        write_status(
+            config,
+            sweep_name,
+            plan,
+            records,
+            status="running",
+            started_at_utc=started_at,
+            budget=budget,
+        )
         try:
             child_run_dir = run_child(child.config, str(record["run_name"]))
             record_dimensions(child_run_dir, child.dimensions)
@@ -336,6 +396,7 @@ def execute_sweep(
                 records,
                 status="running",
                 started_at_utc=started_at,
+                budget=budget,
             )
             if not options.continue_on_error:
                 sweep_error = exc
@@ -350,10 +411,13 @@ def execute_sweep(
         records,
         status=final_status,
         started_at_utc=started_at,
+        budget=budget,
         error=sweep_error,
     )
+    status = load_status(config, sweep_name)
+    write_summary(status)
     if sweep_error is not None:
         raise sweep_error
     if on_complete is not None:
         on_complete()
-    return load_status(config, sweep_name)
+    return status

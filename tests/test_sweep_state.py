@@ -89,6 +89,8 @@ def test_execute_sweep_dry_run_writes_plan_and_status(tmp_path):
     assert (sweep_dir / "sweep_status.json").exists()
     assert status["status"] == "dry_run"
     assert status["planned_request_count"] == 3
+    assert status["budget"]["planned_runs"] == 1
+    assert (sweep_dir / "sweep_summary.md").exists()
 
 
 def test_execute_sweep_continue_on_error_records_failure(tmp_path):
@@ -107,6 +109,9 @@ def test_execute_sweep_continue_on_error_records_failure(tmp_path):
     assert status["status"] == "complete_with_failures"
     assert status["counts"]["failed"] == 1
     assert status["children"][0]["exception_type"] == "RuntimeError"
+    assert "RuntimeError: boom" in (tmp_path / "_sweeps" / "unit" / "sweep_summary.md").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_execute_sweep_resume_skips_complete_child(tmp_path):
