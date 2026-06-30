@@ -12,9 +12,30 @@ This phase should remain CPU/mock-first. GPU runs come later, after the shape
 generators, structure metrics, and regret tables are stable under unit tests and
 dry-run budget gates.
 
+## Branch A Claim Boundary
+
+Branch A is a claim-bounded regime-science update. It supports simulator claims
+about workload-dependent policy behavior; it does not support new real-serving
+claims about vLLM, GPU memory, production throughput, or server-side
+prefix-cache dynamics.
+
+| supported simulator-backed claim | unsupported real-serving claim | evidence-required next step |
+| --- | --- | --- |
+| The deterministic CPU/mock suite can generate uniform, Zipfian, bursty, phase-shifted, and adversarial regimes with measurable structure differences. | These regimes cover production traffic distributions or customer workloads. | Add real request traces or public workload families, then compare their structure metrics to the synthetic regimes. |
+| Under simulator cache controls, routing and cache policies have workload-dependent regret. | The same policy ordering will hold in vLLM or another model server. | Run a reset-isolated G8 bridge over the claim-critical regimes with repeated seeds where feasible. |
+| `warm`, `cold`, and `prefix_disabled` separate benchmark-side cache mechanisms for the mock runner. | These controls reproduce server batching, prefix-cache keys, adapter-loading overhead, or GPU memory pressure. | Capture server reset settings, launch parameters, prefix/cache counters, latency, and memory metrics in real-server manifests. |
+| Structure metrics can explain why a policy wins or fails in the simulator. | Structure metrics alone are sufficient for automated production recommendations. | Calibrate the simulator against real-serving measurements and keep recommendation logic deferred until the bridge passes. |
+
+The publication boundary is therefore:
+
+> Report the V0 result as a simulator-backed regime map for causal-transformer
+> adapter-cache tradeoffs. Treat real-serving behavior as the next evidence
+> step, not as an implication of the mock sweep.
+
 ## Regime Axes
 
-The first regime suite varies request structure rather than model family:
+The first regime suite varies request structure rather than causal-transformer
+family:
 
 - Uniform adapter/task mix.
 - Zipfian adapter popularity.
@@ -94,6 +115,7 @@ conditions, 5 workload regimes, and 3 seeds.
 
 ## Non-Goals
 
-- Do not claim broad model-quality results.
+- Do not claim broad causal-transformer quality results.
+- Do not claim real-serving behavior without a reset-isolated bridge bundle.
 - Do not require GPU, vLLM, or internet for this phase.
 - Do not add product CLI commands until the regime table shape is stable.

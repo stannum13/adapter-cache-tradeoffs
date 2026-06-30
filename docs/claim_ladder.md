@@ -5,7 +5,28 @@ This repository studies a systems question:
 > When is adapter specialization worth its KV-cache footprint?
 
 The current evidence supports conditional claims. It does not yet support broad
-claims about all adapters, all model families, or production serving stacks.
+claims about all adapters, all causal-transformer families, or production
+serving stacks.
+
+## Branch A claim boundary
+
+Branch A closes only simulator-backed regime-science claims. Historical
+real-server results below remain scoped evidence, but the current Branch A
+update should not be read as new production-serving validation.
+
+| claim area | supported now | not supported yet | evidence required |
+| --- | --- | --- | --- |
+| Regime existence | The CPU/mock `regime_v0` suite shows that workload structure changes which routing and cache policy is best under simulator controls. | General production policy recommendations for vLLM or other serving stacks. | A reset-isolated real-server bridge that repeats the claim-critical regimes with matching workload structure and comparable cache conditions. |
+| Workload explanation | Entropy, Gini concentration, adapter switch rate, reuse distance, shared-prefix reuse, and session locality can explain policy regret in the simulator. | Claims that these metrics alone predict GPU throughput, TTFT, memory pressure, or server-side prefix-cache behavior. | Real-server summaries that record the same structure metrics plus server latency, memory, and cache counters. |
+| Cache controls | `warm`, `cold`, and `prefix_disabled` isolate benchmark-side cache mechanisms in the mock runner. | Claims that those controls exactly match vLLM prefix-cache launch, reset, batching, or cache-key behavior. | G8 evidence with explicit server reset settings and server-side prefix/cache counters, or a narrower client-observed serving claim if counters are unavailable. |
+| Public conclusion | Adapter-cache tradeoffs are regime-dependent in the simulator and should be evaluated by workload shape, not by a single aggregate score. | Broad claims about all adapters, all causal-transformer families, cloud cost frontiers, or production SLO attainment. | One real-serving axis at a time after the bridge passes: causal-transformer family, context length, adapter count, adapter rank, concurrency, or memory pressure. |
+
+Strongest Branch A wording:
+
+> In the CPU/mock regime suite, adapter-cache policy performance is
+> workload-dependent: different request structures change cache reuse, regret,
+> and the best observed routing policy. This is simulator-backed regime
+> evidence, not a production-serving result.
 
 ## Claim 1: cache locality is a first-order serving variable
 
@@ -61,7 +82,7 @@ Best current wording:
 Avoid saying:
 
 - specialists are universally better than multitask adapters;
-- these scores are comparable to standard public LLM benchmarks;
+- these scores are comparable to standard public causal-transformer benchmarks;
 - the quality margin will hold on separately curated benchmark data.
 
 ## Claim 3: adapter count changes serving capacity
@@ -128,8 +149,9 @@ Best current wording:
 Avoid saying:
 
 - specialists dominate multitask on every metric;
-- TinyLlama evidence establishes behavior for larger Llama-family models;
-- this source-backed fixture is a standard public LLM benchmark.
+- TinyLlama evidence establishes behavior for larger Llama-family causal
+  transformers;
+- this source-backed fixture is a standard public causal-transformer benchmark.
 
 ## Decision rule
 

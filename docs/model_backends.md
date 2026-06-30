@@ -1,5 +1,8 @@
 # Model backends
 
+For the first CPU smoke run, report generation, and evidence bundle flow, start
+with [quickstart.md](quickstart.md).
+
 The benchmark has three backend tiers.
 
 ## Mock backend
