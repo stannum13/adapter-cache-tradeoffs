@@ -55,6 +55,9 @@ def test_build_evidence_bundle_records_selected_runs_and_hashes(tmp_path):
     figure = tmp_path / "docs" / "figures" / "plot.png"
     figure.parent.mkdir()
     figure.write_bytes(b"png-ish")
+    table = tmp_path / "reports" / "tables" / "claim_evidence.csv"
+    table.parent.mkdir(parents=True)
+    table.write_text("row_type,claim_group\n", encoding="utf-8")
 
     manifest_path = build_evidence_bundle(
         bundle_name="slice-b",
@@ -63,6 +66,7 @@ def test_build_evidence_bundle_records_selected_runs_and_hashes(tmp_path):
         run_ids=["run-a"],
         reports=[report],
         figures=[figure],
+        tables=[table],
         repo_dir=tmp_path,
     )
 
@@ -97,10 +101,14 @@ def test_build_evidence_bundle_records_selected_runs_and_hashes(tmp_path):
 
     report_record = payload["generated_artifacts"]["reports"][0]
     figure_record = payload["generated_artifacts"]["figures"][0]
+    table_record = payload["generated_artifacts"]["tables"][0]
     assert report_record["exists"] is True
     assert report_record["sha256"] == hashlib.sha256(b"# Release\n").hexdigest()
     assert figure_record["exists"] is True
     assert figure_record["sha256"] == hashlib.sha256(b"png-ish").hexdigest()
+    assert table_record["role"] == "table"
+    assert table_record["exists"] is True
+    assert table_record["sha256"] == hashlib.sha256(b"row_type,claim_group\n").hexdigest()
 
 
 def test_build_evidence_bundle_supports_globs_and_missing_manifest(tmp_path):

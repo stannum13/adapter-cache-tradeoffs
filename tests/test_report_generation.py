@@ -3,11 +3,11 @@ import json
 from adapter_cache_bench.analysis.report import generate_report
 
 
-def test_report_generation_from_summary(tmp_path):
-    run_dir = tmp_path / "run"
+def _write_summary(tmp_path, run_id: str, **overrides):
+    run_dir = tmp_path / run_id
     run_dir.mkdir()
     summary = {
-        "run_id": "run",
+        "run_id": run_id,
         "request_count": 1,
         "router_policy": "semantic",
         "cache_model": "standard_lora",
@@ -37,7 +37,13 @@ def test_report_generation_from_summary(tmp_path):
         "evicted_tokens": 0,
         "adapter_distribution": {"qa": 1},
     }
+    summary.update(overrides)
     (run_dir / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+    return run_dir
+
+
+def test_report_generation_from_summary(tmp_path):
+    _write_summary(tmp_path, "run")
     report = generate_report(
         tmp_path,
         tmp_path / "report.md",
@@ -47,7 +53,47 @@ def test_report_generation_from_summary(tmp_path):
     assert report.exists()
     text = report.read_text(encoding="utf-8")
     assert "When is specialization worth its cache footprint?" in text
+    assert "### Claim boundary" in text
+    assert "Simulator regime map" in text
     assert "### Decision rule" in text
     assert "### Interpretation" in text
     assert "Generated tables:" in text
     assert (tmp_path / "tables" / "summaries.csv").exists()
+    assert (tmp_path / "tables" / "claim_evidence.csv").exists()
+
+
+def test_claim_boundary_scopes_real_server_rows_to_regime_workloads(tmp_path):
+    _write_summary(
+        tmp_path,
+        "mock-regime",
+        backend_kind="mock",
+        backend_model="mock-causal-transformer",
+        workload="regime_zipfian",
+        cache_condition="warm",
+    )
+    _write_summary(
+        tmp_path,
+        "unrelated-vllm",
+        backend_kind="vllm",
+        backend_model="Qwen/Qwen2.5-1.5B-Instruct",
+        workload="jsonl_eval",
+        server_prefix_cache_queries=10,
+        server_prefix_cache_hits=8,
+    )
+
+    report = generate_report(
+        tmp_path,
+        tmp_path / "report.md",
+        tmp_path / "tables",
+        tmp_path / "figures",
+    )
+
+    text = report.read_text(encoding="utf-8")
+    assert (
+        "| Real-server regime bridge | not supported here | "
+        "no reset-isolated vLLM regime sweep in this artifact set |"
+    ) in text
+    assert (
+        "| Prefix-cache causality | not established here | "
+        "no positive server-side prefix/cache counters |"
+    ) in text

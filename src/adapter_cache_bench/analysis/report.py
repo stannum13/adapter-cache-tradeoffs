@@ -76,6 +76,118 @@ def _large_model_overlap_claim(df) -> list[str]:
     ]
 
 
+def _has_workload_prefix(df, prefix: str) -> bool:
+    if df.empty or "workload" not in df:
+        return False
+    return df["workload"].astype(str).str.startswith(prefix, na=False).any()
+
+
+def _filter_backend_rows(df, backend_kind: str):
+    if df.empty or "backend_kind" not in df:
+        return df.iloc[0:0]
+    return df[df["backend_kind"].astype(str).eq(backend_kind)]
+
+
+def _filter_workload_prefix_rows(df, prefix: str):
+    if df.empty or "workload" not in df:
+        return df.iloc[0:0]
+    return df[df["workload"].astype(str).str.startswith(prefix, na=False)]
+
+
+def _filter_backend_workload_prefix_rows(df, backend_kind: str, prefix: str):
+    return _filter_workload_prefix_rows(_filter_backend_rows(df, backend_kind), prefix)
+
+
+def _has_cache_conditions(df, expected: set[str]) -> bool:
+    if df.empty or "cache_condition" not in df:
+        return False
+    observed = set(df["cache_condition"].dropna().astype(str))
+    return expected <= observed
+
+
+def _has_positive_server_cache_counters(df) -> bool:
+    if df.empty:
+        return False
+    counter_columns = [
+        "server_prefix_cache_queries",
+        "server_prefix_cache_hits",
+        "server_prompt_tokens_cached",
+    ]
+    for column in counter_columns:
+        if column in df and (df[column].fillna(0).astype(float) > 0).any():
+            return True
+    return False
+
+
+def _claim_boundary_lines(df) -> list[str]:
+    regime_mock_rows = _filter_backend_workload_prefix_rows(df, "mock", "regime_")
+    regime_vllm_rows = _filter_backend_workload_prefix_rows(df, "vllm", "regime_")
+    has_regime_mock = not regime_mock_rows.empty
+    has_regime_vllm = not regime_vllm_rows.empty
+    has_cache_controls = _has_cache_conditions(
+        regime_mock_rows,
+        {"warm", "cold", "prefix_disabled"},
+    )
+    has_server_counters = _has_positive_server_cache_counters(regime_vllm_rows)
+    rows = [
+        {
+            "Claim area": "Simulator regime map",
+            "Status": "supported in this report" if has_regime_mock else "not present here",
+            "Evidence in this report": (
+                "mock `regime_*` runs with structure metrics and policy regret"
+                if has_regime_mock
+                else "run `configs/benchmark/regime_v0_mock.yaml`"
+            ),
+            "Required before widening": "reset-isolated real-server bridge",
+        },
+        {
+            "Claim area": "Cache-control mechanisms",
+            "Status": "simulator-backed" if has_cache_controls else "incomplete controls",
+            "Evidence in this report": (
+                "`warm`, `cold`, and `prefix_disabled` rows"
+                if has_cache_controls
+                else "add warm, cold, and prefix-disabled cache conditions"
+            ),
+            "Required before widening": "server reset settings and cache-counter provenance",
+        },
+        {
+            "Claim area": "Real-server regime bridge",
+            "Status": "candidate evidence present" if has_regime_vllm else "not supported here",
+            "Evidence in this report": (
+                "vLLM rows over `regime_*` workloads"
+                if has_regime_vllm
+                else "no reset-isolated vLLM regime sweep in this artifact set"
+            ),
+            "Required before widening": "repeat claim-critical regimes with comparable conditions",
+        },
+        {
+            "Claim area": "Prefix-cache causality",
+            "Status": "counter-backed" if has_server_counters else "not established here",
+            "Evidence in this report": (
+                "positive server-side prefix/cache counters"
+                if has_server_counters
+                else "no positive server-side prefix/cache counters"
+            ),
+            "Required before widening": "capture counters or downgrade to client-observed behavior",
+        },
+        {
+            "Claim area": "Automated recommendations",
+            "Status": "deferred",
+            "Evidence in this report": "policy comparisons are explanatory, not prescriptive",
+            "Required before widening": "G8 bridge plus uncertainty and user-path readiness",
+        },
+    ]
+    return _markdown_table(
+        rows,
+        [
+            "Claim area",
+            "Status",
+            "Evidence in this report",
+            "Required before widening",
+        ],
+    )
+
+
 def _markdown_table(rows: list[dict[str, object]], columns: list[str]) -> list[str]:
     if not rows:
         return ["No rows available."]
@@ -322,6 +434,7 @@ def generate_report(
     interpretation = _interpretation_lines(cache_means, layouts, repeated, df)
     evidence = _evidence_lines(df)
     overlap_claim = _large_model_overlap_claim(df)
+    claim_boundary = _claim_boundary_lines(df)
     lines = [
         "# When is specialization worth its cache footprint?",
         "",
@@ -360,6 +473,13 @@ def generate_report(
         "must cite model/server, request count, run count, and metric scope.",
         "",
         *overlap_claim,
+        "",
+        "### Claim boundary",
+        "",
+        "The report separates simulator-backed findings from real-serving claims.",
+        "Treat missing gates as scope limits, not as negative results.",
+        "",
+        *claim_boundary,
         "",
         "## Workloads",
         "",
