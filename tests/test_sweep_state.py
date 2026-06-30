@@ -107,3 +107,35 @@ def test_execute_sweep_continue_on_error_records_failure(tmp_path):
     assert status["status"] == "complete_with_failures"
     assert status["counts"]["failed"] == 1
     assert status["children"][0]["exception_type"] == "RuntimeError"
+
+
+def test_execute_sweep_resume_skips_complete_child(tmp_path):
+    config = BenchmarkConfig(run_name="parent", output_dir=str(tmp_path))
+    child = BenchmarkConfig(run_name="child", output_dir=str(tmp_path))
+    run_dir = tmp_path / "child"
+    run_dir.mkdir()
+    for name in [
+        "requests.jsonl",
+        "summary.json",
+        "config_resolved.yaml",
+        "manifest.json",
+    ]:
+        (run_dir / name).write_text("{}", encoding="utf-8")
+    (run_dir / "status.json").write_text(
+        json.dumps({"status": "complete"}),
+        encoding="utf-8",
+    )
+    calls = []
+
+    status = execute_sweep(
+        config=config,
+        sweep_name="unit",
+        children=[SweepChild(child, {"seed": 11})],
+        run_child=lambda _config, _run_id: calls.append(_run_id) or run_dir,
+        record_dimensions=lambda _path, _dimensions: None,
+        options=SweepOptions(resume=True),
+    )
+
+    assert calls == []
+    assert status["status"] == "complete"
+    assert status["counts"]["skipped"] == 1

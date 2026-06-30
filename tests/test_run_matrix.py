@@ -3,7 +3,7 @@ from adapter_cache_bench.bench.run_exhaustive_sweep import (
     expand_exhaustive_sweep,
     record_sweep_dimensions,
 )
-from adapter_cache_bench.bench.run_matrix import expand_matrix
+from adapter_cache_bench.bench.run_matrix import expand_matrix, expand_matrix_sweep
 from adapter_cache_bench.config import BenchmarkConfig, load_config
 
 
@@ -24,6 +24,27 @@ def test_expand_matrix_supports_repeated_seed_dimension():
     assert {child.backend.seed for child in expanded} == {11, 17}
     assert {child.router.seed for child in expanded} == {11, 17}
     assert all("seed" in child.run_name for child in expanded)
+
+
+def test_expand_matrix_sweep_records_dimensions():
+    config = BenchmarkConfig(
+        matrix={
+            "routers": ["semantic"],
+            "caches": ["standard_lora"],
+            "workloads": ["shared_doc_qa"],
+            "seeds": [17],
+        }
+    )
+
+    children = expand_matrix_sweep(config)
+
+    assert len(children) == 1
+    assert children[0].dimensions == {
+        "router": "semantic",
+        "cache": "standard_lora",
+        "workload": "shared_doc_qa",
+        "seed": 17,
+    }
 
 
 def test_memory_pressure_matrix_uses_finite_cache_budget():

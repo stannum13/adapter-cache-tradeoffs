@@ -64,6 +64,18 @@ def artifact_complete(run_dir: str | Path) -> bool:
     return status.get("status") == "complete"
 
 
+def record_sweep_dimensions(run_dir: Path, dimensions: dict[str, Any]) -> None:
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        return
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return
+    manifest["sweep_dimensions"] = dimensions
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
 def build_plan(
     config: BenchmarkConfig,
     sweep_name: str,
@@ -199,6 +211,29 @@ def validate_budget(children: list[SweepChild], options: SweepOptions) -> dict[s
         "planned_requests": planned_requests,
         "estimated_gpu_hours": estimated_gpu_hours,
     }
+
+
+def add_sweep_arguments(parser) -> None:
+    parser.add_argument("--sweep-name")
+    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--continue-on-error", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--max-runs", type=int)
+    parser.add_argument("--max-requests", type=int)
+    parser.add_argument("--estimated-seconds-per-run", type=float)
+    parser.add_argument("--max-estimated-gpu-hours", type=float)
+
+
+def options_from_args(args) -> SweepOptions:
+    return SweepOptions(
+        resume=bool(args.resume),
+        continue_on_error=bool(args.continue_on_error),
+        dry_run=bool(args.dry_run),
+        max_runs=args.max_runs,
+        max_requests=args.max_requests,
+        estimated_seconds_per_run=args.estimated_seconds_per_run,
+        max_estimated_gpu_hours=args.max_estimated_gpu_hours,
+    )
 
 
 def _initial_child_records(
