@@ -152,6 +152,69 @@ uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
            configs/benchmark/local_vllm_reset.yaml
 ```
 
+## Run the Minimal G8 Bridge
+
+Use `configs/benchmark/vllm_bridge_reset.yaml` for the first Branch A -> G8
+real-server bridge. It is a reset-isolated matrix with three workloads
+(`controlled_overlap`, `mixed_tasks_same_doc`, and `low_overlap_control`), two
+serving strategies (`specialists` and `multitask`), and two cache conditions
+(`warm` and `prefix_disabled`). The bridge is exploratory and single-seed by
+default; add repeated seeds only after the dry-run budget fits the available GPU
+window.
+
+Dry-run and budget check:
+
+```bash
+uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
+  --config configs/benchmark/vllm_bridge_reset.yaml \
+  --sweep-name vllm-bridge-reset-g8 \
+  --dry-run \
+  --max-runs 12 \
+  --max-requests 300 \
+  --estimated-seconds-per-run 180 \
+  --max-estimated-gpu-hours 1
+```
+
+For a local GPU/Docker run, serve five LoRA model names and let the bridge reset
+the server before each child:
+
+```bash
+export LORA_MODULES="qa-lora=/adapters/qwen15b-qa json-lora=/adapters/qwen15b-json summary-lora=/adapters/qwen15b-summary code-lora=/adapters/qwen15b-code multitask-lora=/adapters/qwen15b-multitask"
+
+uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
+  --config configs/benchmark/vllm_bridge_reset.yaml \
+  --sweep-name vllm-bridge-reset-g8 \
+  --resume \
+  --max-runs 12 \
+  --max-requests 300 \
+  --estimated-seconds-per-run 180 \
+  --max-estimated-gpu-hours 1
+```
+
+For a GCP L4 run, create/setup/start the VM and tunnel `localhost:8000` as in
+[gcloud_vllm.md](gcloud_vllm.md), export `ACB_CLOUD_*` provenance variables,
+then layer the cloud reset overlay:
+
+```bash
+uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
+  --config configs/benchmark/vllm_bridge_reset.yaml \
+           configs/benchmark/gcloud_7b_lora_bridge_reset.yaml \
+  --sweep-name vllm-bridge-reset-g8-gcp7b \
+  --resume \
+  --max-runs 12 \
+  --max-requests 300 \
+  --estimated-seconds-per-run 240 \
+  --max-estimated-gpu-hours 1
+```
+
+Every completed child run should have `requests.jsonl`, `summary.json`,
+`config_resolved.yaml`, `manifest.json`, `status.json`, `server_reset.log`, and
+backend metric snapshots or metric error files. Manifests should record
+`backend_model`, `base_url`, `adapter_model_names`, `stream`, `max_concurrency`,
+git metadata, and a `cloud` block when `ACB_CLOUD_*` variables are set. Treat
+cache-mechanism claims as client-observed only unless the `summary.json` backend
+metric deltas include the vLLM prefix-cache counters needed for the claim.
+
 Configure `backend.base_url`, `backend.model`, and adapter metadata for your
 server. Use the mock backend for unit tests, CI, and CPU-only development. vLLM
 responses are scored with the benchmark's task metrics (`qa`, `json`,

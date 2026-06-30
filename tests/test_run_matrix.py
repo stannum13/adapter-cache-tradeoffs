@@ -201,6 +201,27 @@ def test_expand_exhaustive_sweep_supports_model_dimension():
     assert all(dimensions["model_alias"] == "qwen15b" for _, dimensions in expanded)
 
 
+def test_vllm_bridge_reset_config_expands_to_small_g8_bridge():
+    config = load_config("configs/benchmark/vllm_bridge_reset.yaml")
+
+    expanded = expand_exhaustive_sweep(config)
+
+    assert len(expanded) == 12
+    assert sum(child.workload.request_count for child, _ in expanded) == 288
+    assert {dimensions["workload"] for _, dimensions in expanded} == {
+        "controlled_overlap",
+        "mixed_tasks_same_doc",
+        "low_overlap_control",
+    }
+    assert {dimensions["strategy"] for _, dimensions in expanded} == {"specialists", "multitask"}
+    assert {dimensions["cache_condition"] for _, dimensions in expanded} == {
+        "warm",
+        "prefix_disabled",
+    }
+    assert all(child.backend.kind == "vllm" for child, _ in expanded)
+    assert all(child.backend.server_reset_command for child, _ in expanded)
+
+
 def test_record_sweep_dimensions_updates_manifest(tmp_path):
     import json
 
