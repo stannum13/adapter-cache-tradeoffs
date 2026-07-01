@@ -52,7 +52,12 @@ GPU costs begin. For a first-time VM, check quota and billing before creation,
 then rerun this doctor command once the instance exists and before serving.
 
 If `doctor` reports that local port `8000` is already in use, use the checked-in
-port overlay and tunnel on `8001` instead:
+port overlay and tunnel on `8001` instead. Append
+`configs/benchmark/local_port_8001.yaml` after whichever reset overlay you use,
+including `gcloud_7b_reset_template.yaml`,
+`gcloud_7b_lora_reset_template.yaml`, or
+`gcloud_7b_lora_bridge_reset.yaml`; the later overlay only changes local client
+URLs and warmup/metrics endpoints.
 
 ```bash
 uv run acb doctor \
@@ -146,7 +151,8 @@ PROJECT=<project-id> ZONE=us-central1-b INSTANCE=adapter-cache-vllm-l4-b \
   ./scripts/gcloud_l4_vllm.sh tunnel
 ```
 
-If using the `local_port_8001.yaml` overlay, tunnel with:
+If using the `local_port_8001.yaml` overlay, open the local tunnel with the same
+local port:
 
 ```bash
 LOCAL_PORT=8001 PROJECT=<project-id> ZONE=us-central1-b INSTANCE=adapter-cache-vllm-l4-b \
@@ -204,8 +210,8 @@ uv run acb doctor \
   --max-estimated-gpu-hours 1
 ```
 
-For the `8001` tunnel overlay, include the port overlay in the same strict
-doctor check:
+For the `8001` tunnel overlay, include the port overlay after the reset overlay
+in the same strict doctor check:
 
 ```bash
 uv run acb doctor \
@@ -239,7 +245,8 @@ make vllm-source-eval-lora-qwen
 ```
 
 The Make targets assume `localhost:8000`. If using the `8001` tunnel overlay,
-run the underlying commands with the overlay included:
+run the underlying commands with `local_port_8001.yaml` appended after the
+benchmark and reset overlays:
 
 ```bash
 uv run python -m adapter_cache_bench.bench.run_workload \
