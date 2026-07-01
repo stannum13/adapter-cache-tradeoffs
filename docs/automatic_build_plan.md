@@ -113,12 +113,12 @@ strong enough to support recommendations.
 
 Tasks:
 
-- Add `docs/quickstart.md` with CPU smoke, benchmark-v0, custom JSONL eval, and
-  vLLM paths.
-- Add examples for CPU smoke, custom eval JSONL, vLLM LoRA, and report
-  generation.
-- Add a lightweight `acb` CLI only after the underlying lifecycle is stable.
-- Add `doctor` and `recommend` commands after readiness and claim tables exist.
+- Keep `docs/quickstart.md` current with CPU smoke, benchmark-v0, custom JSONL
+  eval, vLLM, report generation, evidence bundle, and `acb doctor` paths.
+- Keep `acb run`, `acb report`, `acb bundle`, and `acb doctor` as thin wrappers
+  over stable underlying workflows.
+- Add `recommend` only after real-server evidence and claim tables are strong
+  enough to support recommendations.
 
 Exit criteria:
 

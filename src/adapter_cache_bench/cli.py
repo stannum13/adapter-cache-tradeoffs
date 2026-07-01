@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import shutil
+import socket
 import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Literal
+from urllib.parse import urlparse
 
 from adapter_cache_bench.analysis.evidence_bundle import build_evidence_bundle
 from adapter_cache_bench.analysis.report import generate_report
@@ -70,6 +74,20 @@ SWEEP_OPTION_NAMES = (
     "max_estimated_gpu_hours",
 )
 REMOTE_BACKENDS = {"vllm", "openai_compatible"}
+REQUIRED_CLOUD_PROVENANCE_VARS = (
+    "ACB_CLOUD_PROVIDER",
+    "ACB_CLOUD_PROJECT",
+    "ACB_CLOUD_ZONE",
+    "ACB_CLOUD_INSTANCE",
+    "ACB_CLOUD_MACHINE_TYPE",
+    "ACB_CLOUD_GPU_TYPE",
+    "ACB_CLOUD_GPU_COUNT",
+    "ACB_CLOUD_TTL_HOURS",
+    "ACB_VLLM_IMAGE",
+)
+GPU_QUOTA_METRIC_BY_ACCELERATOR = {
+    "nvidia-l4": "NVIDIA_L4_GPUS",
+}
 
 
 @dataclass(frozen=True)
@@ -131,7 +149,7 @@ def _doctor_sweep_options(args: argparse.Namespace) -> SweepOptions:
     )
 
 
-def _run_text_command(command: list[str]) -> tuple[int, str]:
+def _run_command(command: list[str]) -> tuple[int, str, str]:
     try:
         completed = subprocess.run(
             command,
@@ -140,11 +158,58 @@ def _run_text_command(command: list[str]) -> tuple[int, str]:
             text=True,
         )
     except OSError as exc:
-        return 127, str(exc)
-    output = "\n".join(
-        part.strip() for part in [completed.stdout, completed.stderr] if part.strip()
-    )
-    return completed.returncode, output
+        return 127, "", str(exc)
+    return completed.returncode, completed.stdout.strip(), completed.stderr.strip()
+
+
+def _run_text_command(command: list[str]) -> tuple[int, str]:
+    code, stdout, stderr = _run_command(command)
+    if code == 0:
+        return code, stdout
+    output = "\n".join(part for part in [stdout, stderr] if part)
+    return code, output
+
+
+def _last_path_part(value: object) -> str:
+    return str(value).rstrip("/").rsplit("/", 1)[-1]
+
+
+def _region_from_zone(zone: str | None) -> str | None:
+    if not zone or zone.count("-") < 2:
+        return None
+    return zone.rsplit("-", 1)[0]
+
+
+def _quota_headroom(payload: dict[str, object], metric_name: str) -> float | None:
+    quotas = payload.get("quotas", [])
+    if not isinstance(quotas, list):
+        return None
+    for quota in quotas:
+        if not isinstance(quota, dict) or quota.get("metric") != metric_name:
+            continue
+        try:
+            return float(quota.get("limit", 0.0)) - float(quota.get("usage", 0.0))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _json_gcloud_command(
+    command: list[str],
+    *,
+    errors: list[str],
+    error_label: str,
+) -> dict[str, object] | None:
+    code, payload_text = _run_text_command(command)
+    if code != 0:
+        errors.append(error_label)
+        return None
+    try:
+        payload = json.loads(payload_text)
+    except json.JSONDecodeError:
+        errors.append(f"{error_label}: invalid JSON")
+        return None
+    return payload if isinstance(payload, dict) else {}
 
 
 def _check_gcloud_config(warnings: list[str], errors: list[str]) -> None:
@@ -153,7 +218,7 @@ def _check_gcloud_config(warnings: list[str], errors: list[str]) -> None:
         return
 
     account_code, accounts = _run_text_command(
-        ["gcloud", "auth", "list", "--format=value(account)"]
+        ["gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"]
     )
     if account_code != 0 or not accounts.strip():
         errors.append("gcloud has no authenticated account")
@@ -174,6 +239,275 @@ def _check_gcloud_config(warnings: list[str], errors: list[str]) -> None:
         warnings.append(f"gcloud zone detected: {zone.splitlines()[0]}")
 
 
+def _check_gcloud_instance(
+    warnings: list[str],
+    errors: list[str],
+    *,
+    instance: str,
+    project: str | None,
+    zone: str | None,
+) -> dict[str, object] | None:
+    if shutil.which("gcloud") is None:
+        errors.append("gcloud is not installed or not on PATH")
+        return None
+    command = [
+        "gcloud",
+        "compute",
+        "instances",
+        "describe",
+        instance,
+        "--format=json",
+    ]
+    if project:
+        command.append(f"--project={project}")
+    if zone:
+        command.append(f"--zone={zone}")
+    describe_code, payload_text = _run_text_command(command)
+    if describe_code != 0:
+        errors.append(f"gcloud instance is not accessible: {instance}")
+        return None
+    try:
+        payload = json.loads(payload_text)
+    except json.JSONDecodeError:
+        errors.append(f"gcloud instance describe returned invalid JSON: {instance}")
+        return None
+    if not isinstance(payload, dict):
+        errors.append(f"gcloud instance describe returned non-object JSON: {instance}")
+        return None
+    status = str(payload.get("status", "unknown"))
+    machine_type = _last_path_part(payload.get("machineType", "unknown"))
+    labels = payload.get("labels", {})
+    if not isinstance(labels, dict):
+        labels = {}
+    accelerators = payload.get("guestAccelerators", [])
+    if isinstance(accelerators, list):
+        for accelerator in accelerators:
+            if not isinstance(accelerator, dict):
+                continue
+            accelerator_type = _last_path_part(accelerator.get("acceleratorType", "unknown"))
+            accelerator_count = accelerator.get("acceleratorCount", "unknown")
+            warnings.append(
+                f"gcloud instance {instance} accelerator: {accelerator_type} x{accelerator_count}"
+            )
+    warnings.append(f"gcloud instance {instance} status: {status}")
+    warnings.append(f"gcloud instance {instance} machine type: {machine_type}")
+    if status == "RUNNING":
+        warnings.append(f"gcloud instance {instance} is already running; check for stale servers")
+    elif status == "TERMINATED":
+        warnings.append(f"gcloud instance {instance} is stopped; starting it will incur GPU costs")
+    else:
+        warnings.append(f"gcloud instance {instance} has non-standard status: {status}")
+    ttl_hours = labels.get("ttl_hours")
+    if ttl_hours:
+        warnings.append(f"gcloud instance {instance} ttl_hours label: {ttl_hours}")
+    else:
+        warnings.append(f"gcloud instance {instance} has no ttl_hours label")
+    return payload
+
+
+def _required_gpu_count(instance_payload: dict[str, object] | None) -> tuple[str | None, int]:
+    if not instance_payload:
+        return None, 0
+    accelerators = instance_payload.get("guestAccelerators", [])
+    if not isinstance(accelerators, list):
+        return None, 0
+    total = 0
+    accelerator_type = None
+    for accelerator in accelerators:
+        if not isinstance(accelerator, dict):
+            continue
+        accelerator_type = _last_path_part(accelerator.get("acceleratorType", "unknown"))
+        try:
+            total += int(accelerator.get("acceleratorCount", 0))
+        except (TypeError, ValueError):
+            continue
+    return accelerator_type, total
+
+
+def _check_gcloud_quota(
+    warnings: list[str],
+    errors: list[str],
+    *,
+    project: str | None,
+    zone: str | None,
+    instance_payload: dict[str, object] | None,
+) -> None:
+    if shutil.which("gcloud") is None:
+        errors.append("gcloud is not installed or not on PATH")
+        return
+    if not instance_payload:
+        errors.append("gcloud quota check requires --gcloud-instance with GPU metadata")
+        return
+    accelerator_type, required_gpu_count = _required_gpu_count(instance_payload)
+    if not accelerator_type or required_gpu_count <= 0:
+        errors.append("gcloud quota check requires an instance with GPU accelerator metadata")
+        return
+    regional_metric = GPU_QUOTA_METRIC_BY_ACCELERATOR.get(accelerator_type)
+    if not regional_metric:
+        errors.append(f"gcloud quota check does not support accelerator {accelerator_type}")
+        return
+
+    region = _region_from_zone(zone)
+    if not region:
+        errors.append("gcloud quota check requires --gcloud-zone")
+        return
+
+    region_command = ["gcloud", "compute", "regions", "describe", region, "--format=json"]
+    project_command = ["gcloud", "compute", "project-info", "describe", "--format=json"]
+    if project:
+        region_command.append(f"--project={project}")
+        project_command.append(f"--project={project}")
+    region_payload = _json_gcloud_command(
+        region_command,
+        errors=errors,
+        error_label=f"gcloud region quota is not accessible: {region}",
+    )
+    project_payload = _json_gcloud_command(
+        project_command,
+        errors=errors,
+        error_label="gcloud project quota is not accessible",
+    )
+    if region_payload:
+        headroom = _quota_headroom(region_payload, regional_metric)
+        if headroom is None:
+            warnings.append(f"regional quota {regional_metric} is unavailable")
+        elif headroom < required_gpu_count:
+            errors.append(
+                f"regional GPU quota {regional_metric} headroom {headroom:g} "
+                f"is below required {required_gpu_count}"
+            )
+        else:
+            warnings.append(f"regional GPU quota {regional_metric} headroom: {headroom:g}")
+    if project_payload:
+        headroom = _quota_headroom(project_payload, "GPUS_ALL_REGIONS")
+        if headroom is None:
+            warnings.append("project quota GPUS_ALL_REGIONS is unavailable")
+        elif headroom < required_gpu_count:
+            errors.append(
+                f"project GPU quota GPUS_ALL_REGIONS headroom {headroom:g} "
+                f"is below required {required_gpu_count}"
+            )
+        else:
+            warnings.append(f"project GPU quota GPUS_ALL_REGIONS headroom: {headroom:g}")
+
+
+def _local_port_available(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
+def _port_number(value: str) -> int:
+    try:
+        port = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("port must be an integer") from exc
+    if port < 1 or port > 65535:
+        raise argparse.ArgumentTypeError("port must be between 1 and 65535")
+    return port
+
+
+def _check_local_port(warnings: list[str], errors: list[str], *, port: int) -> None:
+    if _local_port_available(port):
+        warnings.append(f"local tunnel port {port} is available")
+    else:
+        errors.append(f"local tunnel port {port} is already in use")
+
+
+def _url_port(value: str) -> int | None:
+    parsed = urlparse(value)
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError(f"invalid URL port in {value}") from exc
+    if port is not None:
+        return port
+    if parsed.scheme == "http":
+        return 80
+    if parsed.scheme == "https":
+        return 443
+    return None
+
+
+def _check_backend_url_ports(
+    warnings: list[str],
+    errors: list[str],
+    *,
+    children: list[SweepChild],
+    local_port: int,
+) -> None:
+    ports: set[int] = set()
+    for child in children:
+        backend = child.config.backend
+        if backend.kind not in REMOTE_BACKENDS:
+            continue
+        for value in [backend.base_url, backend.metrics_url, backend.server_warmup_url or ""]:
+            if value:
+                try:
+                    port = _url_port(value)
+                except ValueError as exc:
+                    errors.append(f"{child.config.run_name}: {exc}")
+                    continue
+                if port is not None:
+                    ports.add(port)
+    if not ports:
+        return
+    if ports == {local_port}:
+        warnings.append(f"backend URLs use local tunnel port {local_port}")
+    else:
+        warnings.append(
+            f"backend URL ports {', '.join(str(item) for item in sorted(ports))} "
+            f"do not all match --local-port {local_port}"
+        )
+
+
+def _check_cloud_provenance(
+    warnings: list[str],
+    errors: list[str],
+    *,
+    gcloud_instance: str | None,
+    gcloud_project: str | None,
+    gcloud_zone: str | None,
+    instance_payload: dict[str, object] | None,
+) -> None:
+    missing = [name for name in REQUIRED_CLOUD_PROVENANCE_VARS if not os.environ.get(name)]
+    if missing:
+        errors.append("missing cloud provenance environment variable(s): " + ", ".join(missing))
+        return
+
+    provider = os.environ["ACB_CLOUD_PROVIDER"]
+    if provider != "gcp":
+        errors.append(f"ACB_CLOUD_PROVIDER must be gcp for this path, got {provider}")
+    expected = {
+        "ACB_CLOUD_PROJECT": gcloud_project,
+        "ACB_CLOUD_ZONE": gcloud_zone,
+        "ACB_CLOUD_INSTANCE": gcloud_instance,
+    }
+    if instance_payload:
+        labels = instance_payload.get("labels", {})
+        if not isinstance(labels, dict):
+            labels = {}
+        accelerator_type, gpu_count = _required_gpu_count(instance_payload)
+        expected["ACB_CLOUD_MACHINE_TYPE"] = _last_path_part(
+            instance_payload.get("machineType", "unknown")
+        )
+        expected["ACB_CLOUD_GPU_TYPE"] = accelerator_type or "<missing>"
+        expected["ACB_CLOUD_GPU_COUNT"] = str(gpu_count) if gpu_count > 0 else "<missing>"
+        expected["ACB_CLOUD_TTL_HOURS"] = (
+            str(labels["ttl_hours"]) if labels.get("ttl_hours") else "<missing>"
+        )
+    for env_name, expected_value in expected.items():
+        if expected_value and os.environ[env_name] != str(expected_value):
+            errors.append(
+                f"{env_name}={os.environ[env_name]} does not match preflight value {expected_value}"
+            )
+    warnings.append("cloud provenance environment is present")
+
+
 def _doctor_config(
     config: BenchmarkConfig,
     *,
@@ -181,6 +515,13 @@ def _doctor_config(
     children: list[SweepChild],
     options: SweepOptions,
     check_gcloud: bool,
+    gcloud_instance: str | None,
+    gcloud_project: str | None,
+    gcloud_zone: str | None,
+    check_gcloud_quota: bool,
+    check_local_port: bool,
+    local_port: int,
+    require_cloud_provenance: bool,
 ) -> DoctorResult:
     warnings: list[str] = []
     errors: list[str] = []
@@ -232,8 +573,49 @@ def _doctor_config(
             )
         if check_gcloud:
             _check_gcloud_config(warnings, errors)
-        elif any(
-            "gcloud" in str(child.config.backend.server_reset_command or "") for child in children
+            if gcloud_zone:
+                warnings.append(f"gcloud preflight target zone: {gcloud_zone}")
+        instance_payload = None
+        if gcloud_instance:
+            instance_payload = _check_gcloud_instance(
+                warnings,
+                errors,
+                instance=gcloud_instance,
+                project=gcloud_project,
+                zone=gcloud_zone,
+            )
+        if check_gcloud_quota:
+            _check_gcloud_quota(
+                warnings,
+                errors,
+                project=gcloud_project,
+                zone=gcloud_zone,
+                instance_payload=instance_payload,
+            )
+        if check_local_port:
+            _check_local_port(warnings, errors, port=local_port)
+            _check_backend_url_ports(
+                warnings,
+                errors,
+                children=children,
+                local_port=local_port,
+            )
+        if require_cloud_provenance:
+            _check_cloud_provenance(
+                warnings,
+                errors,
+                gcloud_instance=gcloud_instance,
+                gcloud_project=gcloud_project,
+                gcloud_zone=gcloud_zone,
+                instance_payload=instance_payload,
+            )
+        elif (
+            not check_gcloud
+            and not gcloud_instance
+            and any(
+                "gcloud" in str(child.config.backend.server_reset_command or "")
+                for child in children
+            )
         ):
             warnings.append("gcloud reset command detected; rerun with --check-gcloud")
 
@@ -435,6 +817,13 @@ def doctor_command(args: argparse.Namespace, parser: argparse.ArgumentParser | N
         children=children,
         options=_doctor_sweep_options(args),
         check_gcloud=args.check_gcloud,
+        gcloud_instance=args.gcloud_instance,
+        gcloud_project=args.gcloud_project,
+        gcloud_zone=args.gcloud_zone,
+        check_gcloud_quota=args.check_gcloud_quota,
+        check_local_port=args.check_local_port,
+        local_port=args.local_port,
+        require_cloud_provenance=args.require_cloud_provenance,
     )
     _print_doctor_result(result)
     return 1 if result.errors else 0
@@ -503,6 +892,39 @@ def build_parser() -> argparse.ArgumentParser:
         "--check-gcloud",
         action="store_true",
         help="Check local gcloud auth, project, and zone without starting resources.",
+    )
+    doctor_parser.add_argument(
+        "--gcloud-instance",
+        help="Describe an existing GCP VM without starting it.",
+    )
+    doctor_parser.add_argument(
+        "--gcloud-project",
+        help="Project to use for --gcloud-instance. Defaults to gcloud config.",
+    )
+    doctor_parser.add_argument(
+        "--gcloud-zone",
+        help="Zone to use for --gcloud-instance. Defaults to gcloud config.",
+    )
+    doctor_parser.add_argument(
+        "--check-gcloud-quota",
+        action="store_true",
+        help="Check regional and project-wide GPU quota headroom without starting resources.",
+    )
+    doctor_parser.add_argument(
+        "--check-local-port",
+        action="store_true",
+        help="Check whether the local tunnel port is already bound.",
+    )
+    doctor_parser.add_argument(
+        "--local-port",
+        type=_port_number,
+        default=8000,
+        help="Local tunnel port to check when --check-local-port is set.",
+    )
+    doctor_parser.add_argument(
+        "--require-cloud-provenance",
+        action="store_true",
+        help="Require ACB_CLOUD_* and ACB_VLLM_IMAGE metadata before a cloud evidence run.",
     )
     doctor_parser.set_defaults(func=lambda args: doctor_command(args, doctor_parser))
 

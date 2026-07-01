@@ -1,0 +1,8 @@
+# Local tunnel overlay for cases where localhost:8000 is already occupied.
+#
+# Pair this with:
+#   LOCAL_PORT=8001 PROJECT=... ZONE=... INSTANCE=... ./scripts/gcloud_l4_vllm.sh tunnel
+backend:
+  base_url: http://localhost:8001/v1
+  metrics_url: http://localhost:8001/metrics
+  server_warmup_url: http://localhost:8001/health
