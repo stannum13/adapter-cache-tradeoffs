@@ -84,20 +84,27 @@ metadata without starting a server or creating cloud resources.
 
 ## Build An Evidence Bundle
 
-Build a manifest for the smoke run:
+Build a public-review manifest from local runs and the existing public
+report/figure/table paths:
 
 ```bash
-uv run python -m adapter_cache_bench.analysis.evidence_bundle \
-  --bundle-name quickstart-smoke \
-  --run-glob "small-*" \
-  --report reports/adapter-cache-tradeoffs.md \
-  --table reports/tables/claim_evidence.csv
+make public-evidence-bundle
+```
+
+By default this selects local run directories such as `small-*`,
+`benchmark-v0-*`, `regime-*`, `source-eval-*`, and `jsonl_eval-*`, then records
+the public report snapshot, selected public figures, and generated analysis
+tables. It does not start a benchmark runner, server, GPU job, or networked
+download. Override the selectors or output name when needed:
+
+```bash
+make public-evidence-bundle BUNDLE=quickstart-smoke RUN_GLOBS="small-*"
 ```
 
 The bundle manifest lives at:
 
 ```text
-evidence/quickstart-smoke/bundle_manifest.json
+evidence/public-review/bundle_manifest.json
 ```
 
 Evidence bundles record hashes, git metadata, included paths, missing required
