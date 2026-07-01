@@ -236,10 +236,13 @@ specialist and multitask strategies: `qa-lora`, `json-lora`, `summary-lora`,
 `code-lora`, and `multitask-lora`. Its default adapter paths are under
 `/home/${REMOTE_USER:-shiva}/adapters/`; override `REMOTE_USER` or
 `LORA_MODULES` if the VM uses a different account or adapter location.
-If local port `8000` is occupied, add
-`configs/benchmark/local_port_8001.yaml` to both the doctor and run commands,
-pass `--local-port 8001` to doctor, and start the tunnel with
-`LOCAL_PORT=8001`.
+If local port `8000` is occupied, append
+`configs/benchmark/local_port_8001.yaml` after whichever reset overlay you use
+in both the doctor and run commands, including `gcloud_7b_reset_template.yaml`,
+`gcloud_7b_lora_reset_template.yaml`, or
+`gcloud_7b_lora_bridge_reset.yaml`. Pass `--local-port 8001` to doctor and open
+the tunnel with `LOCAL_PORT=8001`; the config overlay only changes local client
+URLs and warmup/metrics endpoints.
 
 Every completed child run should have `requests.jsonl`, `summary.json`,
 `config_resolved.yaml`, `manifest.json`, `status.json`, `server_reset.log`, and
