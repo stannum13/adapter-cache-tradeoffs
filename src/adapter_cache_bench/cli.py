@@ -646,6 +646,22 @@ def _print_doctor_result(result: DoctorResult) -> None:
             print(f"- {error}")
 
 
+def _doctor_json_payload(result: DoctorResult) -> dict[str, object]:
+    return {
+        "status": "error" if result.errors else "ok",
+        "runner": result.runner,
+        "planned_runs": result.planned_runs,
+        "planned_requests": result.planned_requests,
+        "estimated_gpu_hours": result.estimated_gpu_hours,
+        "warnings": result.warnings,
+        "errors": result.errors,
+    }
+
+
+def _print_doctor_json_result(result: DoctorResult) -> None:
+    print(json.dumps(_doctor_json_payload(result), sort_keys=True))
+
+
 def _has_sweep_options(args: argparse.Namespace) -> bool:
     for name in SWEEP_OPTION_NAMES:
         value = getattr(args, name)
@@ -825,7 +841,10 @@ def doctor_command(args: argparse.Namespace, parser: argparse.ArgumentParser | N
         local_port=args.local_port,
         require_cloud_provenance=args.require_cloud_provenance,
     )
-    _print_doctor_result(result)
+    if args.json_output:
+        _print_doctor_json_result(result)
+    else:
+        _print_doctor_result(result)
     return 1 if result.errors else 0
 
 
@@ -883,6 +902,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=RUNNER_CHOICES,
         default="auto",
         help="Runner to use. Auto infers from matrix keys and concurrency settings.",
+    )
+    doctor_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Print a single machine-readable JSON object.",
     )
     doctor_parser.add_argument("--max-runs", type=int)
     doctor_parser.add_argument("--max-requests", type=int)
