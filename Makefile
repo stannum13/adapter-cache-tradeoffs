@@ -1,5 +1,10 @@
 .PHONY: sync test lint format check small matrix benchmark-v0-mock benchmark-v0-csv regime-v0-mock build-external-eval report release-report whitepaper-figure large-model-figures adapter-metrics model-family-summary claim-evidence policy-regret capacity-frontier research-readiness compare pareto slo validate-eval validate-eval-large validate-eval-xlarge validate-source-eval validate-source-eval-expanded validate-external-eval source-eval source-eval-expanded transformers-source-eval train-qwen7b-adapters train-qwen7b-adapters-seed23 train-qwen7b-adapters-seed31 overnight-second-family vllm-example vllm-source-eval vllm-source-eval-l4-qwen vllm-source-eval-l4-qwen15b vllm-source-eval-l4-qwen7b vllm-source-eval-expanded-qwen7b vllm-source-eval-lora-qwen vllm-source-eval-lora-trained-qwen15b vllm-source-eval-lora-trained-qwen7b vllm-source-eval-lora-multitask-qwen7b vllm-source-eval-expanded-lora-trained-qwen7b vllm-source-eval-expanded-lora-multitask-qwen7b vllm-source-eval-lora-trained-qwen7b-seed23 vllm-source-eval-lora-multitask-qwen7b-seed23 vllm-source-eval-lora-trained-qwen7b-seed31 vllm-source-eval-lora-multitask-qwen7b-seed31 vllm-external-eval vllm-model-family vllm-large-model-pilot vllm-large-model-confidence vllm-large-model-confidence-reset vllm-large-model vllm-heldout-qwen15b vllm-heldout-lora-trained-qwen15b vllm-heldout-lora-trained-qwen15b-standard vllm-heldout-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b vllm-heldout-xlarge-lora-trained-qwen15b vllm-heldout-xlarge-lora-multitask-qwen15b vllm-heldout-xlarge-qwen15b-concurrent vllm-heldout-xlarge-lora-trained-qwen15b-concurrent vllm-heldout-xlarge-lora-multitask-qwen15b-concurrent vllm-heldout-xlarge-qwen7b vllm-heldout-xlarge-lora-trained-qwen7b vllm-heldout-xlarge-lora-multitask-qwen7b vllm-heldout-xlarge-qwen7b-concurrent vllm-heldout-xlarge-lora-trained-qwen7b-concurrent vllm-heldout-xlarge-lora-multitask-qwen7b-concurrent vllm-overnight-frontier vllm-overnight-frontier-streaming vllm-exhaustive-layout vllm-exhaustive-overlap vllm-exhaustive-overlap-reset vllm-exhaustive-adapter-count vllm-exhaustive-adapter-count-reset vllm-exhaustive-tenant-isolation vllm-exhaustive-confidence vllm-exhaustive-all vllm-heldout-trained-matrix-qwen15b vllm-heldout-trained-repeated-qwen15b reproduce-mock
 
+PUBLIC_BUNDLE_RUN_GLOBS ?= small-* benchmark-v0-* regime-* source-eval-* jsonl_eval-*
+PUBLIC_BUNDLE_REPORTS ?= docs/release_report.md reports/adapter-cache-tradeoffs.md
+PUBLIC_BUNDLE_FIGURES ?= docs/figures/whitepaper_specialization_cache_tradeoff.png docs/figures/quality_vs_p95_ttft.png docs/figures/cache_hit_rate_by_policy_model.png docs/figures/quality_adjusted_goodput_by_router.png
+PUBLIC_BUNDLE_TABLES ?= reports/tables/claim_evidence.csv reports/tables/model_family_summary.csv reports/tables/policy_regret.csv reports/tables/pareto_frontier.csv reports/tables/slo_sweep.csv
+
 sync:
 	uv sync --extra dev
 
@@ -63,9 +68,12 @@ capacity-frontier:
 research-readiness:
 	uv run python -m adapter_cache_bench.analysis.research_readiness --runs-dir artifacts/runs
 
-.PHONY: evidence-bundle
+.PHONY: evidence-bundle public-evidence-bundle
 evidence-bundle:
 	uv run python -m adapter_cache_bench.analysis.evidence_bundle --bundle-name $(or $(BUNDLE),latest) $(if $(OUTPUT),--output-dir $(OUTPUT),) $(foreach run,$(RUNS),--run $(run)) $(foreach pattern,$(RUN_GLOBS),--run-glob $(pattern)) $(foreach report,$(REPORTS),--report $(report)) $(foreach figure,$(FIGURES),--figure $(figure)) $(foreach table,$(TABLES),--table $(table))
+
+public-evidence-bundle:
+	uv run acb bundle --bundle-name $(or $(BUNDLE),public-review) $(if $(OUTPUT),--output-dir $(OUTPUT),) $(if $(or $(RUNS),$(RUN_GLOBS)),$(foreach run,$(RUNS),--run '$(run)') $(foreach pattern,$(RUN_GLOBS),--run-glob '$(pattern)'),$(foreach pattern,$(PUBLIC_BUNDLE_RUN_GLOBS),--run-glob '$(pattern)')) $(foreach report,$(or $(REPORTS),$(PUBLIC_BUNDLE_REPORTS)),--report '$(report)') $(foreach figure,$(or $(FIGURES),$(PUBLIC_BUNDLE_FIGURES)),--figure '$(figure)') $(foreach table,$(or $(TABLES),$(PUBLIC_BUNDLE_TABLES)),--table '$(table)')
 
 compare:
 	uv run python -m adapter_cache_bench.bench.compare --runs-dir artifacts/runs
