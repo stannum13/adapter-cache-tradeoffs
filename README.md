@@ -1,5 +1,8 @@
 # Adapter Cache Tradeoffs
 
+A benchmark harness for adapter specialization, KV-cache locality, and serving
+tradeoffs in causal-transformer systems.
+
 Specialist adapters improve quality, but every routing decision is also a cache
 decision.
 
@@ -7,6 +10,26 @@ This repository benchmarks when adapter/model specialization is worth its
 KV-cache footprint under shared-prefix serving workloads. It compares semantic
 routing, cache-aware routing, sticky routing, multitask adapters, standard
 LoRA-style cache fragmentation, and activated-LoRA-style late specialization.
+
+## Repository Identity
+
+- Public repo and package name: `adapter-cache-tradeoffs`.
+- Python import path: `adapter_cache_bench`.
+- CLI entry point: `acb`.
+
+The repo name states the research thesis; the module and CLI names describe the
+benchmark implementation.
+
+## What This Demonstrates
+
+- Reproducible benchmark infrastructure for mock, local Transformers, and vLLM
+  serving paths.
+- Systems measurement across quality, prefix-cache reuse, TTFT, end-to-end
+  latency, SLO attainment, goodput, adapter capacity, and routing policy.
+- Evidence discipline: JSONL request logs, resolved configs, manifests,
+  resumable sweeps, report generation, and auditable evidence bundles.
+- Cloud-aware experiment hygiene for optional GCP/vLLM runs without making GPU,
+  internet, or external model servers mandatory for unit tests.
 
 ## Current Evidence
 
@@ -259,8 +282,6 @@ src/adapter_cache_bench/backends/mock, local Transformers, and vLLM clients
 src/adapter_cache_bench/bench/   workload, matrix, sweep, and metrics runners
 src/adapter_cache_bench/analysis/reporting, plots, SLO, and Pareto helpers
 ```
-
-The Python import path remains `adapter_cache_bench`.
 
 ## Verification
 

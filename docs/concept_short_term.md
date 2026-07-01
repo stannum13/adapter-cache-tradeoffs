@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The next short-term goal is to turn `adapter-cache-bench` from a working
+The next short-term goal is to turn `adapter-cache-tradeoffs` from a working
 benchmark harness into an auditable evidence machine. The project already
 generates useful vLLM and mock-serving results, but the next credibility jump
 requires stateful run lifecycle, resumability, stronger uncertainty tables, and

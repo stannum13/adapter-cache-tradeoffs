@@ -2,7 +2,7 @@
 
 ## Thesis
 
-`adapter-cache-bench` should become a measurement and decision system for
+`adapter-cache-tradeoffs` should become a measurement and decision system for
 causal-transformer adapter serving. Its long-term contribution is not that one
 router or adapter strategy always wins. The contribution is a compact
 explanation of when specialization, cache locality, SLO pressure, and adapter
