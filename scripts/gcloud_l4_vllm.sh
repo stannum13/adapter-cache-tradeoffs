@@ -2,8 +2,8 @@
 set -euo pipefail
 
 PROJECT="${PROJECT:-$(gcloud config get-value project 2>/dev/null || true)}"
-ZONE="${ZONE:-us-central1-a}"
-INSTANCE="${INSTANCE:-adapter-cache-vllm-l4}"
+ZONE="${ZONE:-us-central1-b}"
+INSTANCE="${INSTANCE:-adapter-cache-vllm-l4-b}"
 MACHINE_TYPE="${MACHINE_TYPE:-g2-standard-8}"
 GPU_TYPE="${GPU_TYPE:-nvidia-l4}"
 GPU_COUNT="${GPU_COUNT:-1}"
@@ -13,11 +13,12 @@ LABELS="${LABELS:-project=adapter-cache-bench,purpose=benchmark,ttl_hours=${TTL_
 IMAGE_FAMILY="${IMAGE_FAMILY:-ubuntu-2204-lts}"
 IMAGE_PROJECT="${IMAGE_PROJECT:-ubuntu-os-cloud}"
 SSH_KEY_FILE="${SSH_KEY_FILE:-.tmp-gcloud/adapter_cache_vllm_key}"
+REMOTE_USER="${REMOTE_USER:-${USER:-shiva}}"
 BASE_MODEL="${BASE_MODEL:-Qwen/Qwen2.5-3B-Instruct}"
 LORA_BASE_MODEL="${LORA_BASE_MODEL:-Qwen/Qwen2.5-1.5B-Instruct}"
 LORA_REPO="${LORA_REPO:-uditjain/lori-qwen2.5-1.5b-medical}"
 LORA_MODULES="${LORA_MODULES:-qa-lora=${LORA_REPO} json-lora=${LORA_REPO} summary-lora=${LORA_REPO} code-lora=${LORA_REPO}}"
-ADAPTERS_DIR="${ADAPTERS_DIR:-/home/${USER}/adapters}"
+ADAPTERS_DIR="${ADAPTERS_DIR:-/home/${REMOTE_USER}/adapters}"
 VLLM_IMAGE="${VLLM_IMAGE:-vllm/vllm-openai:latest}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"
 GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.85}"
@@ -61,6 +62,7 @@ Common overrides:
   LORA_BASE_MODEL=${LORA_BASE_MODEL}
   LORA_REPO=${LORA_REPO}
   LORA_MODULES=${LORA_MODULES}
+  REMOTE_USER=${REMOTE_USER}
   ADAPTERS_DIR=${ADAPTERS_DIR}
   MAX_MODEL_LEN=${MAX_MODEL_LEN}
   TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE}

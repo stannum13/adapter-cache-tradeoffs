@@ -1,11 +1,12 @@
 # Optional GCP reset overlay for configs/benchmark/vllm_bridge_reset.yaml.
 #
 # Use after creating, setting up, and tunneling the VM from docs/gcloud_vllm.md.
-# The bridge still runs through localhost:8000; this command restarts the
-# remote vLLM LoRA server before each child run.
+# By default the bridge runs through localhost:8000; add local_port_8001.yaml
+# when the tunnel is bound to localhost:8001. This command restarts the remote
+# vLLM LoRA server before each child run.
 backend:
   model: Qwen/Qwen2.5-7B-Instruct
-  server_reset_command: PROJECT=${PROJECT:?Set PROJECT} ZONE=${ZONE:-us-central1-b} INSTANCE=${INSTANCE:-adapter-cache-vllm-l4-b} LORA_BASE_MODEL=Qwen/Qwen2.5-7B-Instruct MAX_MODEL_LEN=4096 GPU_MEMORY_UTILIZATION=0.90 MAX_LORAS=5 LORA_MODULES="${LORA_MODULES:-qa-lora=/home/shiva/adapters/qwen7b-qa json-lora=/home/shiva/adapters/qwen7b-json summary-lora=/home/shiva/adapters/qwen7b-summary code-lora=/home/shiva/adapters/qwen7b-code multitask-lora=/home/shiva/adapters/qwen7b-multitask}" ./scripts/gcloud_l4_vllm.sh serve-lora
+  server_reset_command: PROJECT=${PROJECT:?Set PROJECT} ZONE=${ZONE:-us-central1-b} INSTANCE=${INSTANCE:-adapter-cache-vllm-l4-b} LORA_BASE_MODEL=Qwen/Qwen2.5-7B-Instruct MAX_MODEL_LEN=4096 GPU_MEMORY_UTILIZATION=0.90 MAX_LORAS=5 LORA_MODULES="${LORA_MODULES:-qa-lora=/home/${REMOTE_USER:-shiva}/adapters/qwen7b-qa json-lora=/home/${REMOTE_USER:-shiva}/adapters/qwen7b-json summary-lora=/home/${REMOTE_USER:-shiva}/adapters/qwen7b-summary code-lora=/home/${REMOTE_USER:-shiva}/adapters/qwen7b-code multitask-lora=/home/${REMOTE_USER:-shiva}/adapters/qwen7b-multitask}" ./scripts/gcloud_l4_vllm.sh serve-lora
   server_reset_timeout_s: 420
   server_warmup_url: http://localhost:8000/health
   server_warmup_timeout_s: 420

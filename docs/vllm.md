@@ -1,7 +1,9 @@
 # vLLM and local model servers
 
 The default benchmark path uses `MockBackend` and requires no GPU. The optional
-`VLLMBackend` uses an OpenAI-compatible `/chat/completions` endpoint. For a
+`VLLMBackend` uses an OpenAI-compatible chat endpoint. Configs set
+`backend.base_url` to a `/v1` base URL and the client posts to
+`/chat/completions`, so the full request path is `/v1/chat/completions`. For a
 generic local server, set `backend.kind: openai_compatible`; for vLLM-specific
 configs, use `backend.kind: vllm`.
 
@@ -207,6 +209,12 @@ uv run acb doctor \
   --config configs/benchmark/vllm_bridge_reset.yaml \
            configs/benchmark/gcloud_7b_lora_bridge_reset.yaml \
   --check-gcloud \
+  --gcloud-instance adapter-cache-vllm-l4-b \
+  --gcloud-project "$PROJECT" \
+  --gcloud-zone "${ZONE:-us-central1-b}" \
+  --check-gcloud-quota \
+  --check-local-port \
+  --require-cloud-provenance \
   --max-runs 12 \
   --max-requests 300 \
   --estimated-seconds-per-run 240 \
@@ -222,6 +230,16 @@ uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
   --estimated-seconds-per-run 240 \
   --max-estimated-gpu-hours 1
 ```
+
+The GCP overlay expects five served LoRA names because the sweep covers both
+specialist and multitask strategies: `qa-lora`, `json-lora`, `summary-lora`,
+`code-lora`, and `multitask-lora`. Its default adapter paths are under
+`/home/${REMOTE_USER:-shiva}/adapters/`; override `REMOTE_USER` or
+`LORA_MODULES` if the VM uses a different account or adapter location.
+If local port `8000` is occupied, add
+`configs/benchmark/local_port_8001.yaml` to both the doctor and run commands,
+pass `--local-port 8001` to doctor, and start the tunnel with
+`LOCAL_PORT=8001`.
 
 Every completed child run should have `requests.jsonl`, `summary.json`,
 `config_resolved.yaml`, `manifest.json`, `status.json`, `server_reset.log`, and

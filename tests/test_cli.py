@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -354,3 +355,488 @@ def test_doctor_command_can_check_gcloud_without_starting_resources(
     assert "gcloud account detected: user@example.com" in output
     assert "gcloud project detected: project-a" in output
     assert "gcloud zone detected: us-central1-a" in output
+
+
+def test_run_text_command_ignores_successful_stderr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(
+            args=["gcloud"],
+            returncode=0,
+            stdout='{"status": "TERMINATED"}\n',
+            stderr="WARNING: optional component update available\n",
+        )
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+
+    code, output = cli._run_text_command(["gcloud", "compute", "instances", "describe"])
+
+    assert code == 0
+    assert output == '{"status": "TERMINATED"}'
+
+
+def test_doctor_command_does_not_request_gcloud_check_when_already_checked(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+
+    def fake_run_text_command(command: list[str]) -> tuple[int, str]:
+        joined = " ".join(command)
+        if "auth list" in joined:
+            return 0, "user@example.com"
+        if "get-value project" in joined:
+            return 0, "project-a"
+        if "get-value compute/zone" in joined:
+            return 0, "us-central1-a"
+        raise AssertionError(command)
+
+    monkeypatch.setattr(cli, "_run_text_command", fake_run_text_command)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--check-gcloud",
+            "--gcloud-zone",
+            "us-central1-b",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 0
+    assert "gcloud preflight target zone: us-central1-b" in output
+    assert "rerun with --check-gcloud" not in output
+
+
+def test_doctor_command_can_describe_gcloud_instance_without_starting_it(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+
+    commands: list[list[str]] = []
+
+    def fake_run_text_command(command: list[str]) -> tuple[int, str]:
+        commands.append(command)
+        if "describe" in command:
+            return (
+                0,
+                json.dumps(
+                    {
+                        "status": "TERMINATED",
+                        "machineType": (
+                            "https://www.googleapis.com/compute/v1/projects/project-a/"
+                            "zones/us-central1-b/machineTypes/g2-standard-8"
+                        ),
+                        "labels": {"ttl_hours": "8", "purpose": "benchmark"},
+                    }
+                ),
+            )
+        raise AssertionError(command)
+
+    monkeypatch.setattr(cli, "_run_text_command", fake_run_text_command)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--gcloud-instance",
+            "adapter-cache-vllm-l4-b",
+            "--gcloud-project",
+            "project-a",
+            "--gcloud-zone",
+            "us-central1-b",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 0
+    assert "gcloud instance adapter-cache-vllm-l4-b status: TERMINATED" in output
+    assert "starting it will incur GPU costs" in output
+    assert "gcloud instance adapter-cache-vllm-l4-b machine type: g2-standard-8" in output
+    assert "gcloud instance adapter-cache-vllm-l4-b ttl_hours label: 8" in output
+    assert commands == [
+        [
+            "gcloud",
+            "compute",
+            "instances",
+            "describe",
+            "adapter-cache-vllm-l4-b",
+            "--format=json",
+            "--project=project-a",
+            "--zone=us-central1-b",
+        ]
+    ]
+
+
+def test_doctor_command_warns_when_gcloud_instance_is_running_without_ttl(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+    monkeypatch.setattr(
+        cli,
+        "_run_text_command",
+        lambda command: (
+            0,
+            json.dumps(
+                {
+                    "status": "RUNNING",
+                    "machineType": "zones/us-central1-b/machineTypes/g2-standard-8",
+                    "labels": {},
+                }
+            ),
+        ),
+    )
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--gcloud-instance",
+            "adapter-cache-vllm-l4-b",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 0
+    assert "gcloud instance adapter-cache-vllm-l4-b status: RUNNING" in output
+    assert "already running; check for stale servers" in output
+    assert "has no ttl_hours label" in output
+
+
+def test_doctor_command_fails_for_inaccessible_gcloud_instance(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+    monkeypatch.setattr(cli, "_run_text_command", lambda command: (1, "not found"))
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--gcloud-instance",
+            "missing-vm",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "gcloud instance is not accessible: missing-vm" in output
+
+
+def test_doctor_command_requires_cloud_provenance_for_cloud_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    for name in cli.REQUIRED_CLOUD_PROVENANCE_VARS:
+        monkeypatch.delenv(name, raising=False)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--require-cloud-provenance",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "missing cloud provenance environment variable(s)" in output
+    assert "ACB_CLOUD_PROJECT" in output
+
+
+def test_doctor_command_cross_checks_cloud_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    values = {
+        "ACB_CLOUD_PROVIDER": "gcp",
+        "ACB_CLOUD_PROJECT": "project-a",
+        "ACB_CLOUD_ZONE": "us-central1-b",
+        "ACB_CLOUD_INSTANCE": "adapter-cache-vllm-l4-b",
+        "ACB_CLOUD_MACHINE_TYPE": "g2-standard-8",
+        "ACB_CLOUD_GPU_TYPE": "nvidia-l4",
+        "ACB_CLOUD_GPU_COUNT": "1",
+        "ACB_CLOUD_TTL_HOURS": "8",
+        "ACB_VLLM_IMAGE": "vllm/vllm-openai:latest",
+    }
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--gcloud-project",
+            "wrong-project",
+            "--gcloud-zone",
+            "us-central1-b",
+            "--require-cloud-provenance",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "cloud provenance environment is present" in output
+    assert "ACB_CLOUD_PROJECT=project-a does not match preflight value wrong-project" in output
+
+
+def test_doctor_command_cross_checks_cloud_provenance_against_instance_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    values = {
+        "ACB_CLOUD_PROVIDER": "gcp",
+        "ACB_CLOUD_PROJECT": "project-a",
+        "ACB_CLOUD_ZONE": "us-central1-b",
+        "ACB_CLOUD_INSTANCE": "adapter-cache-vllm-l4-b",
+        "ACB_CLOUD_MACHINE_TYPE": "wrong-machine",
+        "ACB_CLOUD_GPU_TYPE": "nvidia-l4",
+        "ACB_CLOUD_GPU_COUNT": "2",
+        "ACB_CLOUD_TTL_HOURS": "8",
+        "ACB_VLLM_IMAGE": "vllm/vllm-openai:latest",
+    }
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+    monkeypatch.setattr(
+        cli,
+        "_run_text_command",
+        lambda command: (
+            0,
+            json.dumps(
+                {
+                    "status": "TERMINATED",
+                    "machineType": "zones/us-central1-b/machineTypes/g2-standard-8",
+                    "guestAccelerators": [
+                        {
+                            "acceleratorType": "zones/us-central1-b/acceleratorTypes/nvidia-l4",
+                            "acceleratorCount": 1,
+                        }
+                    ],
+                    "labels": {"ttl_hours": "8"},
+                }
+            ),
+        ),
+    )
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--gcloud-instance",
+            "adapter-cache-vllm-l4-b",
+            "--gcloud-project",
+            "project-a",
+            "--gcloud-zone",
+            "us-central1-b",
+            "--require-cloud-provenance",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert (
+        "ACB_CLOUD_MACHINE_TYPE=wrong-machine does not match preflight value g2-standard-8"
+        in output
+    )
+    assert "ACB_CLOUD_GPU_COUNT=2 does not match preflight value 1" in output
+
+
+def test_doctor_command_requires_instance_metadata_for_gcloud_quota_check(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--gcloud-zone",
+            "us-central1-b",
+            "--check-gcloud-quota",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "gcloud quota check requires --gcloud-instance with GPU metadata" in output
+
+
+def test_doctor_command_blocks_when_project_gpu_quota_has_no_headroom(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+
+    def fake_run_text_command(command: list[str]) -> tuple[int, str]:
+        joined = " ".join(command)
+        if "instances describe" in joined:
+            return (
+                0,
+                json.dumps(
+                    {
+                        "status": "TERMINATED",
+                        "machineType": "zones/us-central1-b/machineTypes/g2-standard-8",
+                        "guestAccelerators": [
+                            {
+                                "acceleratorType": (
+                                    "zones/us-central1-b/acceleratorTypes/nvidia-l4"
+                                ),
+                                "acceleratorCount": 1,
+                            }
+                        ],
+                        "labels": {"ttl_hours": "8"},
+                    }
+                ),
+            )
+        if "regions describe us-central1" in joined:
+            return 0, json.dumps({"quotas": [{"metric": "NVIDIA_L4_GPUS", "limit": 1, "usage": 0}]})
+        if "project-info describe" in joined:
+            return 0, json.dumps(
+                {"quotas": [{"metric": "GPUS_ALL_REGIONS", "limit": 1, "usage": 1}]}
+            )
+        raise AssertionError(command)
+
+    monkeypatch.setattr(cli, "_run_text_command", fake_run_text_command)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--gcloud-instance",
+            "adapter-cache-vllm-l4-b",
+            "--gcloud-project",
+            "project-a",
+            "--gcloud-zone",
+            "us-central1-b",
+            "--check-gcloud-quota",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "regional GPU quota NVIDIA_L4_GPUS headroom: 1" in output
+    assert "project GPU quota GPUS_ALL_REGIONS headroom 0 is below required 1" in output
+
+
+def test_doctor_command_blocks_when_local_tunnel_port_is_bound(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli, "_local_port_available", lambda port: False)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "--check-local-port",
+            "--local-port",
+            "8000",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "local tunnel port 8000 is already in use" in output
+
+
+def test_doctor_command_rejects_invalid_local_port(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main(
+            [
+                "doctor",
+                "--config",
+                "configs/benchmark/vllm_bridge_reset.yaml",
+                "--check-local-port",
+                "--local-port",
+                "70000",
+            ]
+        )
+
+    assert exc_info.value.code == 2
+    assert "port must be between 1 and 65535" in capsys.readouterr().err
+
+
+def test_doctor_command_reports_malformed_backend_url_port(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = tmp_path / "bad_url.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "run_name: cli-bad-url",
+                "backend:",
+                "  kind: vllm",
+                "  base_url: http://localhost:bad/v1",
+                "  stream: true",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(cli, "_local_port_available", lambda port: True)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            str(config_path),
+            "--check-local-port",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "cli-bad-url: invalid URL port in http://localhost:bad/v1" in output
+
+
+def test_doctor_command_accepts_local_port_overlay(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli, "_local_port_available", lambda port: True)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/local_port_8001.yaml",
+            "--check-local-port",
+            "--local-port",
+            "8001",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 0
+    assert "local tunnel port 8001 is available" in output
+    assert "backend URLs use local tunnel port 8001" in output

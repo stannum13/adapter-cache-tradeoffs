@@ -78,9 +78,9 @@ uv run acb doctor \
   --max-estimated-gpu-hours 1
 ```
 
-For remote serving configs, `doctor` warns about optional gcloud state, server
-reset settings, streaming, metrics, and cache-condition scope without starting a
-server or creating cloud resources.
+For gcloud overlays, pass `--check-gcloud` and optionally
+`--gcloud-instance ...` to inspect local auth, project, zone, and existing VM
+metadata without starting a server or creating cloud resources.
 
 ## Build An Evidence Bundle
 
@@ -179,13 +179,14 @@ the evidence bundle. See [vllm.md](vllm.md),
 [model_backends.md](model_backends.md), and [gcloud_vllm.md](gcloud_vllm.md)
 for the serving runbooks.
 
-Optional server integration tests stay opt-in:
+The optional vLLM payload test stays opt-in and does not contact a server:
 
 ```bash
 RUN_VLLM_TESTS=1 uv run pytest tests/test_optional_integrations.py -q
 ```
 
-Do not set `RUN_VLLM_TESTS=1` unless a compatible server is available.
+The actual server smoke benchmark is `make vllm-example`; run it only when a
+compatible OpenAI-compatible server is available on `backend.base_url`.
 
 ## Next CPU Suites
 
