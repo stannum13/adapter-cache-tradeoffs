@@ -293,6 +293,39 @@ def test_doctor_command_reports_vllm_bridge_budget(capsys: pytest.CaptureFixture
     assert "non-warm cache conditions on remote backends" in output
 
 
+def test_doctor_command_reports_success_json(capsys: pytest.CaptureFixture[str]) -> None:
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "--json",
+            "--max-runs",
+            "12",
+            "--max-requests",
+            "300",
+            "--estimated-seconds-per-run",
+            "180",
+            "--max-estimated-gpu-hours",
+            "1",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    assert result == 0
+    assert output.count("\n") == 1
+    assert payload["status"] == "ok"
+    assert payload["runner"] == "exhaustive-sweep"
+    assert payload["planned_runs"] == 12
+    assert payload["planned_requests"] == 288
+    assert payload["estimated_gpu_hours"] == pytest.approx(0.6)
+    assert payload["errors"] == []
+    assert any(
+        "non-warm cache conditions on remote backends" in warning for warning in payload["warnings"]
+    )
+
+
 def test_doctor_command_returns_error_for_budget_failure(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -321,6 +354,45 @@ def test_doctor_command_returns_error_for_budget_failure(
     assert result == 1
     assert "status: error" in output
     assert "planned run count 2 exceeds --max-runs 1" in output
+
+
+def test_doctor_command_reports_error_json(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = tmp_path / "matrix.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "run_name: cli-matrix",
+                f"output_dir: {tmp_path / 'runs'}",
+                "workload:",
+                "  request_count: 2",
+                "matrix:",
+                "  routers: [random, cache_aware]",
+                "  caches: [standard_lora]",
+                "  workloads: [shared_doc_qa]",
+                "  seeds: [1]",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = cli.main(["doctor", "--config", str(config_path), "--json", "--max-runs", "1"])
+
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    assert result == 1
+    assert output.count("\n") == 1
+    assert payload == {
+        "status": "error",
+        "runner": "matrix",
+        "planned_runs": 2,
+        "planned_requests": 4,
+        "estimated_gpu_hours": None,
+        "warnings": [],
+        "errors": ["planned run count 2 exceeds --max-runs 1"],
+    }
 
 
 def test_doctor_command_can_check_gcloud_without_starting_resources(
