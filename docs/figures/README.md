@@ -17,6 +17,10 @@ Included snapshots:
 - `whitepaper_specialization_cache_tradeoff.png`
 - `whitepaper_specialization_cache_tradeoff.pdf`
 - `large_model_overlap_confidence.png`
+- `large_model_adapter_quality.png`
+- `large_model_adapter_concurrent.png`
+- `source_backed_qwen7b_adapter_seeds.png`
+- `source_backed_qwen7b_expanded.png`
 - `quality_vs_p95_ttft.png`
 - `cache_hit_rate_by_policy_model.png`
 - `quality_adjusted_goodput_by_router.png`

@@ -5,6 +5,7 @@ __pycache__/
 *.py[cod]
 .DS_Store
 .tmp-gcloud/
+.loop/
 artifacts/
 evidence/
 reports/figures/*.png

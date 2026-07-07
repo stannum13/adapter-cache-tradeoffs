@@ -3,13 +3,16 @@
 A benchmark harness for adapter specialization, KV-cache locality, and serving
 tradeoffs in causal-transformer systems.
 
-Specialist adapters improve quality, but every routing decision is also a cache
-decision.
+Specialist adapters can improve quality, but every routing decision is also a
+cache decision.
 
 This repository benchmarks when adapter/model specialization is worth its
 KV-cache footprint under shared-prefix serving workloads. It compares semantic
 routing, cache-aware routing, sticky routing, multitask adapters, standard
 LoRA-style cache fragmentation, and activated-LoRA-style late specialization.
+
+For a concise public narrative of the problem, system, current evidence, and
+claim boundary, see [docs/concept_note.md](docs/concept_note.md).
 
 ## Repository Identity
 
@@ -74,12 +77,13 @@ Selected plots are committed in [docs/figures](docs/figures/).
 The latest 7B evidence is in
 [docs/large_model_results.md](docs/large_model_results.md): trained
 Qwen2.5-7B specialist LoRAs beat the base model and slightly beat a multitask
-LoRA on generated held-out eval, moderate concurrent vLLM load, a 240-row
-source-backed public-domain eval, and a three-seed adapter check. The same
-work found a hard serving limit on one L4: five 7B LoRAs fit at 4096 context,
-while eight and ten registered LoRAs failed because vLLM could not reserve
-enough KV cache. A follow-up preemptible H100 run served Qwen2.5-7B with ten
-LoRAs at 4096 context and reported about `53.34 GiB` available KV-cache memory.
+LoRA on the included generated held-out eval, moderate concurrent vLLM load, a
+240-row source-backed public-domain eval, and a three-seed adapter check. The
+same work found a hard serving limit on one L4: five 7B LoRAs fit at 4096
+context, while eight and ten registered LoRAs failed because vLLM could not
+reserve enough KV cache. A follow-up preemptible H100 run served Qwen2.5-7B
+with ten LoRAs at 4096 context and reported about `53.34 GiB` available
+KV-cache memory.
 
 The latest model-family evidence is a 12-run vLLM sweep over the 500-row
 source-backed fixture. It served `Qwen/Qwen2.5-1.5B-Instruct` and
@@ -255,6 +259,7 @@ requirements.
 
 | Document | Contents |
 | --- | --- |
+| [docs/concept_note.md](docs/concept_note.md) | Recruiter-facing overview of the thesis, benchmark design, evidence, and claim boundary. |
 | [docs/real_eval_results.md](docs/real_eval_results.md) | Real vLLM run results and interpretation. |
 | [docs/release_report.md](docs/release_report.md) | Current generated public report snapshot. |
 | [docs/large_model_results.md](docs/large_model_results.md) | Real 7B vLLM cache/SLO and trained-adapter results. |
