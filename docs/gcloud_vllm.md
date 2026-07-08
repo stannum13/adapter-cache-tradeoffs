@@ -25,6 +25,13 @@ regional L4 quota and project-wide `GPUS_ALL_REGIONS` quota need enough
 headroom; `acb doctor --check-gcloud-quota` checks both without starting the
 VM when it can describe an existing instance.
 
+If `doctor` reports regional GPU headroom but
+`project GPU quota GPUS_ALL_REGIONS headroom 0 is below required 1`, do not
+start the VM. The project-wide quota is still a blocking gate even when the
+regional L4 quota looks available. Resolve it by requesting project-wide GPU
+quota, switching to a project that has project-wide GPU headroom, or selecting a
+non-GPU/local validation path until quota is available.
+
 ## 2. Create a GPU VM
 
 Before starting an existing VM, run the non-invasive doctor check. It verifies
