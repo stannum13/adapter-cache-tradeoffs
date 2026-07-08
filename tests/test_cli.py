@@ -919,6 +919,55 @@ def test_doctor_command_redacts_gcloud_json_output(
     assert "project GPU quota GPUS_ALL_REGIONS headroom 0 is below required 1" in payload["errors"]
 
 
+def test_doctor_redaction_preserves_gcloud_command_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    commands: list[list[str]] = []
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+
+    def fake_run_text_command(command: list[str]) -> tuple[int, str]:
+        commands.append(command)
+        return _fake_redaction_gcloud_command(command)
+
+    monkeypatch.setattr(cli, "_run_text_command", fake_run_text_command)
+
+    result = cli.main(_redacted_doctor_args())
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "secret-project" not in output
+    assert "secret-zone-a" not in output
+    assert "secret-instance" not in output
+    assert [
+        "gcloud",
+        "compute",
+        "instances",
+        "describe",
+        "secret-instance",
+        "--format=json",
+        "--project=secret-project",
+        "--zone=secret-zone-a",
+    ] in commands
+    assert [
+        "gcloud",
+        "compute",
+        "regions",
+        "describe",
+        "secret-zone",
+        "--format=json",
+        "--project=secret-project",
+    ] in commands
+    assert [
+        "gcloud",
+        "compute",
+        "project-info",
+        "describe",
+        "--format=json",
+        "--project=secret-project",
+    ] in commands
+
+
 def test_doctor_redacts_cloud_provenance_mismatch_values() -> None:
     message = "ACB_CLOUD_PROJECT=secret-project does not match preflight value other-secret-project"
 
