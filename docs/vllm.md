@@ -200,9 +200,9 @@ uv run python -m adapter_cache_bench.bench.run_exhaustive_sweep \
   --max-estimated-gpu-hours 1
 ```
 
-For a GCP L4 run, create/setup/start the VM and tunnel `localhost:8000` as in
-[gcloud_vllm.md](gcloud_vllm.md), export `ACB_CLOUD_*` provenance variables,
-then layer the cloud reset overlay:
+For a GCP L4 run, create/setup the VM as in [gcloud_vllm.md](gcloud_vllm.md),
+export `ACB_CLOUD_*` provenance variables, run the full doctor check before
+opening the SSH tunnel, then layer the cloud reset overlay:
 
 ```bash
 uv run acb doctor \
@@ -236,7 +236,10 @@ specialist and multitask strategies: `qa-lora`, `json-lora`, `summary-lora`,
 `code-lora`, and `multitask-lora`. Its default adapter paths are under
 `/home/${REMOTE_USER:-shiva}/adapters/`; override `REMOTE_USER` or
 `LORA_MODULES` if the VM uses a different account or adapter location.
-If local port `8000` is occupied, append
+The `--check-local-port` doctor gate is pre-tunnel. After the tunnel is open,
+verify the server with `/v1/models` instead of rerunning the port-free check.
+
+If local port `8000` is occupied before tunneling, append
 `configs/benchmark/local_port_8001.yaml` after whichever reset overlay you use
 in both the doctor and run commands, including `gcloud_7b_reset_template.yaml`,
 `gcloud_7b_lora_reset_template.yaml`, or

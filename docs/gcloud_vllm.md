@@ -244,9 +244,11 @@ LoRA-serving run:
 make vllm-source-eval-lora-qwen
 ```
 
-The Make targets assume `localhost:8000`. If using the `8001` tunnel overlay,
-run the underlying commands with `local_port_8001.yaml` appended after the
-benchmark and reset overlays:
+The Make targets assume `localhost:8000`. The `--check-local-port` doctor gate
+is intended before opening the SSH tunnel; after the tunnel is open, verify the
+server with `/v1/models` rather than checking that the port is free. If using
+the `8001` tunnel overlay, run the underlying commands with
+`local_port_8001.yaml` appended after the benchmark and reset overlays:
 
 ```bash
 uv run python -m adapter_cache_bench.bench.run_workload \

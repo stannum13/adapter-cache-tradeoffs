@@ -285,6 +285,7 @@ requirements.
 | [docs/vllm.md](docs/vllm.md) | vLLM/OpenAI-compatible serving flow. |
 | [docs/external_eval.md](docs/external_eval.md) | How to plug in stronger external evals. |
 | [docs/research_plan.md](docs/research_plan.md) | Next research steps and acceptance criteria. |
+| [docs/regime_bridge_plan.md](docs/regime_bridge_plan.md) | No-cloud preflight and stop rules for the reset-isolated vLLM regime bridge. |
 | [docs/eval_datasets.md](docs/eval_datasets.md) | JSONL eval schema. |
 | [docs/model_backends.md](docs/model_backends.md) | Backend options. |
 | [docs/gcloud_vllm.md](docs/gcloud_vllm.md) | GCP L4 runbook. |
