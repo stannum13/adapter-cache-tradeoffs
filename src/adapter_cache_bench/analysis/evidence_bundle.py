@@ -5,6 +5,7 @@ import fnmatch
 import hashlib
 import json
 import subprocess
+import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -28,6 +29,20 @@ RAW_ARTIFACT_NOTE = (
     "not copied into evidence bundles. They remain under the source run directory and "
     "are listed here only as excluded raw artifacts when present."
 )
+
+
+class EvidenceBundleValidationError(ValueError):
+    def __init__(self, manifest_path: Path, validation: dict[str, Any]):
+        self.manifest_path = manifest_path
+        self.validation = validation
+        missing_runs = validation.get("runs_with_missing_required_files", 0)
+        missing_generated = validation.get("missing_generated_artifact_count", 0)
+        super().__init__(
+            "evidence bundle validation failed: "
+            f"{manifest_path} "
+            f"({missing_runs} runs with missing required files, "
+            f"{missing_generated} missing generated artifacts)"
+        )
 
 
 @dataclass(frozen=True)
@@ -206,6 +221,51 @@ def _generated_records(paths: Iterable[str | Path], *, role: str) -> list[dict[s
     ]
 
 
+def _bundle_validation_summary(manifest: dict[str, Any]) -> dict[str, Any]:
+    missing_required_by_run = []
+    missing_required_file_count = 0
+    runs_missing_git_commit = 0
+    for run in manifest.get("runs", []):
+        missing_required = list(run.get("missing_required_files") or [])
+        if missing_required:
+            missing_required_by_run.append(
+                {
+                    "run_id": run.get("run_id"),
+                    "missing_required_files": missing_required,
+                }
+            )
+            missing_required_file_count += len(missing_required)
+        run_git = run.get("run_git") or {}
+        if not run_git.get("commit"):
+            runs_missing_git_commit += 1
+
+    missing_generated = []
+    generated_artifacts = manifest.get("generated_artifacts") or {}
+    for artifact_group, records in generated_artifacts.items():
+        for record in records:
+            if not record.get("exists"):
+                missing_generated.append(
+                    {
+                        "artifact_group": artifact_group,
+                        "path": record.get("path"),
+                        "role": record.get("role"),
+                    }
+                )
+
+    complete = not missing_required_by_run and not missing_generated
+    return {
+        "status": "pass" if complete else "incomplete",
+        "complete": complete,
+        "run_count": len(manifest.get("runs", [])),
+        "runs_with_missing_required_files": len(missing_required_by_run),
+        "missing_required_file_count": missing_required_file_count,
+        "missing_generated_artifact_count": len(missing_generated),
+        "runs_missing_git_commit": runs_missing_git_commit,
+        "missing_required_files_by_run": missing_required_by_run,
+        "missing_generated_artifacts": missing_generated,
+    }
+
+
 def build_evidence_bundle(
     *,
     bundle_name: str,
@@ -217,13 +277,14 @@ def build_evidence_bundle(
     figures: Iterable[str | Path] | None = None,
     tables: Iterable[str | Path] | None = None,
     repo_dir: str | Path = ".",
+    strict: bool = False,
 ) -> Path:
     runs_root = Path(runs_dir)
     bundle_dir = Path(output_dir) if output_dir is not None else Path("evidence") / bundle_name
     bundle_dir.mkdir(parents=True, exist_ok=True)
 
     run_dirs = _select_run_dirs(runs_root, run_ids=run_ids, run_globs=run_globs)
-    manifest = {
+    manifest: dict[str, Any] = {
         "schema_version": 1,
         "bundle_name": bundle_name,
         "created_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -242,11 +303,14 @@ def build_evidence_bundle(
             "tables": _generated_records(tables or [], role="table"),
         },
     }
+    manifest["validation"] = _bundle_validation_summary(manifest)
     manifest_path = bundle_dir / "bundle_manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    if strict and not manifest["validation"]["complete"]:
+        raise EvidenceBundleValidationError(manifest_path, manifest["validation"])
     return manifest_path
 
 
@@ -263,19 +327,29 @@ def main() -> None:
     parser.add_argument("--figure", dest="figures", action="append", default=[])
     parser.add_argument("--table", dest="tables", action="append", default=[])
     parser.add_argument("--repo-dir", default=".")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit nonzero after writing the manifest if selected evidence is incomplete.",
+    )
     args = parser.parse_args()
 
-    manifest_path = build_evidence_bundle(
-        bundle_name=args.bundle_name,
-        runs_dir=args.runs_dir,
-        output_dir=args.output_dir,
-        run_ids=args.run_ids,
-        run_globs=args.run_globs,
-        reports=args.reports,
-        figures=args.figures,
-        tables=args.tables,
-        repo_dir=args.repo_dir,
-    )
+    try:
+        manifest_path = build_evidence_bundle(
+            bundle_name=args.bundle_name,
+            runs_dir=args.runs_dir,
+            output_dir=args.output_dir,
+            run_ids=args.run_ids,
+            run_globs=args.run_globs,
+            reports=args.reports,
+            figures=args.figures,
+            tables=args.tables,
+            repo_dir=args.repo_dir,
+            strict=args.strict,
+        )
+    except EvidenceBundleValidationError as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(1) from exc
     print(manifest_path)
 
 

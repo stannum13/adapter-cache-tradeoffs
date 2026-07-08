@@ -3,7 +3,11 @@ import json
 
 import pytest
 
-from adapter_cache_bench.analysis.evidence_bundle import build_evidence_bundle, sha256_file
+from adapter_cache_bench.analysis.evidence_bundle import (
+    EvidenceBundleValidationError,
+    build_evidence_bundle,
+    sha256_file,
+)
 
 
 def _write_run(runs_dir, run_id: str, *, include_manifest: bool = True):
@@ -73,6 +77,17 @@ def test_build_evidence_bundle_records_selected_runs_and_hashes(tmp_path):
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert payload["bundle_name"] == "slice-b"
     assert payload["run_count"] == 1
+    assert payload["validation"] == {
+        "complete": True,
+        "missing_generated_artifact_count": 0,
+        "missing_generated_artifacts": [],
+        "missing_required_file_count": 0,
+        "missing_required_files_by_run": [],
+        "run_count": 1,
+        "runs_missing_git_commit": 0,
+        "runs_with_missing_required_files": 0,
+        "status": "pass",
+    }
     assert payload["raw_artifact_policy"]["raw_artifacts_copied"] is False
     assert "not copied" in payload["raw_artifact_policy"]["note"]
     assert payload["git"]["available"] is False
@@ -130,11 +145,44 @@ def test_build_evidence_bundle_supports_globs_and_missing_manifest(tmp_path):
     assert run_record["presence"]["manifest_json"] is False
     assert run_record["presence"]["status_json"] is True
     assert run_record["missing_required_files"] == ["alpha-1/manifest.json"]
+    assert payload["validation"]["complete"] is False
+    assert payload["validation"]["status"] == "incomplete"
+    assert payload["validation"]["runs_with_missing_required_files"] == 1
+    assert payload["validation"]["missing_required_file_count"] == 1
+    assert payload["validation"]["missing_generated_artifact_count"] == 0
+    assert payload["validation"]["missing_required_files_by_run"] == [
+        {
+            "run_id": "alpha-1",
+            "missing_required_files": ["alpha-1/manifest.json"],
+        }
+    ]
     manifest_file = [
         item for item in run_record["included_files"] if item["role"] == "run_manifest"
     ][0]
     assert manifest_file["exists"] is False
     assert "sha256" not in manifest_file
+
+
+def test_build_evidence_bundle_strict_raises_after_writing_manifest(tmp_path):
+    runs_dir = tmp_path / "runs"
+    _write_run(runs_dir, "alpha-1", include_manifest=False)
+
+    with pytest.raises(EvidenceBundleValidationError) as exc_info:
+        build_evidence_bundle(
+            bundle_name="strict",
+            runs_dir=runs_dir,
+            output_dir=tmp_path / "out",
+            run_ids=["alpha-1"],
+            repo_dir=tmp_path,
+            strict=True,
+        )
+
+    manifest_path = tmp_path / "out" / "bundle_manifest.json"
+    assert exc_info.value.manifest_path == manifest_path
+    assert manifest_path.exists()
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert payload["validation"]["complete"] is False
+    assert exc_info.value.validation == payload["validation"]
 
 
 def test_build_evidence_bundle_raises_for_missing_selected_run(tmp_path):

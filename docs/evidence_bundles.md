@@ -31,3 +31,13 @@ Each run entry records:
 Generated reports, figures, and tables can be listed with `REPORTS=...`,
 `FIGURES=...`, and `TABLES=...`; their paths, hashes, and sizes are recorded
 when they exist.
+
+The manifest also includes a top-level `validation` summary. It reports whether
+all selected runs have the core evidence files and whether all selected reports,
+figures, and tables exist. Use strict mode when a missing artifact should fail
+the command after the manifest is written:
+
+```bash
+make public-evidence-bundle STRICT=1
+uv run acb bundle --bundle-name public-review --run-glob 'source-eval-*' --strict
+```

@@ -6,12 +6,16 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Literal
 from urllib.parse import urlparse
 
-from adapter_cache_bench.analysis.evidence_bundle import build_evidence_bundle
+from adapter_cache_bench.analysis.evidence_bundle import (
+    EvidenceBundleValidationError,
+    build_evidence_bundle,
+)
 from adapter_cache_bench.analysis.report import generate_report
 from adapter_cache_bench.bench.run_concurrency_sweep import expand_concurrency_sweep_children
 from adapter_cache_bench.bench.run_concurrent import run_concurrent
@@ -803,17 +807,22 @@ def report_command(args: argparse.Namespace) -> int:
 
 
 def bundle_command(args: argparse.Namespace) -> int:
-    manifest_path = build_evidence_bundle(
-        bundle_name=args.bundle_name,
-        runs_dir=args.runs_dir,
-        output_dir=args.output_dir,
-        run_ids=args.run_ids,
-        run_globs=args.run_globs,
-        reports=args.reports,
-        figures=args.figures,
-        tables=args.tables,
-        repo_dir=args.repo_dir,
-    )
+    try:
+        manifest_path = build_evidence_bundle(
+            bundle_name=args.bundle_name,
+            runs_dir=args.runs_dir,
+            output_dir=args.output_dir,
+            run_ids=args.run_ids,
+            run_globs=args.run_globs,
+            reports=args.reports,
+            figures=args.figures,
+            tables=args.tables,
+            repo_dir=args.repo_dir,
+            strict=args.strict,
+        )
+    except EvidenceBundleValidationError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     print(manifest_path)
     return 0
 
@@ -890,6 +899,11 @@ def build_parser() -> argparse.ArgumentParser:
     bundle_parser.add_argument("--figure", dest="figures", action="append", default=[])
     bundle_parser.add_argument("--table", dest="tables", action="append", default=[])
     bundle_parser.add_argument("--repo-dir", default=".")
+    bundle_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit nonzero after writing the manifest if selected evidence is incomplete.",
+    )
     bundle_parser.set_defaults(func=bundle_command)
 
     doctor_parser = subparsers.add_parser(

@@ -213,6 +213,7 @@ def test_bundle_command_calls_build_evidence_bundle(
         figures: list[str | Path] | None = None,
         tables: list[str | Path] | None = None,
         repo_dir: str | Path = ".",
+        strict: bool = False,
     ) -> Path:
         calls["bundle_name"] = bundle_name
         calls["runs_dir"] = runs_dir
@@ -223,6 +224,7 @@ def test_bundle_command_calls_build_evidence_bundle(
         calls["figures"] = figures
         calls["tables"] = tables
         calls["repo_dir"] = repo_dir
+        calls["strict"] = strict
         return tmp_path / "bundle_manifest.json"
 
     monkeypatch.setattr(cli, "build_evidence_bundle", fake_build_evidence_bundle)
@@ -248,6 +250,7 @@ def test_bundle_command_calls_build_evidence_bundle(
             "reports/tables/claim_evidence.csv",
             "--repo-dir",
             ".",
+            "--strict",
         ]
     )
 
@@ -262,6 +265,7 @@ def test_bundle_command_calls_build_evidence_bundle(
         "figures": ["reports/figures/a.png"],
         "tables": ["reports/tables/claim_evidence.csv"],
         "repo_dir": ".",
+        "strict": True,
     }
     assert str(tmp_path / "bundle_manifest.json") in capsys.readouterr().out
 

@@ -70,10 +70,10 @@ research-readiness:
 
 .PHONY: evidence-bundle public-evidence-bundle
 evidence-bundle:
-	uv run python -m adapter_cache_bench.analysis.evidence_bundle --bundle-name $(or $(BUNDLE),latest) $(if $(OUTPUT),--output-dir $(OUTPUT),) $(foreach run,$(RUNS),--run $(run)) $(foreach pattern,$(RUN_GLOBS),--run-glob $(pattern)) $(foreach report,$(REPORTS),--report $(report)) $(foreach figure,$(FIGURES),--figure $(figure)) $(foreach table,$(TABLES),--table $(table))
+	uv run python -m adapter_cache_bench.analysis.evidence_bundle --bundle-name $(or $(BUNDLE),latest) $(if $(OUTPUT),--output-dir $(OUTPUT),) $(foreach run,$(RUNS),--run $(run)) $(foreach pattern,$(RUN_GLOBS),--run-glob $(pattern)) $(foreach report,$(REPORTS),--report $(report)) $(foreach figure,$(FIGURES),--figure $(figure)) $(foreach table,$(TABLES),--table $(table)) $(if $(STRICT),--strict,)
 
 public-evidence-bundle:
-	uv run acb bundle --bundle-name $(or $(BUNDLE),public-review) $(if $(OUTPUT),--output-dir $(OUTPUT),) $(if $(or $(RUNS),$(RUN_GLOBS)),$(foreach run,$(RUNS),--run '$(run)') $(foreach pattern,$(RUN_GLOBS),--run-glob '$(pattern)'),$(foreach pattern,$(PUBLIC_BUNDLE_RUN_GLOBS),--run-glob '$(pattern)')) $(foreach report,$(or $(REPORTS),$(PUBLIC_BUNDLE_REPORTS)),--report '$(report)') $(foreach figure,$(or $(FIGURES),$(PUBLIC_BUNDLE_FIGURES)),--figure '$(figure)') $(foreach table,$(or $(TABLES),$(PUBLIC_BUNDLE_TABLES)),--table '$(table)')
+	uv run acb bundle --bundle-name $(or $(BUNDLE),public-review) $(if $(OUTPUT),--output-dir $(OUTPUT),) $(if $(or $(RUNS),$(RUN_GLOBS)),$(foreach run,$(RUNS),--run '$(run)') $(foreach pattern,$(RUN_GLOBS),--run-glob '$(pattern)'),$(foreach pattern,$(PUBLIC_BUNDLE_RUN_GLOBS),--run-glob '$(pattern)')) $(foreach report,$(or $(REPORTS),$(PUBLIC_BUNDLE_REPORTS)),--report '$(report)') $(foreach figure,$(or $(FIGURES),$(PUBLIC_BUNDLE_FIGURES)),--figure '$(figure)') $(foreach table,$(or $(TABLES),$(PUBLIC_BUNDLE_TABLES)),--table '$(table)') $(if $(STRICT),--strict,)
 
 compare:
 	uv run python -m adapter_cache_bench.bench.compare --runs-dir artifacts/runs
