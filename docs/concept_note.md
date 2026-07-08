@@ -214,7 +214,7 @@ full GPU sweeps.
 | Priority | Action | Exit criterion |
 | ---: | --- | --- |
 | 1 | Keep the public concept note, claim ladder, and README aligned. | A reader can tell what is proven, what is not, and where to start. |
-| 2 | Generate a public evidence bundle for the current strongest artifacts. | Bundle manifest includes selected docs, tables, figures, hashes, git metadata, and validation status. Historical-run validation remains incomplete until missing lifecycle files are resolved or explicitly grandfathered. |
+| 2 | Generate a public evidence bundle for the current strongest artifacts. | Bundle manifest includes selected docs, tables, figures, hashes, git metadata, and validation status. Historical-run validation remains incomplete until missing lifecycle files are resolved or incomplete legacy runs are excluded from claim-supporting bundles. |
 | 3 | Run a reset-isolated vLLM bridge over the claim-critical mock regimes. | Real-serving summaries include matching structure metrics and server counters. |
 | 4 | Add a standard public benchmark fixture or adapter-compatible external eval. | Quality claims no longer rely only on generated and source-backed local fixtures. |
 | 5 | Expand the capacity frontier. | Context length, adapter count, rank, GPU type, and memory utilization are tabulated. |

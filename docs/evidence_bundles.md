@@ -6,6 +6,12 @@ validation is complete. When validation is incomplete, they are still useful as
 hash manifests and completeness reports, but public docs should not cite them as
 fully validated evidence.
 
+Historical runs that predate the current `status.json` lifecycle contract are
+handled by [legacy_evidence_policy.md](legacy_evidence_policy.md). Missing
+lifecycle files should be handled by rerunning, explicitly grandfathering with
+scoped wording, or excluding the run from public claims; do not fabricate
+missing files.
+
 Build a bundle with:
 
 ```bash
@@ -38,10 +44,17 @@ The manifest also includes a top-level `validation` summary. It reports whether
 all selected runs have the core evidence files and whether all selected reports,
 figures, and tables exist. A `validation.status` of `incomplete` means the
 bundle is not a fully validated evidence bundle; it is a completeness report
-that should trigger claim scoping or reruns. Use strict mode when a missing
-artifact should fail the command after the manifest is written:
+that should trigger claim scoping, reruns, or exclusion. Use strict mode when a
+missing artifact should fail the command after the manifest is written:
 
 ```bash
 make public-evidence-bundle STRICT=1
 uv run acb bundle --bundle-name public-review --run-glob 'source-eval-*' --strict
 ```
+
+Strict mode validates the required non-raw evidence files and selected generated
+artifacts; it does not grandfather legacy runs. For the current `public-review`
+selection, strict mode is expected to fail until selected historical runs are
+rerun under the lifecycle contract or excluded from claim-supporting bundles.
+Bridge runs and new release-candidate evidence should pass strict validation
+before their results are promoted into public claims.

@@ -15,7 +15,9 @@ real-server results below remain scoped evidence, but the current Branch A
 update should not be read as new production-serving validation. The local
 `public-review` evidence bundle also does not fully validate historical runs
 that predate the `status.json` lifecycle contract; those results are scoped to
-their available summaries, manifests, run docs, and server notes.
+their available summaries, manifests, run docs, and server notes. See
+[legacy_evidence_policy.md](legacy_evidence_policy.md) for the rerun,
+grandfather, or exclude decision path.
 
 | claim area | supported now | not supported yet | evidence required |
 | --- | --- | --- | --- |

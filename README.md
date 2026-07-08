@@ -31,6 +31,8 @@ benchmark implementation.
 3. Inspect [docs/figures](docs/figures/) for committed plot snapshots.
 4. Use [docs/evidence_bundles.md](docs/evidence_bundles.md) to generate a local
    bundle manifest with hashes and validation completeness.
+5. Read [docs/legacy_evidence_policy.md](docs/legacy_evidence_policy.md) before
+   citing historical runs that predate the current lifecycle contract.
 
 ## What This Demonstrates
 
@@ -54,7 +56,7 @@ The local `public-review` evidence bundle is useful as an audit manifest, but
 historical-run validation is currently incomplete because older runs predate
 the `status.json` lifecycle contract. Treat historical claims as scoped to the
 available summaries, manifests, run docs, and server notes until those legacy
-runs are rerun or explicitly grandfathered.
+runs are rerun; grandfathering is claim scoping, not a strict-validation bypass.
 
 The strongest real cache-locality result is a reset-isolated vLLM sweep on
 Qwen2.5-7B with one L4:
@@ -280,12 +282,14 @@ requirements.
 | [docs/release_report.md](docs/release_report.md) | Current generated public report snapshot. |
 | [docs/large_model_results.md](docs/large_model_results.md) | Real 7B vLLM cache/SLO and trained-adapter results. |
 | [docs/claim_ladder.md](docs/claim_ladder.md) | Current claims, measured effect sizes, and non-claims. |
+| [docs/legacy_evidence_policy.md](docs/legacy_evidence_policy.md) | Decision path for legacy runs missing current lifecycle files. |
 | [docs/benchmark_quality_plan.md](docs/benchmark_quality_plan.md) | Frozen `benchmark_v0` definition and benchmark-quality gaps. |
 | [docs/trained_adapters.md](docs/trained_adapters.md) | Reproducible LoRA training and evaluation commands. |
 | [docs/vllm.md](docs/vllm.md) | vLLM/OpenAI-compatible serving flow. |
 | [docs/external_eval.md](docs/external_eval.md) | How to plug in stronger external evals. |
 | [docs/research_plan.md](docs/research_plan.md) | Next research steps and acceptance criteria. |
 | [docs/regime_bridge_plan.md](docs/regime_bridge_plan.md) | No-cloud preflight and stop rules for the reset-isolated vLLM regime bridge. |
+| [docs/evidence_bundles.md](docs/evidence_bundles.md) | Evidence-bundle format, selectors, validation summary, and strict mode. |
 | [docs/eval_datasets.md](docs/eval_datasets.md) | JSONL eval schema. |
 | [docs/model_backends.md](docs/model_backends.md) | Backend options. |
 | [docs/gcloud_vllm.md](docs/gcloud_vllm.md) | GCP L4 runbook. |

@@ -8,8 +8,12 @@ Use this before pushing a public repository.
   with model-quality conclusions.
 - Generated reports, figures, tables, and run artifacts are ignored by git.
 - Public docs use relative links only.
-- `AGENTS.md`, local planning notes, credentials, and machine-specific paths are
-  not tracked.
+- `AGENTS.md` is tracked intentionally as public contributor guidance when
+  present.
+- Local private planning notes, credentials, cloud keys, caches, virtualenvs,
+  raw artifacts, and machine-specific paths are not tracked.
+- Legacy runs missing current lifecycle files are either rerun, explicitly
+  grandfathered with scoped wording, or excluded from claim-supporting bundles.
 
 ## Eval path
 
