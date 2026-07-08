@@ -819,6 +819,180 @@ def test_doctor_command_blocks_when_project_gpu_quota_has_no_headroom(
     assert "project GPU quota GPUS_ALL_REGIONS headroom 0 is below required 1" in output
 
 
+def test_doctor_command_redacts_gcloud_text_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+
+    def fake_run_text_command(command: list[str]) -> tuple[int, str]:
+        joined = " ".join(command)
+        if "auth list" in joined:
+            return 0, "sensitive.user@example.com"
+        if "config get-value project" in joined:
+            return 0, "secret-project"
+        if "config get-value compute/zone" in joined:
+            return 0, "secret-zone-a"
+        if "instances describe" in joined:
+            return (
+                0,
+                json.dumps(
+                    {
+                        "status": "TERMINATED",
+                        "machineType": "zones/secret-zone-a/machineTypes/g2-standard-8",
+                        "guestAccelerators": [
+                            {
+                                "acceleratorType": "zones/secret-zone-a/acceleratorTypes/nvidia-l4",
+                                "acceleratorCount": 1,
+                            }
+                        ],
+                        "labels": {"ttl_hours": "8"},
+                    }
+                ),
+            )
+        if "regions describe" in joined:
+            return 0, json.dumps({"quotas": [{"metric": "NVIDIA_L4_GPUS", "limit": 1, "usage": 0}]})
+        if "project-info describe" in joined:
+            return 0, json.dumps(
+                {"quotas": [{"metric": "GPUS_ALL_REGIONS", "limit": 1, "usage": 1}]}
+            )
+        raise AssertionError(command)
+
+    monkeypatch.setattr(cli, "_run_text_command", fake_run_text_command)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--check-gcloud",
+            "--gcloud-instance",
+            "secret-instance",
+            "--gcloud-project",
+            "secret-project",
+            "--gcloud-zone",
+            "secret-zone-a",
+            "--check-gcloud-quota",
+            "--redact",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "sensitive.user@example.com" not in output
+    assert "secret-project" not in output
+    assert "secret-zone-a" not in output
+    assert "secret-instance" not in output
+    assert "g2-standard-8" not in output
+    assert "nvidia-l4 x1" not in output
+    assert "gcloud account detected: <redacted-account>" in output
+    assert "gcloud project detected: <redacted-project>" in output
+    assert "gcloud zone detected: <redacted-zone>" in output
+    assert "gcloud instance <redacted-instance> is stopped" in output
+    assert "project GPU quota GPUS_ALL_REGIONS headroom 0 is below required 1" in output
+
+
+def test_doctor_command_redacts_gcloud_json_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+
+    def fake_run_text_command(command: list[str]) -> tuple[int, str]:
+        joined = " ".join(command)
+        if "auth list" in joined:
+            return 0, "sensitive.user@example.com"
+        if "config get-value project" in joined:
+            return 0, "secret-project"
+        if "config get-value compute/zone" in joined:
+            return 0, "secret-zone-a"
+        if "instances describe" in joined:
+            return (
+                0,
+                json.dumps(
+                    {
+                        "status": "TERMINATED",
+                        "machineType": "zones/secret-zone-a/machineTypes/g2-standard-8",
+                        "guestAccelerators": [
+                            {
+                                "acceleratorType": "zones/secret-zone-a/acceleratorTypes/nvidia-l4",
+                                "acceleratorCount": 1,
+                            }
+                        ],
+                        "labels": {"ttl_hours": "8"},
+                    }
+                ),
+            )
+        if "regions describe" in joined:
+            return 0, json.dumps({"quotas": [{"metric": "NVIDIA_L4_GPUS", "limit": 1, "usage": 0}]})
+        if "project-info describe" in joined:
+            return 0, json.dumps(
+                {"quotas": [{"metric": "GPUS_ALL_REGIONS", "limit": 1, "usage": 1}]}
+            )
+        raise AssertionError(command)
+
+    monkeypatch.setattr(cli, "_run_text_command", fake_run_text_command)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            "configs/benchmark/vllm_bridge_reset.yaml",
+            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+            "--check-gcloud",
+            "--gcloud-instance",
+            "secret-instance",
+            "--gcloud-project",
+            "secret-project",
+            "--gcloud-zone",
+            "secret-zone-a",
+            "--check-gcloud-quota",
+            "--json",
+            "--redact",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    payload_text = json.dumps(payload)
+    assert result == 1
+    assert payload["status"] == "error"
+    assert payload["planned_runs"] == 12
+    assert "sensitive.user@example.com" not in payload_text
+    assert "secret-project" not in payload_text
+    assert "secret-zone-a" not in payload_text
+    assert "secret-instance" not in payload_text
+    assert "g2-standard-8" not in payload_text
+    assert "nvidia-l4 x1" not in payload_text
+    assert "gcloud account detected: <redacted-account>" in payload["warnings"]
+    assert "gcloud preflight target zone: <redacted-zone>" in payload["warnings"]
+    assert "project GPU quota GPUS_ALL_REGIONS headroom 0 is below required 1" in payload["errors"]
+
+
+def test_doctor_redacts_cloud_provenance_mismatch_values() -> None:
+    message = "ACB_CLOUD_PROJECT=secret-project does not match preflight value other-secret-project"
+
+    assert cli._redact_doctor_message(message) == (
+        "ACB_CLOUD_PROJECT=<redacted-value> does not match preflight value <redacted-value>"
+    )
+
+
+def test_doctor_redacts_unsupported_accelerator_value() -> None:
+    message = "gcloud quota check does not support accelerator internal-accelerator-type"
+
+    assert cli._redact_doctor_message(message) == (
+        "gcloud quota check does not support accelerator <redacted-accelerator>"
+    )
+
+
+def test_doctor_redacts_region_without_hiding_json_parse_cause() -> None:
+    message = "gcloud region quota is not accessible: secret-region: invalid JSON"
+
+    assert cli._redact_doctor_message(message) == (
+        "gcloud region quota is not accessible: <redacted-region>: invalid JSON"
+    )
+
+
 def test_doctor_command_blocks_when_local_tunnel_port_is_bound(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -892,6 +1066,42 @@ def test_doctor_command_reports_malformed_backend_url_port(
     output = capsys.readouterr().out
     assert result == 1
     assert "cli-bad-url: invalid URL port in http://localhost:bad/v1" in output
+
+
+def test_doctor_command_redacts_malformed_backend_url_port(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    config_path = tmp_path / "bad_url.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "run_name: cli-bad-url",
+                "backend:",
+                "  kind: vllm",
+                "  base_url: http://private-host.internal:bad/v1",
+                "  stream: true",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(cli, "_local_port_available", lambda port: True)
+
+    result = cli.main(
+        [
+            "doctor",
+            "--config",
+            str(config_path),
+            "--check-local-port",
+            "--redact",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    assert result == 1
+    assert "private-host.internal" not in output
+    assert "cli-bad-url: invalid URL port in <redacted-url>" in output
 
 
 def test_doctor_command_accepts_local_port_overlay(

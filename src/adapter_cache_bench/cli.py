@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -102,6 +103,62 @@ class DoctorResult:
     estimated_gpu_hours: float | None
     warnings: list[str]
     errors: list[str]
+
+
+_DOCTOR_REDACTION_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"(gcloud account detected: ).+"), r"\1<redacted-account>"),
+    (re.compile(r"(gcloud project detected: ).+"), r"\1<redacted-project>"),
+    (re.compile(r"(gcloud zone detected: ).+"), r"\1<redacted-zone>"),
+    (re.compile(r"(gcloud preflight target zone: ).+"), r"\1<redacted-zone>"),
+    (
+        re.compile(r"(gcloud region quota is not accessible: )([^:\s]+)"),
+        r"\1<redacted-region>",
+    ),
+    (
+        re.compile(r"(gcloud quota check does not support accelerator )\S+"),
+        r"\1<redacted-accelerator>",
+    ),
+    (
+        re.compile(r"(gcloud instance )([^\s:]+)( accelerator: ).+"),
+        r"\1<redacted-instance>\3<redacted-accelerator>",
+    ),
+    (
+        re.compile(r"(gcloud instance )([^\s:]+)( machine type: ).+"),
+        r"\1<redacted-instance>\3<redacted-machine-type>",
+    ),
+    (
+        re.compile(r"(gcloud instance )([^\s:]+)( ttl_hours label: ).+"),
+        r"\1<redacted-instance>\3<redacted-ttl>",
+    ),
+    (
+        re.compile(
+            r"(gcloud instance )([^\s:]+)(?= "
+            r"(status|is already running|is stopped|has non-standard status|"
+            r"has no ttl_hours label))"
+        ),
+        r"\1<redacted-instance>",
+    ),
+    (
+        re.compile(r"(gcloud instance is not accessible: ).+"),
+        r"\1<redacted-instance>",
+    ),
+    (
+        re.compile(r"(gcloud instance describe returned invalid JSON: ).+"),
+        r"\1<redacted-instance>",
+    ),
+    (
+        re.compile(r"(gcloud instance describe returned non-object JSON: ).+"),
+        r"\1<redacted-instance>",
+    ),
+    (re.compile(r"(invalid URL port in )\S+"), r"\1<redacted-url>"),
+    (
+        re.compile(
+            r"(ACB_(?:CLOUD_[A-Z_]+|VLLM_IMAGE)=)(\S+)"
+            r"( does not match preflight value )(\S+)"
+        ),
+        r"\1<redacted-value>\3<redacted-value>",
+    ),
+)
 
 
 def infer_runner(config: BenchmarkConfig) -> RunnerName:
@@ -650,6 +707,24 @@ def _print_doctor_result(result: DoctorResult) -> None:
             print(f"- {error}")
 
 
+def _redact_doctor_message(message: str) -> str:
+    redacted = message
+    for pattern, replacement in _DOCTOR_REDACTION_RULES:
+        redacted = pattern.sub(replacement, redacted)
+    return redacted
+
+
+def _redacted_doctor_result(result: DoctorResult) -> DoctorResult:
+    return DoctorResult(
+        runner=result.runner,
+        planned_runs=result.planned_runs,
+        planned_requests=result.planned_requests,
+        estimated_gpu_hours=result.estimated_gpu_hours,
+        warnings=[_redact_doctor_message(message) for message in result.warnings],
+        errors=[_redact_doctor_message(message) for message in result.errors],
+    )
+
+
 def _doctor_json_payload(result: DoctorResult) -> dict[str, object]:
     return {
         "status": "error" if result.errors else "ok",
@@ -850,6 +925,8 @@ def doctor_command(args: argparse.Namespace, parser: argparse.ArgumentParser | N
         local_port=args.local_port,
         require_cloud_provenance=args.require_cloud_provenance,
     )
+    if args.redact:
+        result = _redacted_doctor_result(result)
     if args.json_output:
         _print_doctor_json_result(result)
     else:
@@ -922,6 +999,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         dest="json_output",
         help="Print a single machine-readable JSON object.",
+    )
+    doctor_parser.add_argument(
+        "--redact",
+        action="store_true",
+        help="Redact local cloud account, project, zone, instance, and target metadata values.",
     )
     doctor_parser.add_argument("--max-runs", type=int)
     doctor_parser.add_argument("--max-requests", type=int)

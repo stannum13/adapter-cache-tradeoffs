@@ -50,6 +50,9 @@ uv run acb doctor \
 `doctor` does not start resources. Starting a stopped GPU VM is the point where
 GPU costs begin. For a first-time VM, check quota and billing before creation,
 then rerun this doctor command once the instance exists and before serving.
+Add `--redact` when sharing doctor output; it keeps quota, status, and budget
+diagnostics while hiding local account, project, zone, instance, and target
+metadata values.
 
 If `doctor` reports that local port `8000` is already in use, use the checked-in
 port overlay and tunnel on `8001` instead. Append
