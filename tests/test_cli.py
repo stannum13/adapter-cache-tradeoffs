@@ -819,64 +819,65 @@ def test_doctor_command_blocks_when_project_gpu_quota_has_no_headroom(
     assert "project GPU quota GPUS_ALL_REGIONS headroom 0 is below required 1" in output
 
 
+def _fake_redaction_gcloud_command(command: list[str]) -> tuple[int, str]:
+    joined = " ".join(command)
+    if "auth list" in joined:
+        return 0, "sensitive.user@example.com"
+    if "config get-value project" in joined:
+        return 0, "secret-project"
+    if "config get-value compute/zone" in joined:
+        return 0, "secret-zone-a"
+    if "instances describe" in joined:
+        return (
+            0,
+            json.dumps(
+                {
+                    "status": "TERMINATED",
+                    "machineType": "zones/secret-zone-a/machineTypes/g2-standard-8",
+                    "guestAccelerators": [
+                        {
+                            "acceleratorType": ("zones/secret-zone-a/acceleratorTypes/nvidia-l4"),
+                            "acceleratorCount": 1,
+                        }
+                    ],
+                    "labels": {"ttl_hours": "8"},
+                }
+            ),
+        )
+    if "regions describe" in joined:
+        return 0, json.dumps({"quotas": [{"metric": "NVIDIA_L4_GPUS", "limit": 1, "usage": 0}]})
+    if "project-info describe" in joined:
+        return 0, json.dumps({"quotas": [{"metric": "GPUS_ALL_REGIONS", "limit": 1, "usage": 1}]})
+    raise AssertionError(command)
+
+
+def _redacted_doctor_args(*extra_args: str) -> list[str]:
+    return [
+        "doctor",
+        "--config",
+        "configs/benchmark/vllm_bridge_reset.yaml",
+        "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
+        "--check-gcloud",
+        "--gcloud-instance",
+        "secret-instance",
+        "--gcloud-project",
+        "secret-project",
+        "--gcloud-zone",
+        "secret-zone-a",
+        "--check-gcloud-quota",
+        *extra_args,
+        "--redact",
+    ]
+
+
 def test_doctor_command_redacts_gcloud_text_output(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+    monkeypatch.setattr(cli, "_run_text_command", _fake_redaction_gcloud_command)
 
-    def fake_run_text_command(command: list[str]) -> tuple[int, str]:
-        joined = " ".join(command)
-        if "auth list" in joined:
-            return 0, "sensitive.user@example.com"
-        if "config get-value project" in joined:
-            return 0, "secret-project"
-        if "config get-value compute/zone" in joined:
-            return 0, "secret-zone-a"
-        if "instances describe" in joined:
-            return (
-                0,
-                json.dumps(
-                    {
-                        "status": "TERMINATED",
-                        "machineType": "zones/secret-zone-a/machineTypes/g2-standard-8",
-                        "guestAccelerators": [
-                            {
-                                "acceleratorType": "zones/secret-zone-a/acceleratorTypes/nvidia-l4",
-                                "acceleratorCount": 1,
-                            }
-                        ],
-                        "labels": {"ttl_hours": "8"},
-                    }
-                ),
-            )
-        if "regions describe" in joined:
-            return 0, json.dumps({"quotas": [{"metric": "NVIDIA_L4_GPUS", "limit": 1, "usage": 0}]})
-        if "project-info describe" in joined:
-            return 0, json.dumps(
-                {"quotas": [{"metric": "GPUS_ALL_REGIONS", "limit": 1, "usage": 1}]}
-            )
-        raise AssertionError(command)
-
-    monkeypatch.setattr(cli, "_run_text_command", fake_run_text_command)
-
-    result = cli.main(
-        [
-            "doctor",
-            "--config",
-            "configs/benchmark/vllm_bridge_reset.yaml",
-            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
-            "--check-gcloud",
-            "--gcloud-instance",
-            "secret-instance",
-            "--gcloud-project",
-            "secret-project",
-            "--gcloud-zone",
-            "secret-zone-a",
-            "--check-gcloud-quota",
-            "--redact",
-        ]
-    )
+    result = cli.main(_redacted_doctor_args())
 
     output = capsys.readouterr().out
     assert result == 1
@@ -898,60 +899,9 @@ def test_doctor_command_redacts_gcloud_json_output(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/gcloud")
+    monkeypatch.setattr(cli, "_run_text_command", _fake_redaction_gcloud_command)
 
-    def fake_run_text_command(command: list[str]) -> tuple[int, str]:
-        joined = " ".join(command)
-        if "auth list" in joined:
-            return 0, "sensitive.user@example.com"
-        if "config get-value project" in joined:
-            return 0, "secret-project"
-        if "config get-value compute/zone" in joined:
-            return 0, "secret-zone-a"
-        if "instances describe" in joined:
-            return (
-                0,
-                json.dumps(
-                    {
-                        "status": "TERMINATED",
-                        "machineType": "zones/secret-zone-a/machineTypes/g2-standard-8",
-                        "guestAccelerators": [
-                            {
-                                "acceleratorType": "zones/secret-zone-a/acceleratorTypes/nvidia-l4",
-                                "acceleratorCount": 1,
-                            }
-                        ],
-                        "labels": {"ttl_hours": "8"},
-                    }
-                ),
-            )
-        if "regions describe" in joined:
-            return 0, json.dumps({"quotas": [{"metric": "NVIDIA_L4_GPUS", "limit": 1, "usage": 0}]})
-        if "project-info describe" in joined:
-            return 0, json.dumps(
-                {"quotas": [{"metric": "GPUS_ALL_REGIONS", "limit": 1, "usage": 1}]}
-            )
-        raise AssertionError(command)
-
-    monkeypatch.setattr(cli, "_run_text_command", fake_run_text_command)
-
-    result = cli.main(
-        [
-            "doctor",
-            "--config",
-            "configs/benchmark/vllm_bridge_reset.yaml",
-            "configs/benchmark/gcloud_7b_lora_bridge_reset.yaml",
-            "--check-gcloud",
-            "--gcloud-instance",
-            "secret-instance",
-            "--gcloud-project",
-            "secret-project",
-            "--gcloud-zone",
-            "secret-zone-a",
-            "--check-gcloud-quota",
-            "--json",
-            "--redact",
-        ]
-    )
+    result = cli.main(_redacted_doctor_args("--json"))
 
     payload = json.loads(capsys.readouterr().out)
     payload_text = json.dumps(payload)
