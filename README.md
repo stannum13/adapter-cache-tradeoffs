@@ -23,6 +23,15 @@ claim boundary, see [docs/concept_note.md](docs/concept_note.md).
 The repo name states the research thesis; the module and CLI names describe the
 benchmark implementation.
 
+## Start Here
+
+1. Read [docs/concept_note.md](docs/concept_note.md) for the public narrative.
+2. Read [docs/claim_ladder.md](docs/claim_ladder.md) for supported claims and
+   non-claims.
+3. Inspect [docs/figures](docs/figures/) for committed plot snapshots.
+4. Use [docs/evidence_bundles.md](docs/evidence_bundles.md) to generate a local
+   bundle manifest with hashes and validation completeness.
+
 ## What This Demonstrates
 
 - Reproducible benchmark infrastructure for mock, local Transformers, and vLLM
@@ -30,7 +39,8 @@ benchmark implementation.
 - Systems measurement across quality, prefix-cache reuse, TTFT, end-to-end
   latency, SLO attainment, goodput, adapter capacity, and routing policy.
 - Evidence discipline: JSONL request logs, resolved configs, manifests,
-  resumable sweeps, report generation, and auditable evidence bundles.
+  resumable sweeps, report generation, and evidence bundle manifests that report
+  hashes and validation completeness.
 - Cloud-aware experiment hygiene for optional GCP/vLLM runs without making GPU,
   internet, or external model servers mandatory for unit tests.
 
@@ -39,6 +49,12 @@ benchmark implementation.
 This is a benchmark harness with early real-serving evidence, not a finished
 external benchmark. The current claim boundary is maintained in
 [docs/claim_ladder.md](docs/claim_ladder.md).
+
+The local `public-review` evidence bundle is useful as an audit manifest, but
+historical-run validation is currently incomplete because older runs predate
+the `status.json` lifecycle contract. Treat historical claims as scoped to the
+available summaries, manifests, run docs, and server notes until those legacy
+runs are rerun or explicitly grandfathered.
 
 The strongest real cache-locality result is a reset-isolated vLLM sweep on
 Qwen2.5-7B with one L4:
@@ -74,7 +90,7 @@ p95 TTFT fell from `2426.9ms` to `975.4ms`.
 Read the full run snapshot in [docs/real_eval_results.md](docs/real_eval_results.md).
 Selected plots are committed in [docs/figures](docs/figures/).
 
-The latest 7B evidence is in
+The June 2026 7B evidence is in
 [docs/large_model_results.md](docs/large_model_results.md): trained
 Qwen2.5-7B specialist LoRAs beat the base model and slightly beat a multitask
 LoRA on the included generated held-out eval, moderate concurrent vLLM load, a
@@ -85,14 +101,14 @@ reserve enough KV cache. A follow-up preemptible H100 run served Qwen2.5-7B
 with ten LoRAs at 4096 context and reported about `53.34 GiB` available
 KV-cache memory.
 
-The latest model-family evidence is a 12-run vLLM sweep over the 500-row
+The June 2026 model-family evidence is a 12-run vLLM sweep over the 500-row
 source-backed fixture. It served `Qwen/Qwen2.5-1.5B-Instruct` and
 `TinyLlama/TinyLlama-1.1B-Chat-v1.0` with specialist and multitask LoRAs across
 three seeds. Specialists improved mean quality in both families, while
 multitask remained competitive or better on QAG because it uses one adapter
 slot.
 
-Best current wording:
+Positioning:
 
 > Specialization can buy quality, but only the joint quality/cache/SLO frontier
 > tells you whether that quality is cheap enough to serve.

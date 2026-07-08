@@ -8,7 +8,7 @@ This benchmark studies that tradeoff under shared-prefix workloads.
 
 ## Core question
 
-When is model or adaptor specialization worth its KV-cache footprint?
+When is model or adapter specialization worth its KV-cache footprint?
 
 ## Why this matters
 
@@ -26,8 +26,8 @@ backend.
 
 ### Evidence classes
 
-- `mock` / `mock-causal-transformer`: 182 runs, 17552 requests, mean quality 0.892, mean p95 TTFT 77.5 ms.
-- `unknown` / `unknown`: 116 runs, 5221 requests, mean quality 0.837, mean p95 TTFT 111.4 ms.
+- `mock` / `mock-causal-transformer`: 902 runs, 103952 requests, mean quality 0.902, mean p95 TTFT 83.0 ms.
+- `legacy/unclassified` / `provenance unavailable`: 116 runs, 5221 requests, mean quality 0.837, mean p95 TTFT 111.4 ms. These rows are listed for completeness, not as claim-supporting evidence.
 - `vllm` / `Qwen/Qwen2.5-1.5B-Instruct`: 199 runs, 15036 requests, mean quality 0.448, mean p95 TTFT 1228.5 ms.
 - `vllm` / `Qwen/Qwen2.5-7B-Instruct`: 46 runs, 3432 requests, mean quality 0.274, mean p95 TTFT 1033.7 ms.
 - `vllm` / `TinyLlama/TinyLlama-1.1B-Chat-v1.0`: 6 runs, 3000 requests, mean quality 0.375, mean p95 TTFT 87.4 ms.
@@ -39,6 +39,19 @@ The maintained public claim boundary lives in
 must cite model/server, request count, run count, and metric scope.
 
 - Reset-isolated 7B cache locality: 400 requests across 10 runs. Moving from 50% to 95% shared-prefix overlap raised server prefix-cache hit rate by 57.4 percentage points, reduced mean p95 TTFT by 666.0 ms (41.5%), lifted SLO attainment by 10.0 percentage points, and raised QAG by 62.3%.
+
+### Claim boundary
+
+The report separates simulator-backed findings from real-serving claims.
+Treat missing gates as scope limits, not as negative results.
+
+| Claim area | Status | Evidence in this report | Required before widening |
+| --- | --- | --- | --- |
+| Simulator regime map | supported in this report | mock `regime_*` runs with structure metrics and policy regret | reset-isolated real-server bridge |
+| Cache-control mechanisms | simulator-backed | `warm`, `cold`, and `prefix_disabled` rows | server reset settings and cache-counter provenance |
+| Real-server regime bridge | not supported here | no reset-isolated vLLM regime sweep in this artifact set | repeat claim-critical regimes with comparable conditions |
+| Prefix-cache causality | not established here | no positive server-side prefix/cache counters for `regime_*` vLLM bridge rows | capture counters or downgrade to client-observed behavior |
+| Automated recommendations | deferred | policy comparisons are explanatory, not prescriptive | G8 bridge plus uncertainty and user-path readiness |
 
 ## Workloads
 
@@ -57,7 +70,7 @@ activated-LoRA-style late specialization, and copy-on-write deltas.
 
 ## Results
 
-Best quality-adjusted goodput in the current artifact set is `cache_aware` with `activated_lora` on `mixed_tasks_same_doc`. Mean quality is 0.915, p95 TTFT is 19.3 ms, and fragmentation index is 1.00. `document_before_instruction` mean TTFT is 105.4 ms. `instruction_before_document` mean TTFT is 165.2 ms.
+Exploratory aggregate leader in the loaded artifact summaries is `cache_aware` with `activated_lora` on `mixed_tasks_same_doc`. Mean quality is 0.915, p95 TTFT is 19.3 ms, and fragmentation index is 1.00. `document_before_instruction` mean TTFT is 105.4 ms. `instruction_before_document` mean TTFT is 165.2 ms. This is not a public benchmark claim; use the claim ladder for supported evidence boundaries.
 
 ### Decision rule
 
@@ -71,12 +84,12 @@ budget for the workload.
 ### Interpretation
 
 - Best aggregate cache strategy: `base_shared` with mean quality-adjusted goodput 13.940.
-- Best cache-footprint efficiency: `activated_lora` with mean quality-adjusted goodput per memory token 0.011626.
-- Prompt layout matters: `document_before_instruction` is 58.2 ms lower mean TTFT than `instruction_before_document` in the current artifact set.
+- Best comparable cache-footprint efficiency: `activated_lora` with mean quality-adjusted goodput per memory token 0.039240 under `cold` cache conditions.
+- Prompt layout matters: `document_before_instruction` is 58.2 ms lower mean TTFT than `instruction_before_document` in the loaded artifact summaries.
 - Highest eviction pressure: `standard_lora` on `mixed_tasks_same_doc` with 12 evictions.
 - Repeated-seed leader: `cache_aware` with `activated_lora` on `mixed_tasks_same_doc`.
 
-Generated figures:
+Generated figure artifact paths:
 
 - `reports/figures/quality_vs_p95_ttft.png`
 - `reports/figures/cache_hit_rate_by_policy_model.png`
@@ -88,8 +101,9 @@ Generated figures:
 - `reports/figures/concurrency_qag.png`
 - `reports/figures/concurrency_slo_attainment.png`
 - `reports/figures/concurrency_request_throughput.png`
+- `reports/figures/regime_policy_failure_map.png`
 
-Generated tables:
+Generated table artifact paths:
 
 - `reports/tables/summaries.csv`
 - `reports/tables/workload_leaders.csv`
@@ -100,55 +114,64 @@ Generated tables:
 - `reports/tables/pareto_frontier.csv`
 - `reports/tables/slo_sweep.csv`
 - `reports/tables/adapter_cache_metrics.csv`
+- `reports/tables/policy_regret.csv`
+- `reports/tables/claim_evidence.csv`
 
 ### Workload leaders
 
-| workload | router_policy | cache_model | quality_adjusted_goodput | mean_quality | p95_ttft_ms |
-| --- | --- | --- | --- | --- | --- |
-| agent_session | oracle | activated_lora | 17.118 | 0.922 | 23.241 |
-| controlled_overlap | cache_aware | activated_lora | 1.679 | 0.201 | 887.822 |
-| jsonl_eval | cache_aware | activated_lora | 19.389 | 0.910 | 24.454 |
-| low_overlap_control | semantic | activated_lora | 8.911 | 0.916 | 72.620 |
-| mixed_tasks_same_doc | cache_aware | activated_lora | 1693.550 | 0.915 | 19.255 |
-| prompt_layout_ablation | sticky_session | activated_lora | 12.220 | 0.932 | 71.645 |
-| shared_doc_qa | sticky_session | copy_on_write | 18.199 | 0.924 | 91.558 |
+| workload | cache_condition | router_policy | cache_model | quality_adjusted_goodput | mean_quality | p95_ttft_ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| agent_session | warm | oracle | activated_lora | 17.118 | 0.922 | 23.241 |
+| controlled_overlap | warm | cache_aware | activated_lora | 1.679 | 0.201 | 887.822 |
+| jsonl_eval | warm | cache_aware | activated_lora | 19.389 | 0.910 | 24.454 |
+| low_overlap_control | warm | semantic | activated_lora | 8.911 | 0.916 | 72.620 |
+| mixed_tasks_same_doc | warm | cache_aware | activated_lora | 1693.550 | 0.915 | 19.255 |
+| prompt_layout_ablation | warm | sticky_session | activated_lora | 12.220 | 0.932 | 71.645 |
+| regime_adversarial_churn | warm | cache_aware | standard_lora | 7.920 | 0.914 | 85.075 |
+| regime_adversarial_churn | cold | cache_aware | standard_lora | 7.832 | 0.914 | 86.013 |
 
 ### Cache-model means
 
-| cache_model | adapter_strategy | quality_adjusted_goodput | quality_adjusted_goodput_per_memory_token | p95_ttft_ms | cache_hit_rate | fragmentation_index | eviction_count |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| base_shared | multitask-or-shared-base | 13.940 | 0.000 | 52.145 | 0.844 | 1.000 | nan |
-| copy_on_write | copy-on-write-delta | 11.945 | 0.003 | 168.414 | 0.796 | 1.029 | 0.000 |
-| activated_lora | activated-late-specialization | 11.480 | 0.012 | 858.350 | 0.779 | 1.001 | 0.000 |
-| standard_lora | specialist-adapter | 9.373 | 0.002 | 337.503 | 0.772 | 1.126 | 0.122 |
+| cache_model | cache_condition | adapter_strategy | quality_adjusted_goodput | quality_adjusted_goodput_per_memory_token | p95_ttft_ms | cache_hit_rate | fragmentation_index | eviction_count |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| base_shared | warm | multitask-or-shared-base | 13.940 | 0.000 | 52.145 | 0.844 | 1.000 |  |
+| copy_on_write | warm | copy-on-write-delta | 12.282 | 0.002 | 121.615 | 0.809 | 1.017 | 0.000 |
+| activated_lora | warm | activated-late-specialization | 11.849 | 0.009 | 638.615 | 0.791 | 1.001 | 0.000 |
+| standard_lora | warm | specialist-adapter | 9.602 | 0.001 | 212.944 | 0.782 | 1.345 | 0.055 |
+| activated_lora | cold | activated-late-specialization | 7.926 | 0.039 | 84.825 | 0.000 | 1.000 | 0.000 |
+| activated_lora | prefix_disabled | activated-late-specialization | 7.926 | 7.926 | 84.825 | 0.000 | 0.000 | 0.000 |
+| copy_on_write | cold | copy-on-write-delta | 7.926 | 0.038 | 84.825 | 0.000 | 1.044 | 0.000 |
+| copy_on_write | prefix_disabled | copy-on-write-delta | 7.926 | 7.926 | 84.825 | 0.000 | 0.000 | 0.000 |
 
 ### Router means
 
-| router_policy | quality_adjusted_goodput | quality_adjusted_goodput_per_memory_token | mean_quality | p95_ttft_ms |
-| --- | --- | --- | --- | --- |
-| oracle | 13.810 | 0.003 | 0.918 | 71.827 |
-| sticky_session | 13.810 | 0.003 | 0.918 | 71.827 |
-| cache_aware | 12.662 | 0.015 | 0.518 | 868.615 |
-| semantic | 11.336 | 0.003 | 0.898 | 241.675 |
-| random | 10.508 | 0.000 | 0.685 | 56.757 |
-| multitask | 5.698 | 0.002 | 0.549 | 809.996 |
+| router_policy | cache_condition | quality_adjusted_goodput | quality_adjusted_goodput_per_memory_token | mean_quality | p95_ttft_ms |
+| --- | --- | --- | --- | --- | --- |
+| oracle | warm | 12.536 | 0.002 | 0.914 | 79.321 |
+| sticky_session | warm | 12.536 | 0.002 | 0.914 | 79.321 |
+| cache_aware | warm | 12.383 | 0.011 | 0.611 | 648.570 |
+| semantic | warm | 11.563 | 0.002 | 0.906 | 154.069 |
+| random | warm | 10.508 | 0.000 | 0.685 | 56.757 |
+| cache_aware | cold | 7.926 | 0.039 | 0.912 | 84.825 |
+| cache_aware | prefix_disabled | 7.926 | 7.926 | 0.912 | 84.825 |
+| oracle | cold | 7.926 | 0.039 | 0.912 | 84.825 |
 
 ### Repeated-seed summary
 
-| workload | router_policy | cache_model | run_count | quality_adjusted_goodput_mean | quality_adjusted_goodput_std | p95_ttft_ms_mean |
-| --- | --- | --- | --- | --- | --- | --- |
-| mixed_tasks_same_doc | cache_aware | activated_lora | 10 | 186.641 | 529.475 | 18.899 |
-| mixed_tasks_same_doc | cache_aware | copy_on_write | 4 | 18.172 | 0.293 | 19.765 |
-| mixed_tasks_same_doc | oracle | copy_on_write | 4 | 18.172 | 0.293 | 19.765 |
-| mixed_tasks_same_doc | semantic | copy_on_write | 4 | 18.172 | 0.293 | 19.765 |
-| mixed_tasks_same_doc | sticky_session | copy_on_write | 4 | 18.172 | 0.293 | 19.765 |
-| mixed_tasks_same_doc | sticky_session | activated_lora | 4 | 18.138 | 0.374 | 18.365 |
-| mixed_tasks_same_doc | semantic | activated_lora | 4 | 18.138 | 0.374 | 18.365 |
-| mixed_tasks_same_doc | oracle | activated_lora | 4 | 18.138 | 0.374 | 18.365 |
-| shared_doc_qa | cache_aware | copy_on_write | 4 | 17.655 | 0.644 | 87.368 |
-| shared_doc_qa | cache_aware | standard_lora | 4 | 17.655 | 0.644 | 87.368 |
-| shared_doc_qa | oracle | copy_on_write | 4 | 17.655 | 0.644 | 87.368 |
-| shared_doc_qa | oracle | standard_lora | 4 | 17.655 | 0.644 | 87.368 |
+| workload | cache_condition | router_policy | cache_model | run_count | quality_adjusted_goodput_mean | quality_adjusted_goodput_std | p95_ttft_ms_mean |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| mixed_tasks_same_doc | warm | cache_aware | activated_lora | 10 | 186.641 | 529.475 | 18.899 |
+| mixed_tasks_same_doc | warm | cache_aware | copy_on_write | 4 | 18.172 | 0.293 | 19.765 |
+| mixed_tasks_same_doc | warm | oracle | copy_on_write | 4 | 18.172 | 0.293 | 19.765 |
+| mixed_tasks_same_doc | warm | semantic | copy_on_write | 4 | 18.172 | 0.293 | 19.765 |
+| mixed_tasks_same_doc | warm | sticky_session | copy_on_write | 4 | 18.172 | 0.293 | 19.765 |
+| mixed_tasks_same_doc | warm | oracle | activated_lora | 4 | 18.138 | 0.374 | 18.365 |
+| mixed_tasks_same_doc | warm | semantic | activated_lora | 4 | 18.138 | 0.374 | 18.365 |
+| mixed_tasks_same_doc | warm | sticky_session | activated_lora | 4 | 18.138 | 0.374 | 18.365 |
+| shared_doc_qa | warm | sticky_session | standard_lora | 4 | 17.655 | 0.644 | 87.368 |
+| shared_doc_qa | warm | cache_aware | copy_on_write | 4 | 17.655 | 0.644 | 87.368 |
+| shared_doc_qa | warm | cache_aware | standard_lora | 4 | 17.655 | 0.644 | 87.368 |
+| shared_doc_qa | warm | oracle | copy_on_write | 4 | 17.655 | 0.644 | 87.368 |
 
 ### Prompt-layout ablation
 
@@ -184,17 +207,18 @@ Generated tables:
 
 | ttft_slo_ms | workload | router_policy | cache_model | quality_adjusted_goodput | requests_under_slo |
 | --- | --- | --- | --- | --- | --- |
-| 100.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
-| 150.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
 | 250.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
+| 150.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
+| 100.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 20.062 | 32 |
 | 50.000 | jsonl_eval | cache_aware | activated_lora | 19.389 | 100 |
 | 25.000 | mixed_tasks_same_doc | cache_aware | activated_lora | 18.808 | 30 |
 
 ## Takeaways
 
 Specialization is most attractive when quality gains exceed the prefill and
-memory cost of lost prefix reuse. Cache-aware and late-specialization strategies
-recover locality without collapsing every task into one multitask adapter.
+memory cost of lost prefix reuse. In simulator runs, cache-aware and
+late-specialization-style strategies can recover locality without collapsing
+every task into one multitask adapter.
 
 ## Limitations
 

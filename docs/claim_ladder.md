@@ -12,7 +12,10 @@ serving stacks.
 
 Branch A closes only simulator-backed regime-science claims. Historical
 real-server results below remain scoped evidence, but the current Branch A
-update should not be read as new production-serving validation.
+update should not be read as new production-serving validation. The local
+`public-review` evidence bundle also does not fully validate historical runs
+that predate the `status.json` lifecycle contract; those results are scoped to
+their available summaries, manifests, run docs, and server notes.
 
 | claim area | supported now | not supported yet | evidence required |
 | --- | --- | --- | --- |
@@ -30,7 +33,8 @@ Strongest Branch A wording:
 
 ## Claim 1: cache locality is a first-order serving variable
 
-Status: **supported by reset-isolated vLLM evidence and simulator evidence**.
+Status: **supported by historical reset-isolated vLLM summaries and simulator
+evidence; not yet fully validated by the local `public-review` bundle**.
 
 Measured evidence:
 
@@ -51,7 +55,7 @@ Effect size:
 - quality-adjusted goodput rose by `62.3%`;
 - request throughput rose by `33.6%`.
 
-Best current wording:
+Recommended wording:
 
 > On a reset-isolated Qwen2.5-7B vLLM sweep, shared-prefix locality moved the
 > workload from partially SLO-violating to mostly SLO-compliant. Cache locality
@@ -72,7 +76,7 @@ Measured evidence:
 | specialist LoRAs | Qwen2.5-7B, expanded source eval, H100 run | 240 | 0.552 | 0.964 | 50.0% |
 | multitask LoRA | Qwen2.5-7B, expanded source eval, H100 run | 240 | 0.541 | 0.921 | 55.0% |
 
-Best current wording:
+Recommended wording:
 
 > On the included source-backed eval, trained specialist LoRAs improved task
 > quality versus the base causal transformer and slightly beat a multitask LoRA.
@@ -98,7 +102,7 @@ Measured evidence:
 | NVIDIA L4 24GB | Qwen2.5-7B | 4096 | 10 | fails: no available memory for cache blocks |
 | NVIDIA H100 80GB | Qwen2.5-7B | 4096 | 10 | starts; 53.34 GiB available KV cache |
 
-Best current wording:
+Recommended wording:
 
 > Adapter registration is part of the capacity frontier. On one L4, the same
 > 4096-context Qwen2.5-7B deployment shape that could serve five LoRAs failed
@@ -113,7 +117,7 @@ The simulator shows why activated-LoRA-style invocation can preserve prefix
 sharing when the shared document appears before the adapter invocation marker.
 It does not prove that a deployed vLLM kernel has this behavior.
 
-Best current wording:
+Recommended wording:
 
 > Activated-LoRA-style late specialization is modeled as a cache-compatible base
 > prefix followed by adapter-specific tokens. The simulator shows the mechanism;
@@ -137,7 +141,7 @@ and 1,500 total requests.
 | TinyLlama-1.1B | specialists | 1,500 | 3 | 0.383 | 77.5 ms | 6.026 | 100.0% | 74.2% |
 | TinyLlama-1.1B | multitask | 1,500 | 3 | 0.366 | 97.4 ms | 10.290 | 100.0% | 76.3% |
 
-Best current wording:
+Recommended wording:
 
 > On the included 500-row source-backed fixture, the basic specialization/cache
 > tradeoff reproduced on both Qwen2.5-1.5B and TinyLlama-1.1B. Specialist

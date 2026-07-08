@@ -57,7 +57,8 @@ def test_report_generation_from_summary(tmp_path):
     assert "Simulator regime map" in text
     assert "### Decision rule" in text
     assert "### Interpretation" in text
-    assert "Generated tables:" in text
+    assert "Generated table artifact paths:" in text
+    assert "model or adapter specialization" in text
     assert (tmp_path / "tables" / "summaries.csv").exists()
     assert (tmp_path / "tables" / "claim_evidence.csv").exists()
 
@@ -95,5 +96,50 @@ def test_claim_boundary_scopes_real_server_rows_to_regime_workloads(tmp_path):
     ) in text
     assert (
         "| Prefix-cache causality | not established here | "
-        "no positive server-side prefix/cache counters |"
+        "no positive server-side prefix/cache counters for `regime_*` vLLM bridge rows |"
     ) in text
+    assert "Best comparable cache-footprint efficiency" in text
+
+
+def test_report_scopes_unclassified_rows_and_nan_values(tmp_path):
+    _write_summary(
+        tmp_path,
+        "legacy",
+        backend_kind=None,
+        backend_model=None,
+        eviction_count=float("nan"),
+    )
+
+    report = generate_report(
+        tmp_path,
+        tmp_path / "report.md",
+        tmp_path / "tables",
+        tmp_path / "figures",
+    )
+
+    text = report.read_text(encoding="utf-8")
+    assert "`legacy/unclassified` / `provenance unavailable`" in text
+    assert "not as claim-supporting evidence" in text
+    assert "| standard_lora | warm | specialist-adapter |" in text
+    assert " nan " not in text
+
+
+def test_report_skips_efficiency_winner_when_only_prefix_disabled_rows(tmp_path):
+    _write_summary(
+        tmp_path,
+        "prefix-disabled",
+        cache_condition="prefix_disabled",
+        memory_token_footprint=0,
+        quality_adjusted_goodput_per_memory_token=7.9,
+    )
+
+    report = generate_report(
+        tmp_path,
+        tmp_path / "report.md",
+        tmp_path / "tables",
+        tmp_path / "figures",
+    )
+
+    text = report.read_text(encoding="utf-8")
+    assert "No comparable cache-footprint efficiency row is available" in text
+    assert "Best comparable cache-footprint efficiency" not in text

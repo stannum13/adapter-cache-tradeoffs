@@ -95,7 +95,7 @@ throughput by `33.6%`, and raised quality-adjusted goodput by `62.3%`.
 
 Hypothesis: workload-structure metrics such as shared-prefix reuse, adapter
 switch rate, and reuse distance should predict when specialization is likely to
-be serveable before an expensive GPU run is launched.
+be serving-friendly before an expensive GPU run is launched.
 
 ### 3. Adapter Count Is A Capacity Variable
 
@@ -209,12 +209,12 @@ If the bridge holds, the project can move toward a traffic profiler that tells a
 serving team whether its workload is specialization-friendly before it pays for
 full GPU sweeps.
 
-## Short-Term Actionables
+## Next Steps
 
 | Priority | Action | Exit criterion |
 | ---: | --- | --- |
 | 1 | Keep the public concept note, claim ladder, and README aligned. | A reader can tell what is proven, what is not, and where to start. |
-| 2 | Generate a public evidence bundle for the current strongest artifacts. | Bundle manifest includes selected docs, tables, figures, hashes, and git metadata. |
+| 2 | Generate a public evidence bundle for the current strongest artifacts. | Bundle manifest includes selected docs, tables, figures, hashes, git metadata, and validation status. Historical-run validation remains incomplete until missing lifecycle files are resolved or explicitly grandfathered. |
 | 3 | Run a reset-isolated vLLM bridge over the claim-critical mock regimes. | Real-serving summaries include matching structure metrics and server counters. |
 | 4 | Add a standard public benchmark fixture or adapter-compatible external eval. | Quality claims no longer rely only on generated and source-backed local fixtures. |
 | 5 | Expand the capacity frontier. | Context length, adapter count, rank, GPU type, and memory utilization are tabulated. |

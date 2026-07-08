@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 
 from adapter_cache_bench.analysis.pareto import workload_pareto_frontiers
@@ -162,11 +163,13 @@ def _claim_boundary_lines(df) -> list[str]:
         },
         {
             "Claim area": "Prefix-cache causality",
-            "Status": "counter-backed" if has_server_counters else "not established here",
+            "Status": "regime bridge counter-backed"
+            if has_server_counters
+            else "not established here",
             "Evidence in this report": (
-                "positive server-side prefix/cache counters"
+                "positive server-side prefix/cache counters for `regime_*` vLLM bridge rows"
                 if has_server_counters
-                else "no positive server-side prefix/cache counters"
+                else "no positive server-side prefix/cache counters for `regime_*` vLLM bridge rows"
             ),
             "Required before widening": "capture counters or downgrade to client-observed behavior",
         },
@@ -199,7 +202,7 @@ def _markdown_table(rows: list[dict[str, object]], columns: list[str]) -> list[s
         for column in columns:
             value = row.get(column, "")
             if isinstance(value, float):
-                value = f"{value:.3f}"
+                value = "" if math.isnan(value) else f"{value:.3f}"
             values.append(str(value))
         body.append("| " + " | ".join(values) + " |")
     return [header, divider, *body]
@@ -217,15 +220,31 @@ def _interpretation_lines(cache_means, layouts, repeated, df) -> list[str]:
             f"with mean quality-adjusted goodput {best_cache['quality_adjusted_goodput']:.3f}."
         )
         if "quality_adjusted_goodput_per_memory_token" in cache_means:
-            efficient = cache_means.sort_values(
-                "quality_adjusted_goodput_per_memory_token",
-                ascending=False,
-            ).iloc[0]
-            lines.append(
-                f"- Best cache-footprint efficiency: `{efficient['cache_model']}` "
-                "with mean quality-adjusted goodput per memory token "
-                f"{efficient['quality_adjusted_goodput_per_memory_token']:.6f}."
-            )
+            comparable_efficiency = cache_means
+            if "cache_condition" in cache_means:
+                comparable_efficiency = cache_means[
+                    cache_means["cache_condition"].astype(str).ne("prefix_disabled")
+                ]
+            if comparable_efficiency.empty:
+                lines.append(
+                    "- No comparable cache-footprint efficiency row is available because "
+                    "all loaded cache conditions disable prefix accounting."
+                )
+            else:
+                efficient = comparable_efficiency.sort_values(
+                    "quality_adjusted_goodput_per_memory_token",
+                    ascending=False,
+                ).iloc[0]
+                lines.append(
+                    f"- Best comparable cache-footprint efficiency: `{efficient['cache_model']}` "
+                    "with mean quality-adjusted goodput per memory token "
+                    f"{efficient['quality_adjusted_goodput_per_memory_token']:.6f}"
+                    + (
+                        f" under `{efficient['cache_condition']}` cache conditions."
+                        if "cache_condition" in efficient
+                        else "."
+                    )
+                )
     if not layouts.empty:
         layout_means = layouts.groupby("prompt_layout")["ttft_ms"].mean()
         if {
@@ -238,7 +257,7 @@ def _interpretation_lines(cache_means, layouts, repeated, df) -> list[str]:
             lines.append(
                 "- Prompt layout matters: `document_before_instruction` is "
                 f"{delta:.1f} ms lower mean TTFT than `instruction_before_document` "
-                "in the current artifact set."
+                "in the loaded artifact summaries."
             )
     if not df.empty and "eviction_count" in df:
         eviction_runs = df[df["eviction_count"] > 0]
@@ -285,11 +304,18 @@ def _evidence_lines(df) -> list[str]:
         .sort_values(["backend_kind", "backend_model"])
     )
     for row in grouped.to_dict("records"):
+        backend_kind = row["backend_kind"]
+        backend_model = row["backend_model"]
+        qualifier = ""
+        if backend_kind == "unknown" and backend_model == "unknown":
+            backend_kind = "legacy/unclassified"
+            backend_model = "provenance unavailable"
+            qualifier = " These rows are listed for completeness, not as claim-supporting evidence."
         rows.append(
-            f"- `{row['backend_kind']}` / `{row['backend_model']}`: "
+            f"- `{backend_kind}` / `{backend_model}`: "
             f"{int(row['runs'])} runs, {int(row['requests'])} requests, "
             f"mean quality {row['mean_quality']:.3f}, "
-            f"mean p95 TTFT {row['p95_ttft_ms']:.1f} ms."
+            f"mean p95 TTFT {row['p95_ttft_ms']:.1f} ms.{qualifier}"
         )
     return rows
 
@@ -337,12 +363,13 @@ def generate_report(
                 f"`{layout}` mean TTFT is {ttft:.1f} ms." for layout, ttft in layout_means.items()
             )
         results = (
-            f"Best quality-adjusted goodput in the current artifact set is "
+            f"Exploratory aggregate leader in the loaded artifact summaries is "
             f"`{best['router_policy']}` with `{best['cache_model']}` on `{best['workload']}`. "
             f"Mean quality is {best['mean_quality']:.3f}, "
             f"p95 TTFT is {best['p95_ttft_ms']:.1f} ms, "
             f"and fragmentation index is {best['fragmentation_index']:.2f}. "
-            f"{layout_note}".strip()
+            f"{layout_note} This is not a public benchmark claim; use the claim ladder "
+            "for supported evidence boundaries.".strip()
         )
     figure_lines = "\n".join(f"- `{path}`" for path in figures)
     table_lines = "\n".join(f"- `{path}`" for path in table_paths.values())
@@ -446,7 +473,7 @@ def generate_report(
         "",
         "## Core question",
         "",
-        "When is model or adaptor specialization worth its KV-cache footprint?",
+        "When is model or adapter specialization worth its KV-cache footprint?",
         "",
         "## Why this matters",
         "",
@@ -513,11 +540,11 @@ def generate_report(
         "",
         *interpretation,
         "",
-        "Generated figures:",
+        "Generated figure artifact paths:",
         "",
         figure_lines,
         "",
-        "Generated tables:",
+        "Generated table artifact paths:",
         "",
         table_lines,
         "",
@@ -552,8 +579,9 @@ def generate_report(
         "## Takeaways",
         "",
         "Specialization is most attractive when quality gains exceed the prefill and",
-        "memory cost of lost prefix reuse. Cache-aware and late-specialization strategies",
-        "recover locality without collapsing every task into one multitask adapter.",
+        "memory cost of lost prefix reuse. In simulator runs, cache-aware and",
+        "late-specialization-style strategies can recover locality without collapsing",
+        "every task into one multitask adapter.",
         "",
         "## Limitations",
         "",

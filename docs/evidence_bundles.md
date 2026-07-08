@@ -1,8 +1,10 @@
 # Evidence Bundles
 
-Evidence bundles are machine-readable manifests for a selected set of benchmark run
-directories under `artifacts/runs`. They are intended to make a claim auditable without
-requiring raw run artifacts to be committed.
+Evidence bundles are machine-readable manifests for a selected set of benchmark
+run directories under `artifacts/runs`. They make a claim auditable when
+validation is complete. When validation is incomplete, they are still useful as
+hash manifests and completeness reports, but public docs should not cite them as
+fully validated evidence.
 
 Build a bundle with:
 
@@ -34,8 +36,10 @@ when they exist.
 
 The manifest also includes a top-level `validation` summary. It reports whether
 all selected runs have the core evidence files and whether all selected reports,
-figures, and tables exist. Use strict mode when a missing artifact should fail
-the command after the manifest is written:
+figures, and tables exist. A `validation.status` of `incomplete` means the
+bundle is not a fully validated evidence bundle; it is a completeness report
+that should trigger claim scoping or reruns. Use strict mode when a missing
+artifact should fail the command after the manifest is written:
 
 ```bash
 make public-evidence-bundle STRICT=1
