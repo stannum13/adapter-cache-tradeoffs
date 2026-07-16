@@ -277,7 +277,7 @@ requirements.
 
 | Document | Contents |
 | --- | --- |
-| [docs/concept_note.md](docs/concept_note.md) | Recruiter-facing overview of the thesis, benchmark design, evidence, and claim boundary. |
+| [docs/concept_note.md](docs/concept_note.md) | Concise overview of the thesis, benchmark design, evidence, and claim boundary. |
 | [docs/real_eval_results.md](docs/real_eval_results.md) | Real vLLM run results and interpretation. |
 | [docs/release_report.md](docs/release_report.md) | Current generated public report snapshot. |
 | [docs/large_model_results.md](docs/large_model_results.md) | Real 7B vLLM cache/SLO and trained-adapter results. |
@@ -287,8 +287,6 @@ requirements.
 | [docs/trained_adapters.md](docs/trained_adapters.md) | Reproducible LoRA training and evaluation commands. |
 | [docs/vllm.md](docs/vllm.md) | vLLM/OpenAI-compatible serving flow. |
 | [docs/external_eval.md](docs/external_eval.md) | How to plug in stronger external evals. |
-| [docs/research_plan.md](docs/research_plan.md) | Next research steps and acceptance criteria. |
-| [docs/regime_bridge_plan.md](docs/regime_bridge_plan.md) | No-cloud preflight and stop rules for the reset-isolated vLLM regime bridge. |
 | [docs/evidence_bundles.md](docs/evidence_bundles.md) | Evidence-bundle format, selectors, validation summary, and strict mode. |
 | [docs/eval_datasets.md](docs/eval_datasets.md) | JSONL eval schema. |
 | [docs/model_backends.md](docs/model_backends.md) | Backend options. |
@@ -331,16 +329,6 @@ GPU and model-server tests are optional and skipped unless explicitly enabled.
   namespace counters still require serving-layer instrumentation.
 - The included eval fixtures are intentionally small and public-domain style.
   Replace them before making broader research claims.
-
-## Physical AI Analogue
-
-The same cache-specialization problem appears in VLA serving. Text prefix tokens
-map to repeated visual/proprioceptive scene tokens; KV cache maps to a
-world-state cache; LoRA adapters map to skill or embodiment adapters; TTFT and
-goodput map to control latency and success-rate-adjusted control Hz.
-
-See
-[src/adapter_cache_bench/physical_ai_analogue/README.md](src/adapter_cache_bench/physical_ai_analogue/README.md).
 
 ## License
 

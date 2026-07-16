@@ -29,6 +29,22 @@ def apply_strategy(config: BenchmarkConfig, strategy: str) -> BenchmarkConfig:
         child.backend.adapter_model_names = {}
         child.run_name = f"{child.run_name}-base"
         return child
+    if strategy == "semantic":
+        child.router.policy = "semantic"
+        child.backend.adapter_model_names = dict(SPECIALIST_MODEL_NAMES)
+        child.run_name = f"{child.run_name}-semantic"
+        return child
+    if strategy == "sticky_session":
+        child.router.policy = "sticky_session"
+        child.backend.adapter_model_names = dict(SPECIALIST_MODEL_NAMES)
+        child.run_name = f"{child.run_name}-sticky-session"
+        return child
+    if strategy == "cache_static":
+        child.router.policy = "cache_aware"
+        child.router.beta = 0.0
+        child.backend.adapter_model_names = dict(SPECIALIST_MODEL_NAMES)
+        child.run_name = f"{child.run_name}-cache-static"
+        return child
     if strategy == "specialists":
         child.router.policy = "cache_aware"
         child.backend.adapter_model_names = dict(SPECIALIST_MODEL_NAMES)
@@ -40,6 +56,11 @@ def apply_strategy(config: BenchmarkConfig, strategy: str) -> BenchmarkConfig:
         child.adapters.default_adapter = "multitask"
         child.backend.adapter_model_names = {"multitask": "multitask-lora"}
         child.run_name = f"{child.run_name}-multitask"
+        return child
+    if strategy == "oracle":
+        child.router.policy = "oracle"
+        child.backend.adapter_model_names = dict(SPECIALIST_MODEL_NAMES)
+        child.run_name = f"{child.run_name}-oracle"
         return child
     raise ValueError(f"Unknown sweep strategy: {strategy}")
 

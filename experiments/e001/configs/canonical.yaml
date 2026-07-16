@@ -1,0 +1,62 @@
+run_name: e001-canonical
+output_dir: artifacts/runs
+workload:
+  name: controlled_overlap
+  request_count: 120
+  sessions: 24
+  tenants: 2
+  max_tokens: 64
+  document_tokens: 240
+  shared_prefix_fraction: 0.75
+cache:
+  model: activated_lora
+  condition: warm
+  block_size: 8
+  isolation_scope: trust_group
+router:
+  policy: cache_aware
+  alpha: 0.015
+  beta: 0.001
+  gamma: 0.08
+  delta: 0.25
+  epsilon: 0.04
+backend:
+  kind: openai_compatible
+  base_url: http://localhost:8000/v1
+  api_key: EMPTY
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  temperature: 0.0
+  stream: true
+  ttft_slo_ms: 1000
+  e2e_slo_ms: 12000
+  scrape_metrics: true
+  metrics_url: http://localhost:8000/metrics
+  max_concurrency: 8
+  request_spacing_ms: 0
+  adapter_model_names:
+    qa: qa-lora
+    json: json-lora
+    summary: summary-lora
+    code: code-lora
+    multitask: multitask-lora
+  extra_body: {}
+matrix:
+  strategies: [base, semantic, sticky_session, cache_static, specialists, multitask, oracle]
+  concurrencies: [4, 8, 16]
+  workloads: [controlled_overlap]
+  caches: [activated_lora]
+  cache_conditions: [warm, prefix_disabled]
+  overlap_fractions: [0.25, 0.75, 0.95]
+  adapter_counts: [4]
+  tenants: [2]
+  isolation_scopes: [trust_group]
+  seeds: [17, 23, 31]
+  models:
+    - name: Qwen/Qwen2.5-1.5B-Instruct
+      alias: qwen25-15b
+      adapter_model_names:
+        qa: qa-lora
+        json: json-lora
+        summary: summary-lora
+        code: code-lora
+        multitask: multitask-lora

@@ -1,0 +1,40 @@
+run_name: e001-smoke
+output_dir: artifacts/runs
+workload:
+  name: controlled_overlap
+  request_count: 12
+  sessions: 4
+  tenants: 2
+  max_tokens: 32
+  document_tokens: 80
+  shared_prefix_fraction: 0.75
+cache:
+  model: activated_lora
+  condition: warm
+  block_size: 8
+  isolation_scope: trust_group
+router:
+  policy: cache_aware
+  alpha: 0.015
+  beta: 0.001
+  gamma: 0.08
+  delta: 0.25
+  epsilon: 0.04
+backend:
+  kind: mock
+  seed: 13
+  ttft_slo_ms: 180
+  e2e_slo_ms: 1200
+  max_concurrency: 2
+  request_spacing_ms: 0
+matrix:
+  strategies: [semantic, cache_static, specialists, multitask]
+  concurrencies: [2]
+  workloads: [controlled_overlap]
+  caches: [activated_lora]
+  cache_conditions: [warm, prefix_disabled]
+  overlap_fractions: [0.25, 0.75]
+  adapter_counts: [4]
+  tenants: [2]
+  isolation_scopes: [trust_group]
+  seeds: [17]

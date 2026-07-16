@@ -1,4 +1,5 @@
 from adapter_cache_bench.bench.run_concurrency_sweep import (
+    apply_strategy,
     expand_concurrency_sweep,
     expand_concurrency_sweep_children,
 )
@@ -133,6 +134,23 @@ def test_expand_concurrency_sweep_applies_cache_conditions():
     }
 
 
+def test_apply_strategy_supports_e001_baselines():
+    config = BenchmarkConfig()
+
+    semantic = apply_strategy(config, "semantic")
+    sticky = apply_strategy(config, "sticky_session")
+    cache_static = apply_strategy(config, "cache_static")
+    oracle = apply_strategy(config, "oracle")
+
+    assert semantic.router.policy == "semantic"
+    assert semantic.backend.adapter_model_names["qa"] == "qa-lora"
+    assert sticky.router.policy == "sticky_session"
+    assert sticky.backend.adapter_model_names["json"] == "json-lora"
+    assert cache_static.router.policy == "cache_aware"
+    assert cache_static.router.beta == 0.0
+    assert oracle.router.policy == "oracle"
+
+
 def test_expand_exhaustive_sweep_applies_dimensions():
     config = BenchmarkConfig(
         run_name="exhaustive",
@@ -164,6 +182,44 @@ def test_expand_exhaustive_sweep_applies_dimensions():
     assert dimensions["isolation_scope"] == "tenant"
     assert dimensions["cache_condition"] in {"warm", "prefix_disabled"}
     assert child.cache.condition in {"warm", "prefix_disabled"}
+
+
+def test_e001_smoke_config_expands_registered_controls():
+    config = load_config("experiments/e001/configs/smoke.yaml")
+    expanded = expand_exhaustive_sweep(config)
+
+    assert len(expanded) == 16
+    assert config.backend.kind == "mock"
+    assert {dimensions["strategy"] for _, dimensions in expanded} == {
+        "semantic",
+        "cache_static",
+        "specialists",
+        "multitask",
+    }
+    assert {dimensions["cache_condition"] for _, dimensions in expanded} == {
+        "warm",
+        "prefix_disabled",
+    }
+    assert {dimensions["overlap_fraction"] for _, dimensions in expanded} == {0.25, 0.75}
+
+
+def test_e001_canonical_config_expands_preregistered_baselines():
+    config = load_config("experiments/e001/configs/canonical.yaml")
+    expanded = expand_exhaustive_sweep(config)
+
+    assert len(expanded) == 378
+    assert config.backend.kind == "openai_compatible"
+    assert {dimensions["strategy"] for _, dimensions in expanded} == {
+        "base",
+        "semantic",
+        "sticky_session",
+        "cache_static",
+        "specialists",
+        "multitask",
+        "oracle",
+    }
+    assert {dimensions["concurrency"] for _, dimensions in expanded} == {4, 8, 16}
+    assert {dimensions["seed"] for _, dimensions in expanded} == {17, 23, 31}
 
 
 def test_expand_exhaustive_sweep_supports_model_dimension():
