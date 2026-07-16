@@ -34,7 +34,7 @@ def summarize(
     mean_quality = sum(response.quality.score for response in responses) / max(1, len(responses))
     adapter_distribution = Counter(response.adapter_id for response in responses)
     goodput_under_slo = len(good) / duration_s
-    quality_adjusted_goodput = goodput_under_slo * mean_quality
+    quality_adjusted_goodput = sum(response.quality.score for response in good) / duration_s
     memory_tokens = cache_model.memory_tokens()
     if requests is None:
         workload_structure = None

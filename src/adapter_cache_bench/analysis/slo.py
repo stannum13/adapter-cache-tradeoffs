@@ -26,6 +26,7 @@ def slo_sweep(
         for threshold in thresholds:
             passing = group[group["ttft_ms"] <= threshold]
             goodput = len(passing) / duration_s
+            quality_adjusted_goodput = passing["quality"].sum() / duration_s
             rows.append(
                 {
                     "run_id": run_id,
@@ -35,7 +36,7 @@ def slo_sweep(
                     "ttft_slo_ms": threshold,
                     "requests_under_slo": len(passing),
                     "goodput_under_slo": goodput,
-                    "quality_adjusted_goodput": goodput * mean_quality,
+                    "quality_adjusted_goodput": quality_adjusted_goodput,
                     "mean_quality": mean_quality,
                 }
             )

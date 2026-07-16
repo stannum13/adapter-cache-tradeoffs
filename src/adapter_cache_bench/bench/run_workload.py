@@ -89,6 +89,7 @@ def run(
         with (run_dir / "requests.jsonl").open("w", encoding="utf-8") as handle:
             for request in requests:
                 decision = router.route(request, config.adapters.adapter_ids, cache_model)
+                router.state.begin_dispatch(decision.adapter_id)
                 try:
                     response = backend.generate(request, decision, cache_model)
                 except Exception as exc:
@@ -101,6 +102,8 @@ def run(
                     handle.write(json.dumps(row) + "\n")
                     handle.flush()
                     raise
+                finally:
+                    router.state.end_dispatch(decision.adapter_id)
                 responses.append(response)
                 state.completed_request_count += 1
                 row = {

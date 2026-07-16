@@ -66,10 +66,6 @@ async def _run_async(
         cache_model = make_cache_model(config.cache)
         router = make_router(config.router)
         backend = make_backend(config.backend)
-        routed = [
-            (request, router.route(request, config.adapters.adapter_ids, cache_model))
-            for request in requests
-        ]
 
         before_metrics = scrape_backend_metrics(config, run_dir, "before")
         state.add_artifact(before_metrics)
@@ -83,30 +79,40 @@ async def _run_async(
         async def worker(
             index: int,
             request: RequestRecord,
-            decision: RoutingDecision,
-        ) -> tuple[RequestRecord, RoutingDecision, BackendResponse | None, BaseException | None]:
+        ) -> tuple[
+            RequestRecord,
+            RoutingDecision | None,
+            BackendResponse | None,
+            BaseException | None,
+        ]:
             if config.backend.request_spacing_ms > 0:
                 await asyncio.sleep(index * config.backend.request_spacing_ms / 1000.0)
+            decision: RoutingDecision | None = None
             async with semaphore:
                 try:
-                    response = await _generate_one(backend, request, decision, cache_model)
+                    decision = router.route(request, config.adapters.adapter_ids, cache_model)
+                    router.state.begin_dispatch(decision.adapter_id)
+                    try:
+                        response = await _generate_one(backend, request, decision, cache_model)
+                    finally:
+                        router.state.end_dispatch(decision.adapter_id)
                 except Exception as exc:
                     return request, decision, None, exc
                 return request, decision, response, None
 
-        tasks = [
-            asyncio.create_task(worker(index, request, decision))
-            for index, (request, decision) in enumerate(routed)
-        ]
         started = time.perf_counter()
+        tasks = [
+            asyncio.create_task(worker(index, request)) for index, request in enumerate(requests)
+        ]
         with (run_dir / "requests.jsonl").open("w", encoding="utf-8") as handle:
             for task in asyncio.as_completed(tasks):
                 request, decision, response, exc = await task
                 row = {
                     "request": request.model_dump(mode="json"),
-                    "routing": decision.model_dump(mode="json"),
                     "load": load,
                 }
+                if decision is not None:
+                    row["routing"] = decision.model_dump(mode="json")
                 if exc is None and response is not None:
                     responses.append(response)
                     state.completed_request_count += 1

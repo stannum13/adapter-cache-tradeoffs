@@ -19,6 +19,7 @@ ADAPTER_CACHE_COLUMNS = [
     "request_count",
     "prompt_tokens",
     "cached_prompt_tokens",
+    "simulated_cached_prompt_tokens",
     "benchmark_cached_prompt_ratio",
     "mean_quality",
     "mean_ttft_ms",
@@ -67,12 +68,13 @@ def build_adapter_cache_metrics(runs_dir: str | Path = "artifacts/runs") -> pd.D
             request_count=("request_id", "count"),
             prompt_tokens=("prompt_tokens", "sum"),
             cached_prompt_tokens=("cached_prompt_tokens", "sum"),
+            simulated_cached_prompt_tokens=("simulated_cached_prompt_tokens", "sum"),
             mean_quality=("quality", "mean"),
             mean_ttft_ms=("ttft_ms", "mean"),
         )
         .reset_index(drop=True)
     )
-    grouped["benchmark_cached_prompt_ratio"] = grouped["cached_prompt_tokens"] / grouped[
+    grouped["benchmark_cached_prompt_ratio"] = grouped["simulated_cached_prompt_tokens"] / grouped[
         "prompt_tokens"
     ].clip(lower=1)
 

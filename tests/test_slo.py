@@ -30,5 +30,6 @@ def test_slo_sweep_computes_goodput_at_multiple_thresholds():
     table = slo_sweep(request_df, [50.0, 100.0])
 
     assert table.loc[table["ttft_slo_ms"].eq(50.0), "requests_under_slo"].iloc[0] == 1
+    assert table.loc[table["ttft_slo_ms"].eq(50.0), "quality_adjusted_goodput"].iloc[0] == 4.0
     assert table.loc[table["ttft_slo_ms"].eq(100.0), "requests_under_slo"].iloc[0] == 2
     assert table.loc[table["ttft_slo_ms"].eq(100.0), "quality_adjusted_goodput"].iloc[0] == 9.0

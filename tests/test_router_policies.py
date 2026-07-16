@@ -1,6 +1,7 @@
 from adapter_cache_bench.cache.standard_lora_cache import StandardLoRACache
 from adapter_cache_bench.config import CacheConfig, RouterConfig
 from adapter_cache_bench.routing.base import make_router
+from adapter_cache_bench.routing.session_state import SessionState
 from adapter_cache_bench.types import RequestRecord
 
 
@@ -52,6 +53,25 @@ def test_sticky_session_reuses_compatible_adapter():
     assert first.adapter_id == second.adapter_id == "qa"
 
 
+def test_session_state_tracks_live_dispatch_load_separately_from_route_memory():
+    state = SessionState()
+
+    state.remember("s1", "qa", tenant_id="t1", trust_group_id="g1")
+    assert state.session_adapter["s1"] == "qa"
+    assert state.adapter_assignment_count["qa"] == 1
+    assert state.active_load("qa") == 0
+
+    state.begin_dispatch("qa")
+    state.begin_dispatch("qa")
+    assert state.active_load("qa") == 2
+
+    state.end_dispatch("qa")
+    assert state.active_load("qa") == 1
+    state.end_dispatch("qa")
+    state.end_dispatch("qa")
+    assert state.active_load("qa") == 0
+
+
 def test_cache_aware_can_choose_cached_adapter_when_quality_is_close():
     cache = StandardLoRACache(CacheConfig(block_size=2))
     prompt = "shared prefix <ADAPTER:qa> answer"
@@ -60,6 +80,37 @@ def test_cache_aware_can_choose_cached_adapter_when_quality_is_close():
     request.prompt = prompt
     router = make_router(RouterConfig(policy="cache_aware", alpha=0.10, epsilon=0.0))
     decision = router.route(request, ["qa", "multitask"], cache)
+    assert decision.adapter_id == "multitask"
+    assert decision.simulated_cached_prefix_tokens == decision.estimated_cached_prefix_tokens
+
+
+def test_cache_aware_queue_penalty_uses_live_dispatch_load_only():
+    cache = StandardLoRACache(CacheConfig(block_size=2))
+    state = SessionState(adapter_load={"qa": 2})
+    router = make_router(
+        RouterConfig(policy="cache_aware", alpha=0.0, beta=1.0, gamma=0.0, epsilon=0.0),
+        state,
+    )
+
+    decision = router.route(_request("qa"), ["qa", "multitask"], cache)
+
+    assert decision.adapter_id == "multitask"
+    assert state.active_load("qa") == 2
+
+
+def test_cache_aware_penalizes_cross_trust_group_reuse():
+    cache = StandardLoRACache(CacheConfig(block_size=2, isolation_scope="trust_group"))
+    state = SessionState()
+    state.remember("s1", "qa", tenant_id="t1", trust_group_id="g1")
+    router = make_router(
+        RouterConfig(policy="cache_aware", alpha=0.0, beta=0.0, gamma=0.0, delta=10.0),
+        state,
+    )
+    request = _request("qa", session="s2")
+    request.trust_group_id = "g2"
+
+    decision = router.route(request, ["qa", "multitask"], cache)
+
     assert decision.adapter_id == "multitask"
 
 

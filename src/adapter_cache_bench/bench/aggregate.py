@@ -247,6 +247,10 @@ def layout_ablation_means(request_df: pd.DataFrame) -> pd.DataFrame:
     layout_rows = request_df[request_df["workload"].eq("prompt_layout_ablation")]
     if layout_rows.empty:
         return pd.DataFrame()
+    if "simulated_cached_prompt_tokens" not in layout_rows:
+        layout_rows = layout_rows.assign(
+            simulated_cached_prompt_tokens=layout_rows["cached_prompt_tokens"]
+        )
     return (
         layout_rows.groupby(["prompt_layout", "cache_model"], as_index=False)
         .agg(
@@ -254,6 +258,7 @@ def layout_ablation_means(request_df: pd.DataFrame) -> pd.DataFrame:
             e2e_ms=("e2e_ms", "mean"),
             quality=("quality", "mean"),
             cached_prompt_tokens=("cached_prompt_tokens", "mean"),
+            simulated_cached_prompt_tokens=("simulated_cached_prompt_tokens", "mean"),
             prompt_tokens=("prompt_tokens", "mean"),
         )
         .sort_values(["prompt_layout", "cache_model"])
@@ -339,6 +344,10 @@ def load_request_rows(runs_dir: str | Path) -> pd.DataFrame:
                         "ttft_ms": metrics["ttft_ms"],
                         "e2e_ms": metrics["e2e_ms"],
                         "cached_prompt_tokens": metrics["cached_prompt_tokens"],
+                        "simulated_cached_prompt_tokens": metrics.get(
+                            "simulated_cached_prompt_tokens",
+                            metrics["cached_prompt_tokens"],
+                        ),
                         "prompt_tokens": metrics["prompt_tokens"],
                         "quality": quality["score"],
                     }

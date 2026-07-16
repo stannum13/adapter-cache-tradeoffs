@@ -57,6 +57,7 @@ def test_report_generation_from_summary(tmp_path):
     assert "Simulator regime map" in text
     assert "### Decision rule" in text
     assert "### Interpretation" in text
+    assert "Request-level `simulated_cached_*` fields" in text
     assert "Generated table artifact paths:" in text
     assert "model or adapter specialization" in text
     assert (tmp_path / "tables" / "summaries.csv").exists()

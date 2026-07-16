@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class RequestRecord(BaseModel):
@@ -27,11 +27,21 @@ class RoutingDecision(BaseModel):
     score: float = 0.0
     reason: str = ""
     estimated_cached_prefix_tokens: int = 0
+    simulated_cached_prefix_tokens: int | None = None
+
+    @model_validator(mode="after")
+    def populate_simulated_prefix_alias(self):
+        if self.simulated_cached_prefix_tokens is None:
+            self.simulated_cached_prefix_tokens = self.estimated_cached_prefix_tokens
+        elif self.estimated_cached_prefix_tokens == 0:
+            self.estimated_cached_prefix_tokens = self.simulated_cached_prefix_tokens
+        return self
 
 
 class RequestMetrics(BaseModel):
     prompt_tokens: int
     cached_prompt_tokens: int
+    simulated_cached_prompt_tokens: int | None = None
     uncached_prompt_tokens: int
     prefill_ms: float
     decode_ms: float
@@ -41,6 +51,14 @@ class RequestMetrics(BaseModel):
     tpot_ms: float
     e2e_ms: float
     output_tokens: int
+
+    @model_validator(mode="after")
+    def populate_simulated_prompt_alias(self):
+        if self.simulated_cached_prompt_tokens is None:
+            self.simulated_cached_prompt_tokens = self.cached_prompt_tokens
+        elif self.cached_prompt_tokens == 0:
+            self.cached_prompt_tokens = self.simulated_cached_prompt_tokens
+        return self
 
 
 class QualityResult(BaseModel):

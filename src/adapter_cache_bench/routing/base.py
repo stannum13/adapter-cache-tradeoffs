@@ -27,7 +27,12 @@ class RouterPolicy(ABC):
         self, request: RequestRecord, adapter_ids: list[str], cache_model: CacheModel
     ) -> RoutingDecision:
         decision = self.choose(request, adapter_ids, cache_model)
-        self.state.remember(request.session_id, decision.adapter_id)
+        self.state.remember(
+            request.session_id,
+            decision.adapter_id,
+            tenant_id=request.tenant_id,
+            trust_group_id=request.trust_group_id,
+        )
         return decision
 
 

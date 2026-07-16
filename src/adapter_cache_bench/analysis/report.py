@@ -427,7 +427,13 @@ def generate_report(
     )
     layout_lines = _markdown_table(
         layouts.head(12).to_dict("records") if not layouts.empty else [],
-        ["prompt_layout", "cache_model", "ttft_ms", "quality", "cached_prompt_tokens"],
+        [
+            "prompt_layout",
+            "cache_model",
+            "ttft_ms",
+            "quality",
+            "simulated_cached_prompt_tokens",
+        ],
     )
     pareto_lines = _markdown_table(
         pareto.head(12).to_dict("records") if not pareto.empty else [],
@@ -488,6 +494,11 @@ def generate_report(
         "behavior from GPU and serving noise. Real model-server runs use the same",
         "JSONL workloads with `backend.kind: vllm` or another OpenAI-compatible",
         "backend.",
+        "",
+        "Request-level `simulated_cached_*` fields come from the benchmark cache",
+        "model's whitespace-token prefix simulation. Measured server cache telemetry",
+        "is reported only in `server_prefix_cache_*` summary columns when a backend",
+        "metrics scrape is available.",
         "",
         "### Evidence classes",
         "",

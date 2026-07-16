@@ -19,6 +19,7 @@ def test_mock_backend_returns_metrics_and_observes_cache():
     response = MockBackend().generate(request, decision, cache)
     assert response.metrics.prompt_tokens == 5
     assert response.metrics.uncached_prompt_tokens == 5
+    assert response.metrics.simulated_cached_prompt_tokens == response.metrics.cached_prompt_tokens
     assert response.quality.score > 0.7
     assert cache.estimate_cached_prefix_tokens("qa", request.prompt, "t1", "g1") == 5
 
@@ -39,5 +40,6 @@ def test_mock_backend_respects_prefix_disabled_cache_condition():
     response = MockBackend().generate(request, decision, cache)
 
     assert response.metrics.cached_prompt_tokens == 0
+    assert response.metrics.simulated_cached_prompt_tokens == 0
     assert response.metrics.uncached_prompt_tokens == response.metrics.prompt_tokens
     assert cache.memory_tokens() == 0

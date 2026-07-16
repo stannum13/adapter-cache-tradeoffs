@@ -1,5 +1,6 @@
 import importlib
 import json
+import time
 
 import pytest
 
@@ -25,6 +26,7 @@ from adapter_cache_bench.config import (
     RouterConfig,
     WorkloadConfig,
 )
+from adapter_cache_bench.types import RequestRecord
 
 
 def test_benchmark_run_writes_artifacts(tmp_path):
@@ -287,6 +289,81 @@ def test_concurrent_benchmark_run_writes_artifacts(tmp_path):
     assert summary["request_throughput"] > 0.0
     assert manifest["max_concurrency"] == 3
     assert first_row["load"]["max_concurrency"] == 3
+
+
+def test_concurrent_benchmark_routes_against_live_dispatch_load(tmp_path, monkeypatch):
+    run_concurrent_module = importlib.import_module("adapter_cache_bench.bench.run_concurrent")
+    requests = [
+        RequestRecord(
+            request_id="r1",
+            session_id="s1",
+            tenant_id="t1",
+            trust_group_id="g1",
+            task_type="qa",
+            prompt="shared document <ADAPTER:qa> question one",
+            expected_adapter="qa",
+        ),
+        RequestRecord(
+            request_id="r2",
+            session_id="s2",
+            tenant_id="t1",
+            trust_group_id="g1",
+            task_type="qa",
+            prompt="shared document <ADAPTER:qa> question two",
+            expected_adapter="qa",
+        ),
+    ]
+
+    class SlowBackend:
+        def __init__(self, config):
+            self.inner = MockBackend(config)
+
+        def generate(self, request, decision, cache_model):
+            time.sleep(0.05)
+            return self.inner.generate(request, decision, cache_model)
+
+    monkeypatch.setattr(
+        run_concurrent_module,
+        "generate_workload",
+        lambda workload_config, cache_config: requests,
+    )
+    monkeypatch.setattr(
+        run_concurrent_module,
+        "make_backend",
+        lambda backend_config: SlowBackend(backend_config),
+    )
+    config = BenchmarkConfig(
+        run_name="concurrent-live-load",
+        output_dir=str(tmp_path),
+        workload=WorkloadConfig(name="shared_doc_qa", request_count=2, document_tokens=16),
+        cache=CacheConfig(block_size=2),
+        router=RouterConfig(
+            policy="cache_aware",
+            alpha=0.0,
+            beta=1.0,
+            gamma=0.0,
+            delta=0.0,
+            epsilon=0.0,
+        ),
+        backend=BackendConfig(kind="mock", max_concurrency=2),
+    )
+
+    run_dir = run_concurrent_module.run_concurrent(
+        config,
+        run_id="unit-concurrent-live-load",
+        report_path=tmp_path / "report.md",
+        tables_dir=tmp_path / "tables",
+        generate_report_artifacts=False,
+    )
+
+    rows = [
+        json.loads(line)
+        for line in (run_dir / "requests.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    adapter_ids = {row["routing"]["adapter_id"] for row in rows}
+    assert adapter_ids == {"qa", "multitask"}
+    assert all("simulated_cached_prefix_tokens" in row["routing"] for row in rows)
+    assert all("simulated_cached_prompt_tokens" in row["response"]["metrics"] for row in rows)
 
 
 def test_concurrent_benchmark_streams_error_rows_and_failed_status(tmp_path, monkeypatch):
